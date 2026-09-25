@@ -5,7 +5,7 @@
  */
 
 import { DOCUMENTOS_REALES, URL_ORIGEN_CSV } from './data.js?v=11.6.31';
-import { cacheService } from './cache-service.js?v=11.6.60';
+import { cacheService } from './cache-service.js?v=11.6.61';
 
 
 export const MAPA_NORMALIZACION_AREAS = {

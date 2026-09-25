@@ -6,9 +6,9 @@
  * registro seguro de contraseñas en usuarios.conf y persistencia de sesión.
  */
 
-import { EMPLEADOS_ACTIVOS_BASE } from './staff-data.js?v=11.6.46';
+import { EMPLEADOS_ACTIVOS_BASE } from './staff-data.js?v=11.6.61';
 import { DOCUMENTOS_REALES } from './data.js?v=11.6.46';
-import { cacheService } from './cache-service.js?v=11.6.60';
+import { cacheService } from './cache-service.js?v=11.6.61';
 
 const STORAGE_KEY_AUTH_SESSION = 'agy_sgc_authenticated_session';
 const STORAGE_KEY_REMEMBERED_USER = 'agy_sgc_remembered_user';
@@ -74,6 +74,7 @@ export class StaffService {
       if (cacheConf) {
         this.configuracion = JSON.parse(cacheConf);
         delete this.configuracion.historicoDocumental;
+        this.sanitizarConfiguracionPerfiles();
       }
       const cacheAud = localStorage.getItem(STORAGE_KEY_AUDITORIA_CACHE);
       if (cacheAud) {
@@ -121,6 +122,7 @@ export class StaffService {
             ...(conf.usuariosRegistrados || {})
           }
         };
+        this.sanitizarConfiguracionPerfiles();
       }
       if (aud && Array.isArray(aud.registroAuditoria) && aud.registroAuditoria.length > 0) {
         this.auditoriaData = {
@@ -537,6 +539,8 @@ export class StaffService {
       this.aplicarHistorico(json.historicoDocumental);
     }
 
+    this.sanitizarConfiguracionPerfiles();
+
     try {
       localStorage.setItem(STORAGE_KEY_CONF_CACHE, JSON.stringify(this.configuracion));
       cacheService.guardarColeccion('configuracion', this.configuracion);
@@ -905,46 +909,144 @@ export class StaffService {
   }
 
   /**
+   * Sanea configuraciones persistidas para asegurar que ningún líder ni personal administrativo
+   * figure erróneamente con perfil directivo. Los directivos corresponden únicamente a directores y gerentes.
+   */
+  sanitizarConfiguracionPerfiles() {
+    if (!this.configuracion) return;
+
+    const esCargoDirectivo = (cargo) => {
+      const c = (cargo || '').toLowerCase();
+      return (
+        c.includes('director') ||
+        c.includes('directora') ||
+        c.includes('gerente') ||
+        c.includes('subdirector') ||
+        c.includes('subgerente')
+      );
+    };
+
+    const esCargoLiderOAdmin = (cargo) => {
+      const c = (cargo || '').toLowerCase();
+      return (
+        c.includes('lider') ||
+        c.includes('líder') ||
+        c.includes('analista') ||
+        c.includes('coordinador') ||
+        c.includes('coordinadora') ||
+        c.includes('comunicador') ||
+        c.includes('gesis') ||
+        c.includes('administrati') ||
+        c.includes('financier') ||
+        c.includes('tecnolog') ||
+        c.includes('organizacional') ||
+        (c.includes('auxiliar') && !c.includes('salud') && !c.includes('enfermeria'))
+      );
+    };
+
+    let huboCambios = false;
+
+    // Sanear mapeoPerfilesPersonalizados
+    if (this.configuracion.mapeoPerfilesPersonalizados) {
+      for (const [doc, perf] of Object.entries(this.configuracion.mapeoPerfilesPersonalizados)) {
+        if (perf === 'directivo') {
+          const emp = this.empleados.find((e) => this.limpiarNumeros(e.identificacion) === doc);
+          const reg = this.configuracion.usuariosRegistrados?.[doc];
+          const cargo = (emp?.cargo || reg?.cargo || '').toLowerCase();
+          if (esCargoLiderOAdmin(cargo) && !esCargoDirectivo(cargo)) {
+            this.configuracion.mapeoPerfilesPersonalizados[doc] = 'administrativo';
+            huboCambios = true;
+          }
+        }
+      }
+    }
+
+    // Sanear usuariosRegistrados
+    if (this.configuracion.usuariosRegistrados) {
+      for (const [doc, u] of Object.entries(this.configuracion.usuariosRegistrados)) {
+        if (u && u.perfil === 'directivo') {
+          const emp = this.empleados.find((e) => this.limpiarNumeros(e.identificacion) === doc);
+          const cargo = (emp?.cargo || u.cargo || '').toLowerCase();
+          if (esCargoLiderOAdmin(cargo) && !esCargoDirectivo(cargo)) {
+            u.perfil = 'administrativo';
+            huboCambios = true;
+          }
+        }
+      }
+    }
+
+    if (huboCambios) {
+      try {
+        localStorage.setItem(STORAGE_KEY_CONF_CACHE, JSON.stringify(this.configuracion));
+        cacheService.guardarColeccion('configuracion', this.configuracion);
+      } catch { }
+    }
+  }
+
+  /**
    * Determina automáticamente el perfil (directivo, administrativo, operativo, total) según el cargo o asignaciones especiales
+   * Política institucional:
+   * - Acceso Total: 8160602 o explícito
+   * - Directivo: Exclusivamente directores, directoras, gerentes o subdirectores
+   * - Administrativo: Todos los líderes (asistenciales, médicos, tecnología, finanzas, cumplimiento, etc.), analistas, auxiliares administrativos, TIC, GH, comunicadores
+   * - Operativo: Médicos, especialistas y auxiliares de salud asistenciales
    */
   determinarPerfil(cargo, identificacion) {
     const docClean = this.limpiarNumeros(identificacion);
+    const cNorm = (cargo || '').toLowerCase();
+    const esDirectivoReal =
+      cNorm.includes('director') ||
+      cNorm.includes('directora') ||
+      cNorm.includes('gerente') ||
+      cNorm.includes('subdirector') ||
+      cNorm.includes('subgerente');
+    const esLiderOAdmin =
+      cNorm.includes('lider') ||
+      cNorm.includes('líder') ||
+      cNorm.includes('analista') ||
+      cNorm.includes('coordinador') ||
+      cNorm.includes('auxiliar');
+
     if (docClean) {
       if (docClean === '8160602') {
         return 'total';
       }
-      if (this.configuracion?.mapeoPerfilesPersonalizados?.[docClean]) {
-        return this.configuracion.mapeoPerfilesPersonalizados[docClean];
+      const perfPers = this.configuracion?.mapeoPerfilesPersonalizados?.[docClean];
+      if (perfPers) {
+        if (perfPers === 'directivo' && esLiderOAdmin && !esDirectivoReal) {
+          return 'administrativo';
+        }
+        return perfPers;
       }
-      if (this.configuracion?.usuariosRegistrados?.[docClean]?.perfil) {
-        return this.configuracion.usuariosRegistrados[docClean].perfil;
+      const perfReg = this.configuracion?.usuariosRegistrados?.[docClean]?.perfil;
+      if (perfReg) {
+        if (perfReg === 'directivo' && esLiderOAdmin && !esDirectivoReal) {
+          return 'administrativo';
+        }
+        return perfReg;
       }
     }
 
-    const cNorm = (cargo || '').toLowerCase();
-
-    // Perfil Directivo 👑
-    if (
-      cNorm.includes('director') ||
-      cNorm.includes('gerente') ||
-      cNorm.includes('cumplimiento organizacional') ||
-      cNorm.includes('lider financiero') ||
-      cNorm.includes('lider de tecnologia') ||
-      cNorm.includes('lider gestion asistencial')
-    ) {
+    // Perfil Directivo 👑: EXCLUSIVAMENTE cargos directivos
+    if (esDirectivoReal) {
       return 'directivo';
     }
 
-    // Perfil Administrativo 💼
+    // Perfil Administrativo 💼: Todos los líderes de operación/área y cargos administrativos
     if (
+      cNorm.includes('lider') ||
+      cNorm.includes('líder') ||
       cNorm.includes('analista') ||
-      cNorm.includes('auxiliar contable') ||
-      cNorm.includes('auxiliar finanzas') ||
-      cNorm.includes('auxiliar gestion humana') ||
-      cNorm.includes('auxiliar tic') ||
-      cNorm.includes('comunicadora') ||
+      cNorm.includes('coordinador') ||
+      cNorm.includes('coordinadora') ||
+      cNorm.includes('comunicador') ||
       cNorm.includes('gesis') ||
-      cNorm.includes('lider gestion humana')
+      cNorm.includes('administrati') ||
+      cNorm.includes('financier') ||
+      cNorm.includes('tecnolog') ||
+      cNorm.includes('organizacional') ||
+      (cNorm.includes('auxiliar') && !cNorm.includes('salud') && !cNorm.includes('enfermeria')) ||
+      (cNorm.includes('profesional') && !cNorm.includes('salud') && !cNorm.includes('medico'))
     ) {
       return 'administrativo';
     }
