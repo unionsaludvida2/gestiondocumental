@@ -5,7 +5,7 @@
  */
 
 import { DOCUMENTOS_REALES, URL_ORIGEN_CSV } from './data.js?v=11.6.31';
-import { cacheService } from './cache-service.js?v=11.6.57';
+import { cacheService } from './cache-service.js?v=11.6.60';
 
 
 export const MAPA_NORMALIZACION_AREAS = {
@@ -308,8 +308,8 @@ export class DataService {
    */
   async descargarCsvEnVivo(forzarRefresco = false) {
     const timestamp = Date.now();
-    const queryOD = forzarRefresco ? `?_t=${timestamp}&forzar=true` : '';
-    const queryGS = forzarRefresco ? `?_t=${timestamp}&forzar=true` : '';
+    const queryOD = `?_t=${timestamp}${forzarRefresco ? '&forzar=true' : ''}`;
+    const queryGS = `?_t=${timestamp}${forzarRefresco ? '&forzar=true' : ''}`;
     let textoOneDrive = null;
     let textoGoogleSheets = null;
 
@@ -317,7 +317,7 @@ export class DataService {
     try {
       const responseOD = await fetch(`/api/repositorio${queryOD}`, {
         method: 'GET',
-        cache: forzarRefresco ? 'no-store' : 'default',
+        cache: 'no-cache',
         signal: AbortSignal.timeout ? AbortSignal.timeout(5000) : undefined
       });
 
@@ -334,7 +334,7 @@ export class DataService {
     if (!textoOneDrive) {
       try {
         const respLocal = await fetch(`REPOSITORIO_DOCUMENTAL.csv${queryOD}`, {
-          cache: forzarRefresco ? 'no-store' : 'default',
+          cache: 'no-cache',
           signal: AbortSignal.timeout ? AbortSignal.timeout(3000) : undefined
         });
         if (respLocal.ok) {
@@ -350,7 +350,7 @@ export class DataService {
     try {
       const responseGS = await fetch(`/api/biblioteca${queryGS}`, {
         method: 'GET',
-        cache: forzarRefresco ? 'no-store' : 'default',
+        cache: 'no-cache',
         signal: AbortSignal.timeout ? AbortSignal.timeout(6000) : undefined
       });
       if (responseGS.ok) {
@@ -363,9 +363,9 @@ export class DataService {
 
     if (!textoGoogleSheets) {
       try {
-        const urlDirectaGS = 'https://docs.google.com/spreadsheets/d/1EOcucjQV4byUOp_AAfd1ySHk4tVdFmMeOoOQsSBbEa4/export?format=csv';
+        const urlDirectaGS = `https://docs.google.com/spreadsheets/d/1EOcucjQV4byUOp_AAfd1ySHk4tVdFmMeOoOQsSBbEa4/export?format=csv&_t=${timestamp}`;
         const respDirecta = await fetch(urlDirectaGS, {
-          cache: 'no-store',
+          cache: 'no-cache',
           signal: AbortSignal.timeout ? AbortSignal.timeout(5000) : undefined
         });
         if (respDirecta.ok) {
@@ -379,12 +379,13 @@ export class DataService {
 
     // 3. Parsear mapa técnico de OneDrive (9 columnas)
     const onedriveMap = textoOneDrive ? this.parsearOneDriveMap(textoOneDrive) : new Map();
+    this._ultimoOnedriveMap = onedriveMap;
 
     // 4. Si tenemos Google Sheets, parsear híbrido
     if (textoGoogleSheets) {
       let docsHibridos = this.parsearGoogleSheetsHibrido(textoGoogleSheets, onedriveMap);
       if (docsHibridos && docsHibridos.length > 0) {
-        docsHibridos = this.incorporarDocumentosCreados(docsHibridos);
+        docsHibridos = this.incorporarDocumentosCreados(docsHibridos, onedriveMap);
         this.documentosEnMemoria = docsHibridos;
         console.log(`[DataService] ✅ ${docsHibridos.length} documentos sincronizados desde Biblioteca (Google Sheets) y OneDrive.`);
         return docsHibridos;
@@ -412,7 +413,44 @@ export class DataService {
           estado: Boolean(od.downloadUrl || od.sharepointUrl || docBase.downloadUrl) ? 'DISPONIBLE' : 'NO DISPONIBLE'
         };
       });
-      fusionados = this.incorporarDocumentosCreados(fusionados);
+
+      // Incorporar también registros de onedriveMap que no estén en DOCUMENTOS_REALES
+      const codigosReales = new Set(DOCUMENTOS_REALES.map((d) => (d.codigo || '').toUpperCase()));
+      onedriveMap.forEach((od, cod) => {
+        if (!codigosReales.has(cod)) {
+          fusionados.push({
+            id: cod,
+            codigo: cod,
+            titulo: od.titulo || cod,
+            formato: od.formato || 'Word',
+            extension: od.extension || 'DOC',
+            estado: 'DISPONIBLE',
+            disponible: true,
+            descargable: true,
+            permisoOperativo: true,
+            permisoAdministrativo: true,
+            permisoDirectivo: true,
+            estadoDocumento: 'Activo',
+            tipoProceso: od.tipoProceso || 'Estratégicos',
+            area: od.area || 'Gestión Integral Calidad',
+            proceso: od.proceso || 'Gestión Integral de Calidad',
+            carpeta: od.carpeta || od.proceso || 'Formatos',
+            tipoDocumento: od.tipoDocumento || 'Formato',
+            modificacion: od.modificacion || 'N/A',
+            version: '01',
+            vigencia: '25/9/2026',
+            tiempoRetencion: '5 Años',
+            lugar: 'Archivo Digital',
+            fechaVencimiento: '',
+            tipoCambio: 'Creación del documento',
+            descripcion: `${od.tipoDocumento || 'Formato'} para ${od.area || 'Calidad'}.`,
+            sharepointUrl: od.sharepointUrl,
+            downloadUrl: od.downloadUrl
+          });
+        }
+      });
+
+      fusionados = this.incorporarDocumentosCreados(fusionados, onedriveMap);
       this.documentosEnMemoria = fusionados;
       return fusionados;
     }
@@ -795,6 +833,73 @@ export class DataService {
       });
     }
 
+    // 8. Incorporar cualquier documento de onedriveMap que tenga URLs activas pero no esté aún en filas de Google Sheets
+    if (onedriveMap && onedriveMap.size > 0) {
+      const codigosEnFilas = new Set(filas.map((f) => (f.codigo || '').trim().toUpperCase()));
+      let extraIdx = filas.length + 1;
+      onedriveMap.forEach((od, cod) => {
+        const codUpper = (cod || '').trim().toUpperCase();
+        if (codUpper && !codigosEnFilas.has(codUpper)) {
+          const tieneUrl = Boolean(
+            (od.sharepointUrl && od.sharepointUrl.trim() !== '' && od.sharepointUrl !== '#') ||
+            (od.downloadUrl && od.downloadUrl.trim() !== '' && od.downloadUrl !== '#')
+          );
+          if (tieneUrl) {
+            const rawExt = (od.extension || '').toUpperCase();
+            const esExcel = rawExt.includes('XLS') || rawExt.includes('CSV') || (od.downloadUrl && od.downloadUrl.toLowerCase().includes('.xlsx'));
+            const esFMT = esDocumentoFMT(codUpper);
+            let formato = 'PDF';
+            let extension = 'PDF';
+            if (esExcel) {
+              formato = 'Excel';
+              extension = 'XLS';
+            } else if (esFMT) {
+              formato = 'Word';
+              extension = 'DOC';
+            }
+            const tipoDoc = normalizarTipoDocumentoDoc(od.tipoDocumento || '', codUpper);
+            const area = normalizarAreaDoc(od.area || '', codUpper);
+            const proceso = od.proceso || area;
+            const tipoProceso = normalizarTipoProcesoDoc(od.tipoProceso || '', area, codUpper);
+
+            filas.push({
+              id: `doc-${String(extraIdx++).padStart(3, '0')}`,
+              codigo: codUpper,
+              titulo: od.titulo || codUpper,
+              formato: formato,
+              extension: extension,
+              estado: 'DISPONIBLE',
+              disponible: true,
+              descargable: true,
+              permisoOperativo: true,
+              permisoAdministrativo: true,
+              permisoDirectivo: true,
+              estadoDocumento: 'Activo',
+              tipoProceso: tipoProceso,
+              area: area,
+              proceso: proceso,
+              carpeta: proceso,
+              tipoDocumento: tipoDoc,
+              modificacion: od.modificacion || 'N/A',
+              version: '01',
+              vigencia: '25/9/2026',
+              tiempoRetencion: '5 Años',
+              tiempo: '5 Años',
+              tiempoVigencia: '5 Años',
+              lugar: 'Archivo Digital',
+              lugarArchivo: 'Archivo Digital',
+              fechaVencimiento: '',
+              tipoCambio: 'Creación del documento',
+              descripcion: `${tipoDoc} para ${area} dentro del proceso ${proceso}.`,
+              sharepointUrl: od.sharepointUrl || '',
+              downloadUrl: od.downloadUrl || od.sharepointUrl || ''
+            });
+            codigosEnFilas.add(codUpper);
+          }
+        }
+      });
+    }
+
     return filas;
   }
 
@@ -1167,7 +1272,7 @@ export class DataService {
   obtenerUrlCarpetaUbicacion(doc) {
     if (!doc) return null;
     const url = (doc.sharepointUrl || doc.downloadUrl || '').trim();
-    if (url && url !== '#' && url !== '' && url.includes('/Documentos compartidos/')) {
+    if (url && url.startsWith('http') && (url.includes('/Documentos compartidos/') || url.includes('/Shared Documents/'))) {
       try {
         const urlLimpia = url.split('?')[0];
         const ultimaBarra = urlLimpia.lastIndexOf('/');
@@ -1185,10 +1290,10 @@ export class DataService {
   abrirCarpetaUbicacion(doc) {
     if (!doc) return;
     const urlCarpeta = this.obtenerUrlCarpetaUbicacion(doc);
-    if (urlCarpeta && urlCarpeta !== '#' && urlCarpeta !== '') {
+    if (urlCarpeta && urlCarpeta.startsWith('http')) {
       window.open(urlCarpeta, '_blank');
     } else {
-      alert(`El documento ${doc.codigo || ''} no tiene una ruta de carpeta configurada en SharePoint.`);
+      alert(`El documento ${doc.codigo || ''} no tiene una ruta configurada en el repositorio de SharePoint.`);
     }
   }
 
@@ -1197,14 +1302,15 @@ export class DataService {
   }
 
   obtenerRutaLegible(doc) {
-    if (!doc) return null;
+    if (!doc) return 'No se encuentra disponible';
     const url = (doc.sharepointUrl || doc.downloadUrl || '').trim();
-    if (url && url.includes('/Documentos compartidos/')) {
+    if (url && url.startsWith('http') && (url.includes('/Documentos compartidos/') || url.includes('/Shared Documents/'))) {
       try {
         const decoded = decodeURIComponent(url.split('?')[0]);
-        const idx = decoded.indexOf('/Documentos compartidos/');
+        const marker = decoded.includes('/Documentos compartidos/') ? '/Documentos compartidos/' : '/Shared Documents/';
+        const idx = decoded.indexOf(marker);
         if (idx !== -1) {
-          const fullRel = decoded.substring(idx + '/Documentos compartidos/'.length);
+          const fullRel = decoded.substring(idx + marker.length);
           const lastSlash = fullRel.lastIndexOf('/');
           if (lastSlash > 0) {
             return fullRel.substring(0, lastSlash);
@@ -1214,12 +1320,42 @@ export class DataService {
         console.warn('[sharepointService] Error extrayendo ruta de URL:', e);
       }
     }
-    return null;
+    // POLÍTICA INSTITUCIONAL ESTRICTA:
+    // Si el documento no posee enlace directo en el REPOSITORIO_DOCUMENTAL.csv publicado en SharePoint,
+    // NO se calcula ninguna ruta artificial ni teórica; se informa estrictamente que no se encuentra disponible.
+    return 'No se encuentra disponible';
   }
 
-  incorporarDocumentosCreados(listaDocs) {
+  incorporarDocumentosCreados(listaDocs, onedriveMap = null) {
     if (!Array.isArray(listaDocs)) return [];
-    const codigosExistentes = new Set(listaDocs.map((d) => (d.codigo || '').trim().toUpperCase()));
+    const mapOD = onedriveMap || this._ultimoOnedriveMap || null;
+
+    // 1. Enriquecer los documentos que ya están en listaDocs con datos de OneDrive si tienen URLs disponibles
+    const docsEnriquecidos = listaDocs.map((doc) => {
+      const codUpper = (doc.codigo || '').trim().toUpperCase();
+      const od = mapOD?.get(codUpper);
+      if (od) {
+        const tieneEnlaceOD = Boolean(
+          (od.downloadUrl && od.downloadUrl.trim() !== '' && od.downloadUrl !== '#' && od.downloadUrl !== 'N/A') ||
+          (od.sharepointUrl && od.sharepointUrl.trim() !== '' && od.sharepointUrl !== '#' && od.sharepointUrl !== 'N/A')
+        );
+        if (tieneEnlaceOD) {
+          const spUrl = od.sharepointUrl || doc.sharepointUrl || '';
+          const dlUrl = od.downloadUrl || doc.downloadUrl || spUrl;
+          return {
+            ...doc,
+            sharepointUrl: spUrl,
+            downloadUrl: dlUrl,
+            modificacion: od.modificacion && od.modificacion !== 'N/A' ? od.modificacion : doc.modificacion,
+            disponible: true,
+            estado: 'DISPONIBLE'
+          };
+        }
+      }
+      return doc;
+    });
+
+    const codigosExistentes = new Set(docsEnriquecidos.map((d) => (d.codigo || '').trim().toUpperCase()));
 
     let creadosConf = {};
     try {
@@ -1243,27 +1379,28 @@ export class DataService {
     Object.entries(todosCreados).forEach(([cod, docObj]) => {
       const codUpper = cod.trim().toUpperCase();
       if (!codigosExistentes.has(codUpper) && docObj) {
-        const spUrl = docObj.sharepointUrl || '';
-        const dlUrl = docObj.downloadUrl || spUrl;
+        const od = mapOD?.get(codUpper);
+        const spUrl = od?.sharepointUrl || docObj.sharepointUrl || '';
+        const dlUrl = od?.downloadUrl || docObj.downloadUrl || spUrl;
         const tieneEnlaceActivo = Boolean(
           (dlUrl && dlUrl.trim() !== '' && dlUrl !== '#' && dlUrl !== 'N/A') ||
           (spUrl && spUrl.trim() !== '' && spUrl !== '#' && spUrl !== 'N/A')
         );
-        const estaDisponible = (docObj.disponible !== false) && tieneEnlaceActivo;
+        const estaDisponible = (docObj.disponible !== false && tieneEnlaceActivo) || Boolean(od && tieneEnlaceActivo);
 
         nuevosParaAgregar.push({
           id: codUpper,
           codigo: codUpper,
-          titulo: docObj.titulo || docObj.nombre || 'Documento Institucional',
+          titulo: od?.titulo || docObj.titulo || docObj.nombre || 'Documento Institucional',
           version: docObj.version || '01',
           estado: estaDisponible ? 'DISPONIBLE' : 'NO DISPONIBLE',
-          area: docObj.area || 'Gestión Integral Calidad',
-          tipoProceso: docObj.tipoProceso || 'Estratégicos',
-          proceso: docObj.proceso || 'Gestión Integral de Calidad',
-          carpeta: docObj.carpeta || 'N/A',
-          tipoDocumento: docObj.tipoDocumento || 'Instructivo',
-          formato: docObj.formato || 'Word',
-          extension: docObj.extension || 'DOC',
+          area: od?.area || docObj.area || 'Gestión Integral Calidad',
+          tipoProceso: od?.tipoProceso || docObj.tipoProceso || 'Estratégicos',
+          proceso: od?.proceso || docObj.proceso || 'Gestión Integral de Calidad',
+          carpeta: od?.carpeta || docObj.carpeta || 'N/A',
+          tipoDocumento: od?.tipoDocumento || docObj.tipoDocumento || 'Instructivo',
+          formato: od?.formato || docObj.formato || 'Word',
+          extension: od?.extension || docObj.extension || 'DOC',
           tiempoVigencia: docObj.tiempoVigencia || '5 Años',
           descargable: docObj.descargable !== false,
           disponible: estaDisponible,
@@ -1272,12 +1409,12 @@ export class DataService {
           permisoOperativo: docObj.permisoOperativo !== false,
           sharepointUrl: spUrl,
           downloadUrl: dlUrl,
-          modificacion: docObj.modificacion || new Date().toISOString().replace('T', ' ').substring(0, 19)
+          modificacion: od?.modificacion || docObj.modificacion || new Date().toISOString().replace('T', ' ').substring(0, 19)
         });
       }
     });
 
-    return [...nuevosParaAgregar, ...listaDocs];
+    return [...nuevosParaAgregar, ...docsEnriquecidos];
   }
 
   /**

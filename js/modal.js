@@ -3,8 +3,8 @@
  * Unión para la salud y la vida S.A.S.
  */
 
-import { sharepointService, determinarEstrategiaDescarga, esDocumentoFMT } from './sharepoint-service.js?v=11.6.57';
-import { staffService } from './staff-service.js?v=11.6.57';
+import { sharepointService, determinarEstrategiaDescarga, esDocumentoFMT } from './sharepoint-service.js?v=11.6.60';
+import { staffService } from './staff-service.js?v=11.6.60';
 
 const STORAGE_KEY_USER_PROFILE = 'agy_user_profile';
 
@@ -417,19 +417,36 @@ export class ModalManager {
             <!-- Accesos a SharePoint y Ubicación (Exclusivo Modo Edición) -->
             ${
               modoEdicion
-                ? `
-                <div style="background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px;">
-                  <div style="font-size: 0.76rem; font-weight: 700; color: #475569; display: flex; align-items: center; justify-content: space-between;">
-                    <span>📁 Ubicación en Repositorio</span>
-                    <button type="button" class="btn-drawer-folder" id="btn-drawer-open-folder" style="border:none; background:transparent; color:var(--primary); font-size:0.75rem; font-weight:700; cursor:pointer; text-decoration:underline;">
-                      Abrir carpeta ↗
-                    </button>
-                  </div>
-                  <div style="font-size: 0.78rem; color: #1e293b; font-family: monospace; word-break: break-all;">
-                    ${sharepointService.obtenerRutaLegible(doc)}
-                  </div>
-                </div>
-                `
+                ? (() => {
+                    const tieneEnlace = Boolean(
+                      (doc.sharepointUrl && doc.sharepointUrl.startsWith('http') && doc.sharepointUrl !== '#' && doc.sharepointUrl !== 'N/A') ||
+                      (doc.downloadUrl && doc.downloadUrl.startsWith('http') && doc.downloadUrl !== '#' && doc.downloadUrl !== 'N/A')
+                    );
+                    const rutaTexto = sharepointService.obtenerRutaLegible(doc);
+                    return `
+                    <div style="background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px;">
+                      <div style="font-size: 0.76rem; font-weight: 700; color: #475569; display: flex; align-items: center; justify-content: space-between;">
+                        <span>📁 Ubicación en Repositorio</span>
+                        ${
+                          tieneEnlace && rutaTexto !== 'No se encuentra disponible'
+                            ? `
+                            <button type="button" class="btn-drawer-folder" id="btn-drawer-open-folder" style="border:none; background:transparent; color:var(--primary); font-size:0.75rem; font-weight:700; cursor:pointer; text-decoration:underline;">
+                              Abrir carpeta ↗
+                            </button>
+                            `
+                            : `
+                            <span style="font-size: 0.72rem; color: #dc2626; font-weight: 700;">
+                              No disponible
+                            </span>
+                            `
+                        }
+                      </div>
+                      <div style="font-size: 0.78rem; color: ${tieneEnlace && rutaTexto !== 'No se encuentra disponible' ? '#1e293b' : '#dc2626'}; font-family: monospace; word-break: break-all; font-weight: ${tieneEnlace && rutaTexto !== 'No se encuentra disponible' ? 'normal' : '600'};">
+                        ${rutaTexto}
+                      </div>
+                    </div>
+                    `;
+                  })()
                 : ''
             }
 
@@ -3593,7 +3610,8 @@ export class ModalManager {
 
       if (!folderUrl || folderUrl === '#') return;
 
-      const rutaLegible = sharepointService.obtenerRutaLegible(d) || `${d.tipoProceso || ''} / ${d.area || ''} / ${d.proceso || ''} / ${d.carpeta || d.tipoDocumento || ''}`;
+      const rutaLegible = sharepointService.obtenerRutaLegible(d);
+      if (!rutaLegible || rutaLegible === 'No se encuentra disponible') return;
 
       if (!mapaRutas.has(folderUrl)) {
         mapaRutas.set(folderUrl, {
@@ -4503,6 +4521,14 @@ export class ModalManager {
             }
           );
 
+          // Registrar en auditoría institucional
+          staffService.registrarAuditoria('METADATOS', {
+            documentoCodigo: doc.codigo,
+            documentoTitulo: titulo,
+            documentoExtension: doc.extension,
+            detalle: `Modificación de metadatos (${doc.codigo}): ${tipoCambio || 'Datos actualizados en catálogo'}`
+          });
+
           this.cerrarModal();
           if (typeof onGuardar === 'function') onGuardar(res.documento);
         } else {
@@ -4763,6 +4789,14 @@ export class ModalManager {
             tipoNuevo: tipoDocNombre,
             motivo: motivo,
             detalle: `Recodificación oficial del documento: ${doc.codigo} ➔ ${nuevoCodigo}. Motivo: ${motivo}`
+          });
+
+          // Registrar en auditoría institucional
+          staffService.registrarAuditoria('METADATOS', {
+            documentoCodigo: nuevoCodigo,
+            documentoTitulo: doc.titulo || doc.nombre || 'Documento',
+            documentoExtension: doc.extension,
+            detalle: `Recodificación oficial: ${doc.codigo} ➔ ${nuevoCodigo}. Motivo: ${motivo}`
           });
 
           this.cerrarModal();

@@ -8,7 +8,7 @@
 
 import { EMPLEADOS_ACTIVOS_BASE } from './staff-data.js?v=11.6.46';
 import { DOCUMENTOS_REALES } from './data.js?v=11.6.46';
-import { cacheService } from './cache-service.js?v=11.6.57';
+import { cacheService } from './cache-service.js?v=11.6.60';
 
 const STORAGE_KEY_AUTH_SESSION = 'agy_sgc_authenticated_session';
 const STORAGE_KEY_REMEMBERED_USER = 'agy_sgc_remembered_user';
@@ -264,11 +264,19 @@ export class StaffService {
         const rAnt = String(h.rutaAnterior || '');
         const rNue = String(h.rutaNueva || '');
 
+        if (!cod) return false;
+
+        // Descartar registros sintéticos de prueba con 'PC de GIC' o 'Intranet'
+        if (det.includes('PC de GIC') || rAnt.includes('PC de GIC') || rNue.includes('PC de GIC')) return false;
+        if (det.includes('Intranet') || rAnt.includes('Intranet') || rNue.includes('Intranet')) return false;
+        if (det.includes('Actualización de proceso/área:') || det.includes('Reubicación de ruta')) return false;
+
         const vA = String(h.versionAnterior !== undefined && h.versionAnterior !== null ? h.versionAnterior : '').trim();
         const vN = String(h.versionNueva !== undefined && h.versionNueva !== null ? h.versionNueva : '').trim();
 
         if (tipo === 'ELIMINACION') return true;
-        if (tipo === 'CREACION') return cod === 'AUT-TD-001';
+
+        if (tipo === 'CREACION') return true;
 
         if (tipo === 'CAMBIO_VERSION') {
           if (this.sonVersionesIguales(vA, vN)) return false;
@@ -276,24 +284,18 @@ export class StaffService {
           if (vA.length > 8 || vN.length > 8 || /[a-záéíóúñ]/i.test(vA.replace(/^v/i, '')) || /[a-záéíóúñ]/i.test(vN.replace(/^v/i, ''))) {
             return false;
           }
-          if (det.includes('Actualización de proceso/área:') || det.includes('Reubicación de ruta')) return false;
+          return true;
+        }
+
+        if (tipo === 'CAMBIO_METADATOS' || tipo === 'METADATOS' || tipo === 'CAMBIO_RUTA' || tipo === 'CAMBIO_TIPO') {
           return true;
         }
 
         if (tipo === 'EDICION_SHAREPOINT' || tipo === 'EDICION') {
-          if (det.includes('Actualización de proceso/área:') || det.includes('Reubicación de ruta')) return false;
-          if (det.includes('PC de GIC') || rAnt.includes('PC de GIC') || rNue.includes('PC de GIC')) return false;
-          if (det.includes('Intranet') || rAnt.includes('Intranet') || rNue.includes('Intranet')) return false;
-          if (h.fechaModificacionActual && h.fechaModificacionActual !== 'N/A') {
-            h.fechaHora = this.formatearFechaHora(h.fechaModificacionActual);
-          }
           return true;
         }
 
-        if (det.includes('Actualización de proceso/área:') || det.includes('Reubicación de ruta')) return false;
-        if (det.includes('Cambio de tipo documental')) return false;
-        if (det.includes('PC de GIC') || det.includes('Intranet')) return false;
-        return false;
+        return true;
       } catch (e) {
         return false;
       }
@@ -2076,25 +2078,21 @@ export class StaffService {
       const tipoItem = (item.tipoEvento || '').toUpperCase();
       if (tipoItem !== (nuevoCambio.tipoEvento || '').toUpperCase()) return false;
 
-      // Mismo ID
+      // Mismo ID exacto
       const rawIdItem = (item.id || '').replace(/^hist_mig_/, '');
       const rawIdNuevo = (nuevoCambio.id || '').replace(/^hist_mig_/, '');
       if (rawIdItem && rawIdNuevo && rawIdItem === rawIdNuevo) return true;
 
-      // Misma fecha de modificación SharePoint
-      if (nuevoCambio.fechaModificacionActual && item.fechaModificacionActual &&
-        nuevoCambio.fechaModificacionActual.trim() === item.fechaModificacionActual.trim()) {
+      // Misma fechaHora exacta por el mismo usuario
+      const mismoUsuario = (item.usuario || '').trim().toLowerCase() === (nuevoCambio.usuario || '').trim().toLowerCase() ||
+                           (item.identificacion && item.identificacion !== 'N/A' && item.identificacion === nuevoCambio.identificacion);
+      if (mismoUsuario && nuevoCambio.fechaHora && item.fechaHora && nuevoCambio.fechaHora.trim() === item.fechaHora.trim()) {
         return true;
       }
 
-      // Misma fechaHora exacta
-      if (nuevoCambio.fechaHora && item.fechaHora && nuevoCambio.fechaHora.trim() === item.fechaHora.trim()) {
-        return true;
-      }
-
-      // Ventana de tiempo de 3 minutos para la misma acción
+      // Ventana de 2 minutos para evitar doble clic accidental en la misma acción
       const tItem = this.parsearFechaMilisegundos(item.timestamp || item.fechaHora);
-      if (tItem > 0 && Math.abs(tiempoNuevo - tItem) < 180000) {
+      if (mismoUsuario && tItem > 0 && Math.abs(tiempoNuevo - tItem) < 120000) {
         return true;
       }
 
@@ -2223,20 +2221,65 @@ export class StaffService {
   }
 
   /**
-   * Obtiene la lista completa de cambios documentales o filtrada por código de documento ordenada de forma descendente y sin duplicados
+   * Obtiene la lista completa de cambios documentales o filtrada por código de documento ordenada de forma descendente y unificada con auditoría
    */
   obtenerHistoricoDocumental(codigoOpcional = null) {
     const listaOriginal = this.limpiarHistoricoSintetico(this.historicoData || []);
     const snapshotBase = this.obtenerSnapshotDocumentos() || {};
 
-    // Deduplicar manteniendo el registro auténtico más reciente por evento/documento
+    // Unificar eventos de auditoría institucional sobre documentos (Ediciones, Creaciones, Eliminaciones, Metadatos)
+    const eventosAuditoriaDocs = [];
+    const listaAudit = this.auditoriaData?.registroAuditoria || [];
+    if (Array.isArray(listaAudit)) {
+      listaAudit.forEach((a) => {
+        if (!a) return;
+        const tipoNorm = String(a.tipo || '').trim().toUpperCase();
+        if (!['EDICION', 'CREACION', 'ELIMINACION', 'METADATOS', 'CAMBIO_METADATOS', 'CAMBIO_VERSION'].includes(tipoNorm)) {
+          return;
+        }
+        let tipoEv = 'EDICION_SHAREPOINT';
+        if (tipoNorm === 'CREACION') tipoEv = 'CREACION';
+        else if (tipoNorm === 'ELIMINACION') tipoEv = 'ELIMINACION';
+        else if (tipoNorm === 'METADATOS' || tipoNorm === 'CAMBIO_METADATOS') tipoEv = 'CAMBIO_METADATOS';
+        else if (tipoNorm === 'CAMBIO_VERSION') tipoEv = 'CAMBIO_VERSION';
+
+        const codAud = (a.documentoCodigo || a.codigo || '').trim().toUpperCase();
+        if (!codAud) return;
+
+        eventosAuditoriaDocs.push({
+          id: a.id || `aud_bridge_${Date.now()}`,
+          tipoEvento: tipoEv,
+          codigo: codAud,
+          titulo: a.documentoTitulo || a.titulo || '',
+          versionAnterior: a.versionAnterior || '01',
+          versionNueva: a.versionNueva || '01',
+          rutaAnterior: a.rutaAnterior || 'N/A',
+          rutaNueva: a.rutaNueva || 'N/A',
+          tipoAnterior: a.tipoAnterior || 'N/A',
+          tipoNuevo: a.tipoNuevo || 'N/A',
+          usuario: a.usuario || 'Colaborador',
+          identificacion: a.identificacion || 'N/A',
+          cargo: a.cargo || '',
+          perfil: a.perfil || 'operativo',
+          detalle: a.detalle || '',
+          fechaHora: a.fechaHora || this.formatearFechaHora(a.timestamp),
+          timestamp: a.timestamp || '',
+          sharepointUrl: a.sharepointUrl || '',
+          origenAuditoria: true
+        });
+      });
+    }
+
+    const listaCombinada = [...listaOriginal, ...eventosAuditoriaDocs];
+
+    // Deduplicar manteniendo el registro auténtico más reciente por evento/documento/minuto
     const vistos = new Set();
     const listaDeduplicada = [];
 
-    // Ordenar de más reciente a más antiguo por fecha real
-    const ordenada = [...listaOriginal].sort((a, b) => {
-      const tA = this.parsearFechaMilisegundos(a.fechaHora || a.fechaModificacionActual || a.timestamp);
-      const tB = this.parsearFechaMilisegundos(b.fechaHora || b.fechaModificacionActual || b.timestamp);
+    // Ordenar de más reciente a más antiguo por fecha real de la acción
+    const ordenada = [...listaCombinada].sort((a, b) => {
+      const tA = this.parsearFechaMilisegundos(a.fechaHora || a.timestamp || a.fechaModificacionActual);
+      const tB = this.parsearFechaMilisegundos(b.fechaHora || b.timestamp || b.fechaModificacionActual);
       if (tB !== tA) return tB - tA;
       return (b.id || '').localeCompare(a.id || '');
     });
@@ -2245,28 +2288,25 @@ export class StaffService {
       if (!item || !item.codigo) return;
       const cod = item.codigo.trim().toUpperCase();
       const tipoEv = (item.tipoEvento || 'EDICION_SHAREPOINT').toUpperCase();
-      const fHora = (item.fechaHora || item.fechaModificacionActual || '').trim();
+      const fHora = (item.fechaHora || item.timestamp || item.fechaModificacionActual || '').trim();
 
       // Descartar falsos cambios de versión donde vAnterior == vNueva
       if (tipoEv === 'CAMBIO_VERSION' && this.sonVersionesIguales(item.versionAnterior, item.versionNueva)) {
         return;
       }
 
-      const k = `${cod}_${tipoEv}_${fHora}`;
+      // Clave de deduplicación: documento, tipo de evento y minuto de ejecución
+      const fMinuto = fHora.slice(0, 16);
+      const k = `${cod}_${tipoEv}_${fMinuto}`;
       if (vistos.has(k)) return;
       vistos.add(k);
 
-      // Si es eliminación o edición SharePoint, evitar registros redundantes para el mismo documento
+      // Si es eliminación, verificar regla de integridad
       if (tipoEv === 'ELIMINACION') {
-        // Regla de Integridad: Si el documento existe activo en DOCUMENTOS_REALES, descartar falsa eliminación
         const existeActivo = DOCUMENTOS_REALES.some((d) => d.codigo && d.codigo.trim().toUpperCase() === cod);
         if (existeActivo) return;
 
         const kDoc = `ELIM_${cod}`;
-        if (vistos.has(kDoc)) return;
-        vistos.add(kDoc);
-      } else if (tipoEv === 'EDICION_SHAREPOINT' || tipoEv === 'EDICION') {
-        const kDoc = `EDICION_SP_${cod}`;
         if (vistos.has(kDoc)) return;
         vistos.add(kDoc);
       }
@@ -2285,8 +2325,8 @@ export class StaffService {
         rutaNueva: rutaCompleta,
         tipoNuevo: snapDoc?.tipoDocumento || item.tipoNuevo || 'Documento',
         fechaModificacionActual: item.fechaModificacionActual || item.fechaHora || snapDoc?.modificacion || '',
-        fechaHora: item.fechaHora || item.fechaModificacionActual || snapDoc?.modificacion || '',
-        detalle: item.detalle || (tipoEv === 'EDICION_SHAREPOINT' ? `Fecha de modificación en SharePoint: ${item.fechaHora || snapDoc?.modificacion || ''}` : ''),
+        fechaHora: item.fechaHora || item.timestamp || item.fechaModificacionActual || snapDoc?.modificacion || '',
+        detalle: item.detalle || (tipoEv === 'EDICION_SHAREPOINT' ? `Edición de archivo en SharePoint: ${item.fechaHora || snapDoc?.modificacion || ''}` : ''),
         sharepointUrl: snapDoc?.sharepointUrl || item.sharepointUrl || ''
       });
     });
@@ -2413,6 +2453,12 @@ export class StaffService {
       const vAnt = this.normalizarVersion(anterior.version);
       const vAct = this.normalizarVersion(doc.version);
       if (vAnt && vAct && !this.sonVersionesIguales(vAnt, vAct)) {
+        this.registrarAuditoria('EDICION', {
+          documentoCodigo: doc.codigo,
+          documentoTitulo: doc.titulo,
+          documentoExtension: doc.extension || 'DOC',
+          detalle: `Actualización de versión en catálogo (${doc.codigo}): ${vAnt} ➔ ${vAct}`
+        });
         this.registrarCambioDocumental('CAMBIO_VERSION', {
           codigo: doc.codigo,
           titulo: doc.titulo,
@@ -2452,6 +2498,12 @@ export class StaffService {
         if (cambioTipoDoc) cambiosList.push(`Tipo: ${tipoAnt} ➔ ${tipoAct}`);
         if (cambioUbicacion) cambiosList.push(`Ubicación: ${areaAnt}/${procAnt} ➔ ${areaAct}/${procAct}`);
 
+        this.registrarAuditoria('METADATOS', {
+          documentoCodigo: doc.codigo,
+          documentoTitulo: doc.titulo,
+          documentoExtension: doc.extension || 'DOC',
+          detalle: `Modificación de metadatos en catálogo (${doc.codigo}): ${cambiosList.join(' • ')}`
+        });
         this.registrarCambioDocumental('CAMBIO_METADATOS', {
           codigo: doc.codigo,
           titulo: doc.titulo,
@@ -2510,6 +2562,12 @@ export class StaffService {
           return;
         }
 
+        this.registrarAuditoria('ELIMINACION', {
+          documentoCodigo: docEliminado.codigo,
+          documentoTitulo: docEliminado.titulo,
+          documentoExtension: docEliminado.extension || 'DOC',
+          detalle: `Documento retirado o marcado como obsoleto (${docEliminado.codigo})`
+        });
         this.registrarCambioDocumental('ELIMINACION', {
           codigo: docEliminado.codigo,
           titulo: docEliminado.titulo,

@@ -302,7 +302,7 @@ def sanitizar_conf(conf_dict):
             r_nue = h.get('rutaNueva') or ''
             r_ant = h.get('rutaAnterior') or ''
             t_ant = h.get('tipoAnterior') or ''
-            if tipo == 'CREACION' and h.get('codigo') != 'AUT-TD-001':
+            if tipo == 'CREACION' and not h.get('codigo'):
                 continue
             if 'Reubicación de ruta' in det or 'Intranet' in r_nue or 'Intranet' in r_ant:
                 continue

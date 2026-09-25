@@ -6,7 +6,7 @@
  * exportación del Listado Maestro y Auditoría de Actividad en pestañas separadas.
  */
 
-import { staffService } from './staff-service.js?v=11.6.57';
+import { staffService } from './staff-service.js?v=11.6.60';
 
 export class AnalyticsManager {
 
@@ -957,6 +957,7 @@ export class AnalyticsManager {
                   <button class="btn btn-secondary btn-audit-filter" data-audit-filter="CARPETA" style="padding: 4px 10px; font-size: 0.76rem;">📁 Carpetas</button>
                   <button class="btn btn-secondary btn-audit-filter" data-audit-filter="CREACION" style="padding: 4px 10px; font-size: 0.76rem;">✨ Creaciones</button>
                   <button class="btn btn-secondary btn-audit-filter" data-audit-filter="EDICION" style="padding: 4px 10px; font-size: 0.76rem;">✏️ Edición</button>
+                  <button class="btn btn-secondary btn-audit-filter" data-audit-filter="METADATOS" style="padding: 4px 10px; font-size: 0.76rem;">📋 Metadatos</button>
                   <button class="btn btn-secondary btn-audit-filter" data-audit-filter="ELIMINACION" style="padding: 4px 10px; font-size: 0.76rem;">🗑️ Eliminaciones</button>
                   <button class="btn btn-secondary btn-audit-filter" data-audit-filter="SEGURIDAD" style="padding: 4px 10px; font-size: 0.76rem;">🔑 Seguridad</button>
                 </div>
@@ -1788,7 +1789,13 @@ export class AnalyticsManager {
 
       const filtrados = eventos.filter((ev) => {
         const evTipoUpper = (ev.tipo || '').toUpperCase();
-        if (fTipoUpper !== 'TODOS' && evTipoUpper !== fTipoUpper) return false;
+        if (fTipoUpper !== 'TODOS') {
+          if (fTipoUpper === 'METADATOS') {
+            if (!['METADATOS', 'CAMBIO_METADATOS', 'CAMBIO_RUTA', 'CAMBIO_TIPO'].includes(evTipoUpper)) return false;
+          } else if (evTipoUpper !== fTipoUpper) {
+            return false;
+          }
+        }
         if (!q) return true;
         const texto = `${ev.usuario || ''} ${ev.identificacion || ''} ${ev.cargo || ''} ${ev.documentoCodigo || ''} ${ev.documentoTitulo || ''} ${ev.detalle || ''}`.toLowerCase();
         return texto.includes(q);
@@ -1827,6 +1834,8 @@ export class AnalyticsManager {
             badgeEvento = '<span class="audit-badge" style="background:#ecfdf5; color:#059669; padding:2px 8px; border-radius:12px; font-weight:700; font-size:0.72rem; border:1px solid #a7f3d0;">✨ Creación</span>';
           } else if (tipoNorm === 'EDICION') {
             badgeEvento = '<span class="audit-badge audit-badge-edit" style="background:#f3e8ff; color:#6b21a8; padding:2px 8px; border-radius:12px; font-weight:700; font-size:0.72rem;">✏️ Edición</span>';
+          } else if (tipoNorm === 'METADATOS' || tipoNorm === 'CAMBIO_METADATOS') {
+            badgeEvento = '<span class="audit-badge audit-badge-meta" style="background:#faf5ff; color:#7c3aed; padding:2px 8px; border-radius:12px; font-weight:700; font-size:0.72rem; border:1px solid #e9d5ff;">📋 Metadatos</span>';
           } else if (tipoNorm === 'ELIMINACION') {
             badgeEvento = '<span class="audit-badge" style="background:#fee2e2; color:#dc2626; padding:2px 8px; border-radius:12px; font-weight:700; font-size:0.72rem; border:1px solid #fecaca;">🗑️ Eliminación</span>';
           } else if (tipoNorm === 'SEGURIDAD') {
@@ -1981,11 +1990,7 @@ export class AnalyticsManager {
       // Ordenar rigurosamente por fecha de evento más reciente primero (Descendente)
       filtrados.sort((a, b) => {
         const getT = (item) => {
-          const tipoNorm = (item.tipoEvento || '').toUpperCase();
-          if (tipoNorm === 'EDICION_SHAREPOINT' && item.fechaModificacionActual && item.fechaModificacionActual !== 'N/A') {
-            return staffService.parsearFechaMilisegundos(item.fechaModificacionActual);
-          }
-          return staffService.parsearFechaMilisegundos(item.fechaHora || item.fechaModificacionActual || item.timestamp);
+          return staffService.parsearFechaMilisegundos(item.fechaHora || item.timestamp || item.fechaModificacionActual);
         };
         const tA = getT(a);
         const tB = getT(b);
@@ -2013,9 +2018,7 @@ export class AnalyticsManager {
 
           const docCat = mapaDocs.get((ev.codigo || '').trim().toUpperCase());
           const fDocReal = staffService.formatearFechaHora(
-            tipoNorm === 'EDICION_SHAREPOINT' && ev.fechaModificacionActual && ev.fechaModificacionActual !== 'N/A'
-              ? ev.fechaModificacionActual
-              : (ev.fechaHora || ev.fechaModificacionActual || docCat?.modificacion || '-')
+            ev.fechaHora || ev.timestamp || ev.fechaModificacionActual || docCat?.modificacion || '-'
           );
           const fAnt = staffService.formatearFechaHora(ev.fechaModificacionPrevia || ev.modificacionPrevia || 'N/A');
           const vAnt = staffService.formatearVersion(ev.versionAnterior || docCat?.version || '01');
@@ -2077,12 +2080,16 @@ export class AnalyticsManager {
             let edicionFechas = '';
             if (fAnt && fAnt !== 'N/A' && fAnt !== fDocReal) {
               edicionFechas = `Edición previa: <span style="font-family:monospace;">${fAnt}</span> ➔ Edición reciente: <span style="font-family:monospace; font-weight:700; color:#0f766e;">${fDocReal}</span>`;
+            } else if (ev.fechaModificacionActual && ev.fechaModificacionActual !== 'N/A' && ev.fechaModificacionActual !== fDocReal) {
+              const fModActualFormateada = staffService.formatearFechaHora(ev.fechaModificacionActual);
+              edicionFechas = `Registro de sesión: <span style="font-family:monospace; font-weight:700; color:#0f766e;">${fDocReal}</span> &bull; Modificación archivo: <span style="font-family:monospace; color:#475569;">${fModActualFormateada}</span>`;
             } else {
               edicionFechas = `Fecha de modificación: <span style="font-family:monospace; font-weight:700; color:#0f766e;">${fDocReal}</span>`;
             }
+            const desc = ev.detalle && !ev.detalle.toLowerCase().includes('fecha de modificación') ? ev.detalle : 'Modificación de archivo en SharePoint Online';
             detalleCambioHtml = `
               <div style="font-size: 0.75rem; line-height: 1.45; color: #334155;">
-                <div style="color: #334155; font-weight: 700;">Modificación de archivo en SharePoint Online</div>
+                <div style="color: #334155; font-weight: 700;">${desc}</div>
                 <div style="margin-top: 2px; color: #475569;">
                   ${edicionFechas}
                 </div>
