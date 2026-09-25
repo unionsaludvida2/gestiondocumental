@@ -1,0 +1,27 @@
+# Dependencias y entornos
+node_modules/
+
+# Python Cache y temporales
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+
+# Caché local de conversión PDF
+pdf_cache/
+
+# Pruebas y bocetos temporales
+scratch/
+
+# Copias de seguridad temporales y backups antiguos
+*.backup_*
+*.tmp
+*.temp
+
+# Archivos de registro y logs
+*.log
+
+# Archivos del sistema operativo
+.DS_Store
+Thumbs.db
+desktop.ini

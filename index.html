@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SISTEMA DE GESTIÓN DOCUMENTAL INSTITUCIONAL - UNIÓN PARA LA SALUD Y LA VIDA S.A.S.</title>
+  <meta name="description"
+    content="Portal web oficial para el Sistema de Gestión Documental Institucional - Unión para la salud y la vida S.A.S." />
+
+  <!-- Tipografía Institucional Oficial del Logo: Quicksand -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Quicksand:wght@300;400;500;600;700&family=Montserrat:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap"
+    rel="stylesheet" />
+
+  <!-- Estilos de la aplicación -->
+  <link rel="stylesheet" href="styles.css?v=11.6.57" />
+
+  <script>
+    window.addEventListener('error', function(e) {
+      console.error('[GLOBAL ERROR]', e.message, e.filename, e.lineno, e.error);
+      var box = document.getElementById('debug-error-banner');
+      if (!box) {
+        box = document.createElement('div');
+        box.id = 'debug-error-banner';
+        box.style.cssText = 'position:fixed;bottom:10px;left:10px;right:10px;z-index:999999;background:#fee2e2;border:2px solid #ef4444;color:#b91c1c;padding:12px 16px;border-radius:8px;font-family:monospace;font-size:13px;box-shadow:0 4px 12px rgba(0,0,0,0.15);';
+        document.body ? document.body.appendChild(box) : document.documentElement.appendChild(box);
+      }
+      box.innerHTML = '<strong>❌ Error en JavaScript:</strong> ' + e.message + '<br><small>' + (e.filename || '') + ' (Línea ' + e.lineno + ')</small>';
+    });
+    window.addEventListener('unhandledrejection', function(e) {
+      console.error('[UNHANDLED REJECTION]', e.reason);
+    });
+  </script>
+</head>
+
+<body>
+
+  <!-- =========================================================
+       ENCABEZADO PRINCIPAL
+  ========================================================== -->
+  <header class="app-header">
+    <!-- 1. Identidad Corporativa Oficial (Logo sin cambios) -->
+    <div class="brand-container">
+      <img src="assets/logo.png" alt="Unión para la salud y la vida S.A.S." class="brand-logo-img" />
+    </div>
+
+    <!-- 2. Título Principal -->
+    <div class="header-center-title">
+      <h1 class="main-title">SISTEMA DE GESTIÓN DOCUMENTAL INSTITUCIONAL</h1>
+    </div>
+
+    <!-- Panel de Acciones de Usuario y Seguridad -->
+    <div class="header-right">
+      <!-- 3. Tarjeta de Usuario y Perfil (más hacia el centro, destacada y simétrica) -->
+      <button type="button" class="header-action-pill btn-staff-pill" id="btn-staff-pill"
+        title="Sesión de Colaborador y Perfil de Acceso. Clic para ver opciones o cambiar perfil.">
+        <span class="header-pill-icon" id="header-staff-icon">👤</span>
+        <div class="header-pill-stacked-text">
+          <span class="header-pill-subtext" id="header-staff-subtext">OPERATIVO</span>
+          <span class="header-pill-label" id="header-staff-name">Identificarse</span>
+        </div>
+      </button>
+
+      <!-- 4. Sección de Botones (Actualizar, Bloqueo y Configuración) -->
+      <div class="header-action-buttons-group">
+        <button type="button" class="header-action-pill btn-sync-data btn-icon-only" id="btn-sync-data"
+          title="Actualizar catálogo y sincronizar datos en tiempo real">
+          <span class="header-pill-icon" id="header-sync-icon">🔄</span>
+          <span class="sr-only" style="display: none;">Actualizar</span>
+        </button>
+
+        <button type="button" class="header-action-pill btn-edit-mode-toggle btn-icon-only" id="btn-toggle-edit"
+          title="Modo Edición protegido: Clic para habilitar edición en SharePoint con contraseña">
+          <span class="header-pill-icon" id="edit-lock-icon">🔒</span>
+          <span class="sr-only" id="edit-mode-text" style="display: none;">Modo Edición</span>
+        </button>
+
+        <button type="button" class="header-action-pill btn-settings-toggle btn-icon-only" id="btn-open-settings"
+          title="Configuración de Perfiles, SharePoint y Seguridad">
+          <span class="header-pill-icon">⚙️</span>
+          <span class="sr-only" id="settings-text" style="display: none;">Configuración</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- =========================================================
+       LAYOUT PRINCIPAL: SIDEBAR + CONTENIDO
+  ========================================================== -->
+  <main class="main-layout" id="main-layout-container">
+
+    <!-- BARRA LATERAL DE FILTROS Y NAVEGACIÓN -->
+    <aside class="sidebar-filters" id="sidebar-filters" aria-label="Navegación y filtros documentales">
+
+      <!-- SELECTOR PRINCIPAL DE VISTAS (CATÁLOGO / DASHBOARD) INTEGRADO -->
+      <div class="sidebar-nav-switcher-box">
+        <div class="sidebar-view-tabs" role="tablist" aria-label="Seleccionar vista principal">
+          <button type="button" class="btn-sidebar-tab active" id="btn-view-catalog" role="tab" aria-selected="true" title="Ver catálogo de documentos">
+            <span class="tab-icon">📂</span>
+            <span class="tab-text">Catálogo</span>
+          </button>
+          <button type="button" class="btn-sidebar-tab" id="btn-view-analytics" role="tab" aria-selected="false" title="Ver métricas y auditoría institucional">
+            <span class="tab-icon">📊</span>
+            <span class="tab-text">Dashboard</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Accesos Directos Rápidos en Sidebar: Top 10 & Favoritos (Fijos fuera del scroll) -->
+      <div class="sidebar-quick-access-box" id="sidebar-quick-access-container">
+        <div class="sidebar-quick-access-title">
+          ACCESOS DESTACADOS
+        </div>
+        <div class="sidebar-quick-access-buttons">
+          <button type="button" class="btn-sidebar-quick-tag btn-quick-top10" id="btn-sidebar-top10">
+            🔥 Top 10
+          </button>
+          <button type="button" class="btn-sidebar-quick-tag btn-quick-favorites" id="btn-sidebar-favorites">
+            ⭐ Favoritos
+          </button>
+        </div>
+      </div>
+
+      <!-- Grupos de filtros del Catálogo con scroll -->
+      <div class="sidebar-scrollable-content" id="sidebar-catalog-filters-content">
+
+        <!-- 1. TIPO DE PROCESO -->
+        <div class="filter-group-section collapsed" data-section="tipos-proceso">
+          <button type="button" class="filter-section-header" aria-expanded="false">
+            <span class="filter-section-title">TIPO DE PROCESO</span>
+            <span class="filter-chevron">▼</span>
+          </button>
+          <div class="filter-checkbox-list" id="filter-list-tipos-proceso"></div>
+        </div>
+
+        <!-- 2. ÁREA -->
+        <div class="filter-group-section collapsed" data-section="areas">
+          <button type="button" class="filter-section-header" aria-expanded="false">
+            <span class="filter-section-title">AREA</span>
+            <span class="filter-chevron">▼</span>
+          </button>
+          <div class="filter-checkbox-list" id="filter-list-areas"></div>
+        </div>
+
+        <!-- 3. PROCESO -->
+        <div class="filter-group-section collapsed" data-section="procesos">
+          <button type="button" class="filter-section-header" aria-expanded="false">
+            <span class="filter-section-title">PROCESO</span>
+            <span class="filter-chevron">▼</span>
+          </button>
+          <div class="filter-checkbox-list" id="filter-list-procesos"></div>
+        </div>
+
+        <!-- 4. TIPO DE DOCUMENTO -->
+        <div class="filter-group-section collapsed" data-section="tipos">
+          <button type="button" class="filter-section-header" aria-expanded="false">
+            <span class="filter-section-title">TIPO DE DOCUMENTO</span>
+            <span class="filter-chevron">▼</span>
+          </button>
+          <div class="filter-checkbox-list" id="filter-list-tipos"></div>
+        </div>
+      </div>
+
+      <!-- Botón fijo al fondo del sidebar (sin scroll) -->
+      <div class="sidebar-fixed-footer" id="sidebar-catalog-footer">
+        <button type="button" class="btn-reset-filters" id="btn-reset-filters">
+          Restablecer filtros
+        </button>
+      </div>
+
+      <!-- VISTA LATERAL: SECCIONES Y ACCESOS DEL DASHBOARD -->
+      <div class="sidebar-dashboard-nav-content" id="sidebar-dashboard-nav-content" style="display: none;">
+        <div class="sidebar-dash-menu-group">
+          <div class="sidebar-dash-menu-title">MÓDULOS DEL DASHBOARD</div>
+          <button type="button" class="btn-sidebar-dash-action active" id="btn-sidebar-dash-resumen">
+            <span class="sidebar-dash-icon">📊</span>
+            <span>Resumen Documental</span>
+          </button>
+          <button type="button" class="btn-sidebar-dash-action" id="btn-sidebar-dash-calidad">
+            <span class="sidebar-dash-icon">🎯</span>
+            <span>Gestión de Calidad</span>
+          </button>
+          <button type="button" class="btn-sidebar-dash-action" id="btn-sidebar-dash-auditoria">
+            <span class="sidebar-dash-icon">🛡️</span>
+            <span>Auditoría Institucional</span>
+          </button>
+          <button type="button" class="btn-sidebar-dash-action" id="btn-sidebar-dash-cambios">
+            <span class="sidebar-dash-icon">📜</span>
+            <span>Control de Cambios</span>
+          </button>
+        </div>
+
+        <div class="sidebar-dash-menu-group" id="sidebar-dash-export-group" style="margin-top: 8px;">
+          <div class="sidebar-dash-menu-title">EXPORTACIONES</div>
+          
+          <!-- Exportaciones para Resumen Documental -->
+          <button type="button" class="btn-sidebar-dash-action" id="btn-sidebar-dash-master">
+            <span class="sidebar-dash-icon">📑</span>
+            <span>Descargar Listado Maestro</span>
+          </button>
+          <button type="button" class="btn-sidebar-dash-action" id="btn-sidebar-dash-vencidos" title="Exportar reporte de documentos vencidos (> 2 años), sin fecha o no disponibles">
+            <span class="sidebar-dash-icon">🔴</span>
+            <span>Documentos Vencidos o No Disponibles</span>
+          </button>
+
+          <!-- Exportación para Gestión de Calidad -->
+          <button type="button" class="btn-sidebar-dash-action" id="btn-sidebar-dash-calidad-export" style="display: none;">
+            <span class="sidebar-dash-icon">📑</span>
+            <span>Exportar Matriz de Calidad</span>
+          </button>
+
+          <!-- Exportación para Auditoría Institucional -->
+          <button type="button" class="btn-sidebar-dash-action" id="btn-sidebar-dash-audit" style="display: none;">
+            <span class="sidebar-dash-icon">🛡️</span>
+            <span>Exportar Auditoría</span>
+          </button>
+
+          <!-- Exportación para Control de Cambios -->
+          <button type="button" class="btn-sidebar-dash-action" id="btn-sidebar-dash-history" style="display: none;">
+            <span class="sidebar-dash-icon">📜</span>
+            <span>Exportar Control Cambios</span>
+          </button>
+        </div>
+      </div>
+
+    </aside>
+
+    <!-- ÁREA DE CONTENIDO -->
+    <section class="content-area" id="content-area">
+
+      <!-- FILA DE HERRAMIENTAS Y CONTADOR SEPARADO -->
+      <div class="content-toolbar-row" id="content-toolbar-row">
+        <!-- BARRA DE HERRAMIENTAS DE FILTROS -->
+        <div class="top-toolbar">
+          <!-- Búsqueda Inteligente con Dropdown -->
+          <div class="search-input-wrapper" style="position: relative;">
+            <span class="search-icon">🔍</span>
+            <input type="search" id="search-input" class="search-input" name="search_doc_catalog_query"
+              placeholder="Buscar por código, nombre, área o palabra clave..." aria-label="Buscar documentos"
+              autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+              data-lpignore="true" data-form-type="other" />
+            <button class="search-clear-btn" id="search-clear-btn" title="Limpiar búsqueda">&times;</button>
+
+            <!-- Dropdown de Sugerencias Inteligentes -->
+            <div class="search-suggestions-box" id="search-suggestions-box" style="display: none;"></div>
+          </div>
+
+          <!-- Filtros rápidos de formato -->
+          <div class="format-buttons-group" role="group" aria-label="Filtro rápido por formato">
+            <button type="button" class="btn-format-tag active" data-format="TODOS">Todos</button>
+            <button type="button" class="btn-format-tag" data-format="Excel">Excel</button>
+            <button type="button" class="btn-format-tag" data-format="PDF">PDF</button>
+            <button type="button" class="btn-format-tag" data-format="Word">Word</button>
+          </div>
+
+          <!-- Selector de Ordenamiento -->
+          <div class="toolbar-actions">
+            <select id="sort-select" class="sort-select" aria-label="Ordenar documentos">
+              <option value="codigo-asc">Código (A-Z)</option>
+              <option value="codigo-desc">Código (Z-A)</option>
+              <option value="titulo-asc">Nombre (A-Z)</option>
+              <option value="titulo-desc">Nombre (Z-A)</option>
+              <option value="fecha-desc">Fecha: Más reciente a más antiguo</option>
+              <option value="fecha-asc">Fecha: Más antiguo a más reciente</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- TARJETA DE TOTAL DOCUMENTOS -->
+        <div class="counter-badge-card standalone-counter-card"
+          title="Total de documentos disponibles según tu perfil de acceso">
+          <span class="counter-label">Total documentos</span>
+          <span class="counter-number" id="total-docs-count">231</span>
+        </div>
+      </div>
+
+      <!-- VISTA 1: CUADRÍCULA DE TARJETAS (CATÁLOGO) -->
+      <div class="documents-grid-container" id="documents-grid-container">
+        <div class="documents-grid" id="documents-grid"></div>
+      </div>
+
+      <!-- VISTA 2: MÓDULO DE ANALÍTICA Y DASHBOARD -->
+      <div class="analytics-view-container" id="analytics-view-container" style="display: none;"></div>
+
+      <!-- FILA INFERIOR: FILTROS ACTIVOS Y NUEVO DOCUMENTO -->
+      <div class="footer-bottom-row" id="footer-bottom-row">
+        <!-- Barra de Filtros Activos -->
+        <footer class="footer-active-filters" id="footer-active-filters">
+          <span class="filters-active-title">Filtros Activos:</span>
+          <div class="active-filter-chips" id="active-filters-chips">
+            <span class="no-filters-msg">Ninguno (Mostrando todos los documentos)</span>
+          </div>
+        </footer>
+
+        <!-- Botón Nuevo Documento Institucional (Visible exclusivamente en Modo Edición para usuarios autorizados) -->
+        <button type="button" class="btn-nuevo-documento-footer" id="btn-nuevo-doc"
+          style="display: none;"
+          title="Registrar nuevo documento institucional en el catálogo maestro">
+          <span style="font-size: 1.05rem;">➕</span>
+          <span>Nuevo Documento</span>
+        </button>
+      </div>
+
+    </section>
+  </main>
+
+  <!-- Contenedor del Panel Lateral de Inspección (Drawer) -->
+  <div id="drawer-root"></div>
+
+  <!-- Contenedor Modal Universal -->
+  <div id="modals-root"></div>
+
+  <!-- Script principal como ES Module -->
+  <script type="module" src="js/app.js?v=11.6.57"></script>
+</body>
+
+</html>

@@ -1,0 +1,141 @@
+{
+  "version": "1.0",
+  "empresa": "Unión para la salud y la vida S.A.S.",
+  "ultimaActualizacion": "2026-08-30T00:20:37Z",
+  "tablasMaestras": {
+    "tiposDocumento": [
+      {
+        "id": "tipo-fmt",
+        "nombre": "Formato",
+        "prefijo": "FMT",
+        "descripcion": "Documentos de trabajo en los cuales, se consigna detalladamente las actividades relacionadas con los procedimientos de los procesos."
+      },
+      {
+        "id": "tipo-mn",
+        "nombre": "Manual",
+        "prefijo": "MN",
+        "descripcion": "Documento que especifica una parte o en general el sistema de gestión de la empresa. Define un subproceso."
+      },
+      {
+        "id": "tipo-1787689982562",
+        "nombre": "Política",
+        "prefijo": "PT",
+        "descripcion": "Documentos que describen las intenciones globales del sistema integrado de gestión"
+      },
+      {
+        "id": "tipo-1787690010245",
+        "nombre": "Proceso",
+        "prefijo": "PR",
+        "descripcion": "Conjunto de actividades mutuamente relacionadas que interactúan, que utilizan las entradas para proporcionar un resultado previsto."
+      },
+      {
+        "id": "tipo-1787690031394",
+        "nombre": "Instructivo",
+        "prefijo": "INS",
+        "descripcion": "Documento donde se especifica de manera detallada las actividades asociadas a los procedimientos de un proceso. Es un documento guía de un qué hacer."
+      },
+      {
+        "id": "tipo-1787690059553",
+        "nombre": "Reglamento interno",
+        "prefijo": "RG",
+        "descripcion": "Reglamentos"
+      },
+      {
+        "id": "tipo-1787690104939",
+        "nombre": "Acto administrativo",
+        "prefijo": "AA",
+        "descripcion": "Manifestación de la voluntad de la administración, tendiente a producir efectos jurídicos, ya sea, creando, modificando, exigiendo derechos para los colaboradores de la organización o administrados."
+      },
+      {
+        "id": "tipo-1787690123998",
+        "nombre": "Documento de apoyo",
+        "prefijo": "DA",
+        "descripcion": "Documento que sirve de apoyo a todas las áreas de la institución, el cual, no pertenezca a ninguna de las clasificaciones del sistema de gestión documental mencionadas."
+      },
+      {
+        "id": "tipo-1787690141894",
+        "nombre": "Autorización",
+        "prefijo": "AUT",
+        "descripcion": "Autorizaciones"
+      }
+    ],
+    "areas": [
+      {
+        "id": "area-ghu",
+        "nombre": "Gestión del Talento Humano",
+        "sigla": "GTH",
+        "procesos": [
+          "Bienestar",
+          "Comunicaciones",
+          "Desempeño",
+          "Formación",
+          "Gestión Documental",
+          "Inducción",
+          "Nómina",
+          "Políticas Institucionales",
+          "Seguridad y Salud en el Trabajo",
+          "Selección"
+        ]
+      },
+      {
+        "id": "area-gad",
+        "nombre": "Gestión Administrativa",
+        "sigla": "GAD",
+        "procesos": [
+          "Planeación Estratégica y Dirección"
+        ]
+      },
+      {
+        "id": "area-gfi",
+        "nombre": "Gestión Financiera",
+        "sigla": "GFI",
+        "procesos": [
+          "Gestión Financiera y Contable"
+        ]
+      },
+      {
+        "id": "area-gic",
+        "nombre": "Gestión Integral de Calidad",
+        "sigla": "GIC",
+        "procesos": [
+          "Gestión Integral de Calidad"
+        ]
+      },
+      {
+        "id": "area-gmd",
+        "nombre": "Gestión Médica y Asistencial",
+        "sigla": "GMD",
+        "procesos": [
+          "Gestión de Especialistas",
+          "Gestión de Medicina General"
+        ]
+      },
+      {
+        "id": "area-gti",
+        "nombre": "Gestión de Tecnologías de Información",
+        "sigla": "GTI",
+        "procesos": [
+          "Tecnologías de la Información"
+        ]
+      }
+    ],
+    "tiposProceso": [
+      {
+        "id": "tp-apoyo",
+        "nombre": "Apoyo"
+      },
+      {
+        "id": "tp-calidad",
+        "nombre": "Calidad"
+      },
+      {
+        "id": "tp-estrategico",
+        "nombre": "Estrategico"
+      },
+      {
+        "id": "tp-misional",
+        "nombre": "Misional"
+      }
+    ]
+  }
+}
