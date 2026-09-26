@@ -141,14 +141,14 @@ function doPost(e) {
 
     // B. MODIFICAR DOCUMENTO EN GOOGLE SHEETS
     if (accion === 'modificar_documento') {
-      const res = modificarDocumentoEnSheet(dataObj.codigo, dataObj.documento);
+      const res = modificarDocumentoEnSheet(dataObj.codigo, dataObj.documento || dataObj);
       return ContentService.createTextOutput(JSON.stringify(res))
         .setMimeType(ContentService.MimeType.JSON);
     }
 
     // C. ELIMINAR / RETIRAR DOCUMENTO EN GOOGLE SHEETS
     if (accion === 'eliminar_documento') {
-      const res = eliminarDocumentoEnSheet(dataObj.codigo, dataObj.motivo, dataObj.borradoFisico);
+      const res = eliminarDocumentoEnSheet(dataObj.codigo, dataObj.motivo, dataObj.borradoFisico, dataObj.esRegistro, dataObj.titulo);
       return ContentService.createTextOutput(JSON.stringify(res))
         .setMimeType(ContentService.MimeType.JSON);
     }
@@ -276,8 +276,8 @@ function normalizarFilaDocumento(doc) {
     areaSigla = partesCod[1];
   }
 
-  // 3. Consecutivo numérico de 3 dígitos
-  let consecutivo = doc.consecutivo || doc['Consecutivo'] || (partesCod[2] || '001');
+  // 3. Consecutivo numérico o con sufijo secundario (ej: 016 o 016-1)
+  let consecutivo = doc.consecutivo || doc['Consecutivo'] || (partesCod.length >= 4 ? partesCod.slice(2).join('-') : (partesCod[2] || '001'));
   if (/^\d+$/.test(consecutivo)) {
     consecutivo = String(consecutivo).padStart(3, '0');
   }
@@ -430,16 +430,55 @@ function modificarDocumentoEnSheet(codigo, docActualizado) {
 
   const headers = data[0].map(h => String(h || '').trim());
   let codIdx = 4;
+  let tituloIdx = 5;
+  let tipoDocIdx = 1;
   for (let c = 0; c < headers.length; c++) {
     const hNorm = headers[c].toLowerCase();
     if (hNorm === 'codigo' || hNorm === 'código') {
       codIdx = c;
-      break;
+    } else if (hNorm === 'nombre del documento' || hNorm === 'documento' || hNorm === 'titulo' || hNorm === 'título') {
+      tituloIdx = c;
+    } else if (hNorm === 'subclase' || hNorm === 'nivel' || hNorm === 'nivel documental') {
+      subclaseIdx = c;
+    } else if (hNorm === 'tipo de documento' || hNorm === 'tipo documento' || hNorm === 'tipo') {
+      tipoDocIdx = c;
     }
   }
 
+  const esRegistro = Boolean(docActualizado && (docActualizado.esRegistro === true || docActualizado.subclase === 'Registro' || (docActualizado.id && String(docActualizado.id).includes('_REG_'))));
+  const normalizarTxt = function(t) {
+    return String(t || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
+  };
+  const tituloBuscarNorm = normalizarTxt(docActualizado ? (docActualizado.tituloAnterior || docActualizado.titulo || docActualizado.nombre || '') : '');
+
   for (let r = 1; r < data.length; r++) {
-    if (String(data[r][codIdx] || '').trim().toUpperCase() === codigoUpper) {
+    const rowCod = String(data[r][codIdx] || '').trim().toUpperCase();
+    if (rowCod === codigoUpper) {
+      const rowTitulo = String(data[r][tituloIdx] || '');
+      const rowTitNorm = normalizarTxt(rowTitulo);
+      const rowSubclase = subclaseIdx >= 0 ? String(data[r][subclaseIdx] || '').trim().toLowerCase() : '';
+      const rowTipoDoc = tipoDocIdx >= 0 ? String(data[r][tipoDocIdx] || '').trim().toLowerCase() : '';
+
+      if (esRegistro) {
+        // Un registro derivado NUNCA debe sobreescribir la fila del documento base ni formatos principales
+        if (rowSubclase === 'base' || rowTipoDoc === 'formato' || rowTipoDoc === 'manual' || rowTipoDoc === 'politica' || rowTipoDoc === 'guia') {
+          continue;
+        }
+        // Para registros derivados, buscar la fila que corresponda al título anterior o nuevo
+        let coincide = false;
+        if (tituloBuscarNorm && (rowTitNorm === tituloBuscarNorm || rowTitNorm.includes(tituloBuscarNorm) || tituloBuscarNorm.includes(rowTitNorm))) {
+          coincide = true;
+        }
+        if (!coincide) {
+          continue;
+        }
+      } else {
+        // Para documentos base, omitir filas que sean registros derivados
+        if (rowSubclase === 'registro' || rowTipoDoc === 'registro') {
+          continue;
+        }
+      }
+
       const existingRow = data[r];
       const mapExisting = {};
       for (let c = 0; c < headers.length; c++) {
@@ -471,16 +510,20 @@ function modificarDocumentoEnSheet(codigo, docActualizado) {
       };
 
       const fila = normalizarFilaDocumento(mergedDoc);
+      if (subclaseIdx >= 0) {
+        while (fila.length <= subclaseIdx) fila.push('');
+        fila[subclaseIdx] = esRegistro ? 'Registro' : (existingRow[subclaseIdx] || 'Base');
+      }
       const range = sheet.getRange(r + 1, 1, 1, fila.length);
       range.setValues([fila]);
-      return { status: 'ok', mensaje: 'Documento ' + codigoUpper + ' modificado exitosamente en Google Sheets' };
+      return { status: 'ok', mensaje: (esRegistro ? 'Registro derivado de ' : 'Documento ') + codigoUpper + ' modificado exitosamente en Google Sheets' };
     }
   }
 
   return crearDocumentoEnSheet({ ...docActualizado, codigo: codigoUpper });
 }
 
-function eliminarDocumentoEnSheet(codigo, motivo, borradoFisico) {
+function eliminarDocumentoEnSheet(codigo, motivo, borradoFisico, esRegistro = false, titulo = '') {
   if (!codigo) {
     return { status: 'error', error: 'Código de documento requerido.' };
   }
@@ -491,6 +534,8 @@ function eliminarDocumentoEnSheet(codigo, motivo, borradoFisico) {
 
   const headers = data[0].map(h => String(h || '').trim());
   let codIdx = 4;
+  let tituloIdx = 5;
+  let subclaseIdx = -1;
   let estadoIdx = 19; // Columna 20 por defecto
   let cambioIdx = 17; // Columna 18 por defecto
 
@@ -498,6 +543,10 @@ function eliminarDocumentoEnSheet(codigo, motivo, borradoFisico) {
     const hNorm = headers[c].toLowerCase();
     if (hNorm === 'codigo' || hNorm === 'código') {
       codIdx = c;
+    } else if (hNorm === 'nombre del documento' || hNorm === 'documento' || hNorm === 'titulo' || hNorm === 'título') {
+      tituloIdx = c;
+    } else if (hNorm === 'subclase' || hNorm === 'nivel' || hNorm === 'nivel documental') {
+      subclaseIdx = c;
     } else if (hNorm === 'estado actual' || hNorm === 'estado') {
       estadoIdx = c;
     } else if (hNorm === 'tipo de cambio' || hNorm === 'tipo cambio' || hNorm === 'cambio') {
@@ -508,26 +557,40 @@ function eliminarDocumentoEnSheet(codigo, motivo, borradoFisico) {
   // Política de Calidad: Soft-Delete obligatorio para trazabilidad documental.
   // El borrado físico solo se permite con autorización explícita de purga permanente.
   const isFisico = (borradoFisico === 'CONFIRMAR_BORRADO_PERMANENTE' || borradoFisico === 'PURGA_AUTORIZADA');
+  const esReg = Boolean(esRegistro);
+  const tituloBuscar = titulo ? String(titulo).trim().toLowerCase() : '';
 
   for (let r = 1; r < data.length; r++) {
-    if (String(data[r][codIdx] || '').trim().toUpperCase() === codigoUpper) {
+    const rowCod = String(data[r][codIdx] || '').trim().toUpperCase();
+    if (rowCod === codigoUpper) {
+      const rowTitulo = String(data[r][tituloIdx] || '').trim().toLowerCase();
+      const rowSubclase = subclaseIdx >= 0 ? String(data[r][subclaseIdx] || '').trim().toLowerCase() : '';
+
+      if (esReg) {
+        if (tituloBuscar && rowTitulo !== tituloBuscar && !rowTitulo.includes(tituloBuscar) && !tituloBuscar.includes(rowTitulo)) {
+          continue;
+        }
+      } else {
+        if (rowSubclase === 'registro') continue;
+      }
+
       if (isFisico) {
         sheet.deleteRow(r + 1);
-        return { status: 'ok', mensaje: 'Documento ' + codigoUpper + ' eliminado físicamente de Google Sheets (Purga permanente)' };
+        return { status: 'ok', mensaje: (esReg ? 'Registro derivado de ' : 'Documento ') + codigoUpper + ' eliminado físicamente de Google Sheets (Purga permanente)' };
       } else {
         sheet.getRange(r + 1, estadoIdx + 1).setValue('Inactivo / Retirado');
         const motivoRetiro = motivo ? String(motivo).trim() : 'Retirado del listado activo por actualización documental';
         sheet.getRange(r + 1, cambioIdx + 1).setValue('Retirado: ' + motivoRetiro);
         return { 
           status: 'ok', 
-          mensaje: 'Documento ' + codigoUpper + ' marcado como Inactivo / Retirado (Soft-Delete seguro)',
+          mensaje: (esReg ? 'Registro derivado de ' : 'Documento ') + codigoUpper + ' marcado como Inactivo / Retirado (Soft-Delete seguro)',
           softDelete: true 
         };
       }
     }
   }
 
-  return { status: 'error', error: 'No se encontró el documento ' + codigoUpper + ' en Google Sheets.' };
+  return { status: 'error', error: 'No se encontró el ' + (esReg ? 'registro derivado' : 'documento') + ' ' + codigoUpper + ' en Google Sheets.' };
 }
 
 function sincronizarLoteDocumentosEnSheet(documentos, headersCustom) {

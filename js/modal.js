@@ -3,8 +3,8 @@
  * Unión para la salud y la vida S.A.S.
  */
 
-import { sharepointService, determinarEstrategiaDescarga, esDocumentoFMT } from './sharepoint-service.js?v=11.6.63';
-import { staffService } from './staff-service.js?v=11.6.63';
+import { sharepointService, determinarEstrategiaDescarga, esDocumentoFMT } from './sharepoint-service.js?v=11.6.74';
+import { staffService } from './staff-service.js?v=11.6.74';
 
 const STORAGE_KEY_USER_PROFILE = 'agy_user_profile';
 
@@ -379,6 +379,31 @@ export class ModalManager {
               </p>
             </div>
 
+            <!-- Banner Notificación de Registros Derivados en Ficha Técnica -->
+            ${
+              Array.isArray(doc.registrosDerivados) && doc.registrosDerivados.length > 0
+                ? `
+                <div class="drawer-registros-alert-box" style="background: linear-gradient(135deg, #eff6ff 0%, #f0fdf4 100%); border: 1.5px solid #93c5fd; border-radius: 10px; padding: 12px 14px; display: flex; align-items: center; justify-content: space-between; gap: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
+                  <div style="display: flex; align-items: center; gap: 10px;">
+                    <span style="font-size: 1.5rem;">📂</span>
+                    <div>
+                      <div style="font-weight: 700; color: #1e3a8a; font-size: 0.86rem;">
+                        ${doc.registrosDerivados.length} ${doc.registrosDerivados.length === 1 ? 'Registro Derivado Asociado' : 'Registros Derivados Asociados'}
+                      </div>
+                      <div style="font-size: 0.73rem; color: #475569; margin-top: 1px;">
+                        Documentos modificados con este mismo código (${doc.codigo})
+                      </div>
+                    </div>
+                  </div>
+                  <button type="button" class="btn btn-primary" id="btn-ir-a-tab-registros" style="background: #0284c7; border: 1px solid #0369a1; font-size: 0.76rem; font-weight: 700; padding: 6px 12px; border-radius: 6px; cursor: pointer; white-space: nowrap; display: flex; align-items: center; gap: 4px;">
+                    <span>Ver Registros</span>
+                    <span>➔</span>
+                  </button>
+                </div>
+                `
+                : ''
+            }
+
             <!-- Grid de Metadatos -->
             <div class="doc-metadata-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
               <div class="meta-item" style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:8px 10px;">
@@ -583,7 +608,7 @@ export class ModalManager {
                   <div style="flex: 1; min-width: 200px;">
                     <strong>Registros asociados:</strong> Estos documentos derivan de este formato institucional y conservan la codificación <strong>${doc.codigo}</strong>, pero corresponden a implementaciones operativas específicas con títulos diferenciales.
                   </div>
-                  ${(puedeGestionarCatalogo || modoEdicion) ? `
+                  ${(modoEdicion && puedeGestionarCatalogo) ? `
                     <button type="button" class="btn btn-primary" id="btn-drawer-crear-registro" style="background-color: #1f4260; border-color: #16334c; font-size: 0.76rem; font-weight: 700; padding: 7px 12px; display: inline-flex; align-items: center; gap: 6px; border-radius: 6px; white-space: nowrap; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
                       <span>➕</span> Añadir Registro
                     </button>
@@ -592,36 +617,67 @@ export class ModalManager {
                 ${(Array.isArray(doc.registrosDerivados) && doc.registrosDerivados.length > 0) ? `
                   <div class="drawer-registros-list" style="display: flex; flex-direction: column; gap: 10px;">
                     ${doc.registrosDerivados.map((reg) => {
-                      const rExt = (reg.extension || 'DOC').toUpperCase();
-                      const rBadgeClass = rExt.includes('XLS') ? 'badge-xls' : (rExt.includes('PDF') ? 'badge-pdf' : 'badge-doc');
+                      const esXls = (reg.extension && reg.extension.toUpperCase().includes('XLS')) || reg.formato === 'Excel';
+                      const rExt = esXls ? 'XLS' : 'PDF';
+                      const rBadgeClass = esXls ? 'badge-xls' : 'badge-pdf';
                       const esCoincidente = doc.registroCoincidente && (doc.registroCoincidente.id === reg.id || doc.registroCoincidente.titulo === reg.titulo);
                       return `
                         <div class="drawer-registro-card ${esCoincidente ? 'registro-coincidente-active' : ''}" style="border: 1.5px solid ${esCoincidente ? '#f59e0b' : '#cbd5e1'}; border-radius: 8px; padding: 12px; background: ${esCoincidente ? '#fffbeb' : '#ffffff'}; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
                           ${esCoincidente ? `<div style="font-size:0.72rem; color:#b45309; font-weight:700;">⭐ Coincidencia con tu búsqueda</div>` : ''}
                           <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;">
-                            <div style="display: flex; align-items: center; gap: 6px;">
+                            <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
                               <span class="badge ${rBadgeClass}" style="font-size: 0.70rem; padding: 2px 6px;">${rExt}</span>
+                              ${reg.codigo ? `<span class="badge badge-secondary" style="font-size: 0.70rem; padding: 2px 6px; font-weight: 700; background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd;">${reg.codigo}</span>` : ''}
                               <span style="font-weight: 700; color: #1e293b; font-size: 0.85rem; line-height: 1.3;">${reg.titulo}</span>
                             </div>
                           </div>
-                          <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 4px;">
+                          <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 4px; flex-wrap: wrap;">
                             <span style="font-size: 0.73rem; color: #64748b;">${staffService.formatearFechaHora(reg.modificacion)}</span>
-                            <div style="display: flex; gap: 6px;">
-                              ${reg.disponible
+                            <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
+                              ${modoEdicion
                                 ? `
-                                <button type="button" class="btn btn-secondary btn-reg-download" data-reg-id="${reg.id}" style="padding: 4px 10px; font-size: 0.75rem; font-weight: 600;" title="Descargar registro">
-                                  📥 Descargar
-                                </button>
-                                ${modoEdicion
+                                ${puedeGestionarCatalogo
                                   ? `
-                                  <button type="button" class="btn btn-primary btn-reg-edit" data-reg-id="${reg.id}" style="padding: 4px 10px; font-size: 0.75rem; font-weight: 600;" title="Editar registro en SharePoint">
-                                    ✏️ Editar
+                                  <button type="button" class="btn btn-secondary btn-reg-meta" data-reg-id="${reg.id}" style="width: 28px; height: 28px; padding: 0; font-size: 0.82rem; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; background: #e0f2fe; color: #0369a1; border: 1.5px solid #bae6fd; border-radius: 6px;" title="Modificar metadatos del registro">
+                                    <span>⚙️</span>
+                                  </button>
+                                  `
+                                  : ''
+                                }
+                                ${reg.disponible
+                                  ? `
+                                  ${reg.descargable === false
+                                    ? `<button type="button" class="btn btn-secondary" disabled style="width: 28px; height: 28px; padding: 0; font-size: 0.82rem; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; border-radius: 6px; color:#92400e; background:#fef3c7; cursor:not-allowed;" title="Descarga restringida"><span>🔒</span></button>`
+                                    : `
+                                    <button type="button" class="btn btn-secondary btn-reg-download" data-reg-id="${reg.id}" style="width: 28px; height: 28px; padding: 0; font-size: 0.82rem; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; border-radius: 6px;" title="Descargar registro en PDF">
+                                      <span>📥</span>
+                                    </button>
+                                    `
+                                  }
+                                  <button type="button" class="btn btn-primary btn-reg-edit" data-reg-id="${reg.id}" style="width: 28px; height: 28px; padding: 0; font-size: 0.82rem; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; border-radius: 6px;" title="Editar registro en SharePoint">
+                                    <span>✏️</span>
+                                  </button>
+                                  `
+                                  : `<span style="width: 28px; height: 28px; font-size: 0.80rem; color: #94a3b8; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center;" title="Sin archivo individual asociado en SharePoint">📄</span>`
+                                }
+                                ${puedeGestionarCatalogo
+                                  ? `
+                                  <button type="button" class="btn btn-secondary btn-reg-delete" data-reg-id="${reg.id}" style="width: 28px; height: 28px; padding: 0; font-size: 0.80rem; font-weight: 600; color: #dc2626; border: 1px solid #fecaca; background: #fff5f5; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center;" title="Retirar este registro derivado">
+                                    <span>🗑️</span>
                                   </button>
                                   `
                                   : ''
                                 }
                                 `
-                                : `<span style="font-size: 0.74rem; color: #94a3b8;">No disponible</span>`
+                                : !reg.disponible
+                                  ? `<button class="btn btn-disabled" disabled style="padding: 4px 8px; font-size: 0.72rem;" title="Registro no disponible en SharePoint">No Disponible</button>`
+                                  : reg.descargable === false
+                                    ? `<button type="button" class="btn btn-secondary" disabled style="padding: 4px 8px; font-size: 0.72rem; color:#92400e; background:#fef3c7; border: 1px solid #fcd34d; cursor:not-allowed;" title="Descarga restringida">🔒 Bloqueado</button>`
+                                    : `
+                                    <button type="button" class="btn btn-primary btn-reg-download" data-reg-id="${reg.id}" style="padding: 4px 10px; font-size: 0.74rem; font-weight: 700; display: inline-flex; align-items: center; gap: 4px; border-radius: 6px;" title="Descargar registro en PDF">
+                                      <span>📥</span> Descargar
+                                    </button>
+                                    `
                               }
                             </div>
                           </div>
@@ -634,9 +690,9 @@ export class ModalManager {
                     <span style="font-size: 2.2rem; display: block; margin-bottom: 8px;">📂</span>
                     <p style="margin: 0 0 6px 0; font-size: 0.88rem; font-weight: 700; color: #1e293b;">Aún no hay registros derivados</p>
                     <span style="font-size: 0.76rem; display: block; margin-bottom: 14px; color: #64748b; max-width: 380px; margin-left: auto; margin-right: auto;">
-                      Puedes registrar variantes u hojas derivadas que salieron de este formato modificado conservando la misma codificación.
+                       Puedes registrar variantes u hojas derivadas que salieron de este formato modificado conservando la misma codificación.
                     </span>
-                    ${(puedeGestionarCatalogo || modoEdicion) ? `
+                    ${(modoEdicion && puedeGestionarCatalogo) ? `
                       <button type="button" class="btn btn-primary" id="btn-drawer-crear-primer-registro" style="background-color: var(--primary, #376c95); font-size: 0.78rem; font-weight: 700; padding: 8px 16px; display: inline-flex; align-items: center; gap: 6px;">
                         <span>➕</span> Añadir Primer Registro Derivado
                       </button>
@@ -720,11 +776,19 @@ export class ModalManager {
         const regId = btn.getAttribute('data-reg-id');
         const reg = (doc.registrosDerivados || []).find((r) => r.id === regId);
         if (reg && onDescargar) {
+          if (!reg.downloadUrl || reg.downloadUrl === doc.downloadUrl || reg.downloadUrl === '#') {
+            if (window.__agyApp) window.__agyApp.mostrarToast(`📄 El registro "${reg.titulo}" no tiene un archivo individual cargado en SharePoint.`, 'info');
+            return;
+          }
           btn.classList.add('btn-downloading');
+          const iconSpan = btn.querySelector('span') || btn;
+          const origHtml = iconSpan.innerHTML;
+          iconSpan.innerHTML = '⏳';
           try {
             await onDescargar(reg);
           } finally {
             btn.classList.remove('btn-downloading');
+            iconSpan.innerHTML = origHtml;
           }
         }
       });
@@ -736,13 +800,73 @@ export class ModalManager {
         const regId = btn.getAttribute('data-reg-id');
         const reg = (doc.registrosDerivados || []).find((r) => r.id === regId);
         if (reg && onEditarSharePoint) {
+          if (!reg.sharepointUrl || reg.sharepointUrl === doc.sharepointUrl || reg.sharepointUrl === '#') {
+            if (window.__agyApp) window.__agyApp.mostrarToast(`📄 El registro "${reg.titulo}" no tiene un archivo individual cargado en SharePoint para editar.`, 'info');
+            return;
+          }
           onEditarSharePoint(reg);
+        }
+      });
+    });
+
+    // Modificar Metadatos del Registro Derivado desde el Drawer
+    this.drawerContainer.querySelectorAll('.btn-reg-meta').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (!modoEdicion || !puedeGestionarCatalogo) {
+          if (window.__agyApp) window.__agyApp.mostrarToast('🔒 No tiene permisos para modificar metadatos.', 'warning');
+          return;
+        }
+        const regId = btn.getAttribute('data-reg-id');
+        const reg = (doc.registrosDerivados || []).find((r) => r.id === regId);
+        if (reg) {
+          this.abrirModalEditarDocumento(reg, {
+            docPadre: doc,
+            onGuardar: (docAct) => {
+              if (window.__agyApp) {
+                window.__agyApp.actualizarDocumentoEnApp(doc);
+              }
+              const docActualizado = (sharepointService.documentosEnMemoria || []).find((d) => (d.codigo || '').toUpperCase() === (doc.codigo || '').toUpperCase()) || doc;
+              this.abrirDrawerDocumento(docActualizado, modoEdicion, onEditarSharePoint, onDescargar, onActualizarDoc, onEliminarDoc, 'registros');
+            }
+          });
+        }
+      });
+    });
+
+    // Retirar Registro Derivado desde el Drawer
+    this.drawerContainer.querySelectorAll('.btn-reg-delete').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (!modoEdicion || !puedeGestionarCatalogo) {
+          if (window.__agyApp) window.__agyApp.mostrarToast('🔒 No tiene permisos para retirar registros derivados.', 'warning');
+          return;
+        }
+        const regId = btn.getAttribute('data-reg-id');
+        const reg = (doc.registrosDerivados || []).find((r) => r.id === regId);
+        if (reg) {
+          this.abrirModalEliminarDocumento(reg, {
+            onConfirmar: async (motivo, borradoFisico) => {
+              await sharepointService.eliminarDocumento(doc.codigo, motivo || 'Retiro de registro derivado', borradoFisico, reg.id, true, reg.titulo);
+              const idxReg = (doc.registrosDerivados || []).findIndex(r => r.id === reg.id);
+              if (idxReg >= 0) doc.registrosDerivados.splice(idxReg, 1);
+              if (window.__agyApp) {
+                window.__agyApp.actualizarDocumentoEnApp(doc);
+              }
+              const docActualizado = (sharepointService.documentosEnMemoria || []).find((d) => (d.codigo || '').toUpperCase() === (doc.codigo || '').toUpperCase()) || doc;
+              this.abrirDrawerDocumento(docActualizado, modoEdicion, onEditarSharePoint, onDescargar, onActualizarDoc, onEliminarDoc, 'registros');
+            }
+          });
         }
       });
     });
 
     // Vincular Creación de Registro Derivado desde el Drawer
     const handlerCrearRegistro = () => {
+      if (!modoEdicion || !puedeGestionarCatalogo) {
+        if (window.__agyApp) window.__agyApp.mostrarToast('🔒 No tiene permisos para crear registros derivados.', 'warning');
+        return;
+      }
       this.abrirModalNuevoDocumento({
         esRegistro: true,
         docPadre: doc,
@@ -752,7 +876,7 @@ export class ModalManager {
           }
           const docActualizado = (sharepointService.documentosEnMemoria || []).find((d) => (d.codigo || '').toUpperCase() === (doc.codigo || '').toUpperCase());
           if (docActualizado) {
-            this.abrirDrawerDocumento(docActualizado, { onDescargar, onEditarSharePoint, onEditarMetadatos });
+            this.abrirDrawerDocumento(docActualizado, modoEdicion, onEditarSharePoint, onDescargar, onActualizarDoc, onEliminarDoc, 'registros');
             setTimeout(() => {
               const tabBtn = this.drawerContainer?.querySelector('.doc-drawer-tab-btn[data-tab="registros"]');
               if (tabBtn) tabBtn.click();
@@ -763,6 +887,12 @@ export class ModalManager {
     };
     this.drawerContainer.querySelector('#btn-drawer-crear-registro')?.addEventListener('click', handlerCrearRegistro);
     this.drawerContainer.querySelector('#btn-drawer-crear-primer-registro')?.addEventListener('click', handlerCrearRegistro);
+
+    // Salto directo a la pestaña de registros desde el banner de la Ficha Técnica
+    this.drawerContainer.querySelector('#btn-ir-a-tab-registros')?.addEventListener('click', () => {
+      const tabBtn = this.drawerContainer?.querySelector('.doc-drawer-tab-btn[data-tab="registros"]');
+      if (tabBtn) tabBtn.click();
+    });
 
     // Vincular Cierre
     this.drawerContainer.querySelector('#btn-drawer-close')?.addEventListener('click', () => this.cerrarDrawer());
@@ -3884,8 +4014,11 @@ export class ModalManager {
     const areaDefault = docPadreSeleccionado?.areaNombre || docPadreSeleccionado?.area || areasMaestras[0]?.nombre || 'Gestión Talento Humano';
 
     // Código inicial por defecto calculado
+    const codInicialPadre = esRegistro && docPadreSeleccionado
+      ? (sharepointService.calcularSiguienteCodigoRegistro ? sharepointService.calcularSiguienteCodigoRegistro(docPadreSeleccionado) : docPadreSeleccionado.codigo)
+      : '';
     const codigoInicial = esRegistro && docPadreSeleccionado
-      ? { codigoCompleto: docPadreSeleccionado.codigo, prefijoTipo: 'FMT', siglaArea: docPadreSeleccionado.area || 'GIC' }
+      ? { codigoCompleto: codInicialPadre, prefijoTipo: 'FMT', siglaArea: docPadreSeleccionado.area || 'GIC' }
       : this.calcularSiguienteCodigo(tipoDocDefault, areaDefault);
 
     const optionsFormatosPadreHtml = formatosBase.map((d) => {
@@ -3971,7 +4104,7 @@ export class ModalManager {
             <div id="nd-seccion-padre" style="display: ${esRegistro ? 'flex' : 'none'}; flex-direction: column; gap: 6px; background: #fffbeb; border: 1.5px solid #fde68a; border-radius: 10px; padding: 12px 14px;">
               <label for="nd-select-padre" style="display: flex; align-items: center; justify-content: space-between; font-size: 0.78rem; font-weight: 700; color: #92400e;">
                 <span>Formato Base Asociado <span style="color: #dc2626;">*</span></span>
-                <span style="font-size: 0.70rem; font-weight: 600; color: #b45309;">El registro conservará el mismo código del formato</span>
+                <span style="font-size: 0.70rem; font-weight: 600; color: #b45309;">Consecutivo numérico automático en subcarpeta dedicada del padre</span>
               </label>
               <select id="nd-select-padre" class="form-input" style="width: 100%; height: 38px; font-weight: 600; background: #ffffff; border: 1.5px solid #f59e0b;">
                 ${optionsFormatosPadreHtml}
@@ -3998,7 +4131,7 @@ export class ModalManager {
               </div>
               <div>
                 <label id="nd-label-codigo" style="display: block; font-size: 0.78rem; font-weight: 700; color: var(--brand-navy, #1f4260); margin-bottom: 4px;">
-                  ${esRegistro ? '3. Código Heredado 🔒' : '3. Código Automático *'}
+                  ${esRegistro ? '3. Código Secundario (Consecutivo) 🔒' : '3. Código Automático *'}
                 </label>
                 <input type="text" id="nd-codigo" class="form-input" value="${codigoInicial.codigoCompleto}" required style="width: 100%; height: 38px; font-weight: 800; font-size: 0.95rem; text-align: center; text-transform: uppercase; background: ${esRegistro ? '#f1f5f9' : '#ffffff'}; border: 1.5px solid #376c95; color: #1f4260; letter-spacing: 0.5px;" ${esRegistro ? 'readonly' : ''} title="Código del documento" />
               </div>
@@ -4165,7 +4298,76 @@ export class ModalManager {
       const ar = inputArea.value;
       const proc = selectProceso ? selectProceso.value : '';
 
-      const docExistente = (sharepointService.documentosEnMemoria || []).find((d) => (d.codigo || '').toUpperCase() === cod);
+      const esRegActual = Boolean(document.getElementById('nd-subclase-registro')?.checked);
+      if (esRegActual) {
+        const codPadre = selectPadre?.value;
+        const padre = formatosBase.find((d) => (d.codigo || '').toUpperCase() === (codPadre || '').toUpperCase());
+        const subcarpetaNombre = padre ? `${padre.codigo} ${padre.titulo}` : '';
+        const tituloDoc = inputTitulo ? inputTitulo.value.trim() : '';
+        const enlaceSecundario = (padre && sharepointService.generarEnlacesDocumentoSecundario) 
+          ? sharepointService.generarEnlacesDocumentoSecundario(padre, { codigo: cod, titulo: tituloDoc, extension: 'docx' })
+          : null;
+
+        const containerBadge = document.getElementById('nd-disp-badge-container');
+        const inputDisp = document.getElementById('nd-disponibilidad');
+        const prefijoBadge = document.getElementById('nd-rutas-prefijo-label');
+        const listContainer = document.getElementById('nd-rutas-list');
+        const wrapperSeccion = document.getElementById('nd-disponibilidad-seccion-wrapper');
+        const tituloSeccion = document.getElementById('nd-disp-seccion-titulo');
+
+        if (prefijoBadge) prefijoBadge.textContent = `Consecutivo: ${cod}`;
+        if (inputDisp) inputDisp.value = 'DISPONIBLE';
+        if (containerBadge) {
+          containerBadge.innerHTML = `
+            <span style="display:inline-flex; align-items:center; gap:5px; padding:3px 9px; background:#dbeafe; border:1px solid #93c5fd; border-radius:6px; color:#1e40af; font-size:0.75rem; font-weight:700;">
+              <span style="width:7px; height:7px; border-radius:50%; background:#3b82f6; display:inline-block;"></span>
+              VÍNCULO AUTOMÁTICO
+            </span>
+          `;
+        }
+        if (wrapperSeccion) {
+          wrapperSeccion.style.background = '#f0fdf4';
+          wrapperSeccion.style.borderColor = '#86efac';
+        }
+        if (tituloSeccion) {
+          tituloSeccion.innerHTML = `<span>📂</span> Ubicación en Subcarpeta Dedicada del Formato Base:`;
+        }
+        if (listContainer) {
+          listContainer.innerHTML = `
+            <div style="background: #ffffff; border: 1.5px solid #86efac; border-radius: 8px; padding: 11px 14px; display: flex; align-items: center; justify-content: space-between; gap: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
+              <div style="flex: 1; min-width: 0;">
+                <div style="font-size: 0.72rem; color: #166534; font-weight: 700; text-transform: uppercase; margin-bottom: 2px;">
+                  Subcarpeta Oficial del Formato (Generación Automática de Vínculos)
+                </div>
+                <div style="font-size: 0.78rem; font-weight: 700; color: #1e293b; display: flex; align-items: center; gap: 6px; word-break: break-all;">
+                  <span>📁</span> <strong>${subcarpetaNombre || 'Subcarpeta del Formato'}</strong>
+                </div>
+                <div style="font-size: 0.70rem; color: #64748b; margin-top: 3px;">
+                  Los documentos secundarios se alojan dentro de esta subcarpeta con código consecutivo (${cod}).
+                </div>
+              </div>
+              ${enlaceSecundario?.sharepointUrl ? `
+                <button type="button" class="btn btn-secondary btn-open-sp-folder" data-folder-url="${encodeURIComponent(enlaceSecundario.sharepointUrl)}" style="padding: 5px 12px; font-size: 0.74rem; font-weight: 700; display: flex; align-items: center; gap: 5px; white-space: nowrap; background: #22c55e; color: #ffffff; border: 1px solid #16a34a;">
+                  <span>↗</span> Ver Enlace
+                </button>
+              ` : ''}
+            </div>
+          `;
+          listContainer.querySelectorAll('.btn-open-sp-folder').forEach((btn) => {
+            btn.addEventListener('click', (e) => {
+              e.preventDefault();
+              const rawAttr = btn.getAttribute('data-folder-url') || '';
+              const url = rawAttr ? decodeURIComponent(rawAttr) : '';
+              if (url && url !== 'undefined' && url !== 'null' && url !== '#') {
+                window.open(url, '_blank');
+              }
+            });
+          });
+        }
+        return;
+      }
+
+      const docExistente = (sharepointService.documentosEnMemoria || []).find((d) => (d.codigo || '').toUpperCase() === cod && !d.esRegistro);
       const tieneEnlace = Boolean(
         docExistente &&
         ((docExistente.sharepointUrl && docExistente.sharepointUrl.trim() !== '' && docExistente.sharepointUrl !== '#') ||
@@ -4322,7 +4524,7 @@ export class ModalManager {
       const codPadre = selectPadre?.value;
       const padre = formatosBase.find((d) => (d.codigo || '').toUpperCase() === (codPadre || '').toUpperCase());
       if (padre) {
-        inputCodigo.value = padre.codigo;
+        inputCodigo.value = (sharepointService.calcularSiguienteCodigoRegistro ? sharepointService.calcularSiguienteCodigoRegistro(padre) : padre.codigo);
         if (inputArea) {
           const areaMatch = areasMaestras.find((a) => 
             (a.nombre || '').toLowerCase() === (padre.areaNombre || padre.area || '').toLowerCase() || 
@@ -4356,7 +4558,7 @@ export class ModalManager {
           badgeSubclase.style.color = '#92400e';
           badgeSubclase.textContent = '📂 REGISTRO DERIVADO';
         }
-        if (labelCodigo) labelCodigo.innerHTML = '3. Código Heredado 🔒';
+        if (labelCodigo) labelCodigo.innerHTML = '3. Código Secundario (Consecutivo) 🔒';
         inputCodigo.readOnly = true;
         inputCodigo.style.background = '#f1f5f9';
         inputTipoDoc.value = 'Formato';
@@ -4462,7 +4664,7 @@ export class ModalManager {
       const partesCod = codigo.split('-');
       const prefijoSigla = partesCod[0] || (esRegistroDoc ? 'FMT' : 'DA');
       const areaSigla = partesCod[1] || 'GMD';
-      const consecutivoNum = partesCod[2] || '001';
+      const consecutivoNum = partesCod.length >= 4 ? partesCod.slice(2).join('-') : (partesCod[2] || '001');
 
       const hoy = new Date();
       const fechaAprobacion = `${String(hoy.getDate()).padStart(2, '0')}/${String(hoy.getMonth() + 1).padStart(2, '0')}/${hoy.getFullYear()}`;
@@ -4473,12 +4675,33 @@ export class ModalManager {
       btnSave.disabled = true;
       btnSave.innerHTML = `<span>⏳</span> ${esRegistroDoc ? 'Guardando registro...' : 'Guardando documento...'}`;
 
+      const codPadre = esRegistroDoc
+        ? (document.getElementById('nd-select-padre')?.value || codigo.replace(/-(\d+)$/, ''))
+        : null;
+      const docPadreRef = esRegistroDoc
+        ? (sharepointService.documentosEnMemoria || []).find((d) => (d.codigo || '').toUpperCase() === (codPadre || '').toUpperCase() && !d.esRegistro)
+        : null;
+      const formatoHeredado = docPadreRef?.formato || (prefijoSigla === 'FMT' ? 'Word' : 'PDF');
+      const extensionHeredada = docPadreRef?.extension || (formatoHeredado === 'Excel' ? 'XLS' : (formatoHeredado === 'Word' ? 'DOC' : 'PDF'));
+
+      let enlacesSecundarios = null;
+      if (esRegistroDoc && docPadreRef && sharepointService.generarEnlacesDocumentoSecundario) {
+        enlacesSecundarios = sharepointService.generarEnlacesDocumentoSecundario(docPadreRef, {
+          codigo: codigo,
+          titulo: titulo,
+          extension: extensionHeredada
+        });
+      }
+
       const nuevoDocumentoObj = {
         codigo: codigo,
         titulo: titulo,
         documento: titulo,
         subclase: esRegistroDoc ? 'Registro' : 'Base',
         esRegistro: esRegistroDoc,
+        documentoPadreCodigo: esRegistroDoc ? (docPadreRef?.codigo || codPadre) : undefined,
+        formato: formatoHeredado,
+        extension: extensionHeredada,
         version: version,
         consecutivo: consecutivoNum,
         tipoDocumento: esRegistroDoc ? 'Registro' : prefijoSigla,
@@ -4502,8 +4725,10 @@ export class ModalManager {
         permisoAdministrativo: permAdm,
         permisoDirectivo: permDir,
         descargable: descargable,
-        disponible: dispVal === 'DISPONIBLE',
-        disponibilidad: dispVal,
+        disponible: esRegistroDoc ? true : (dispVal === 'DISPONIBLE'),
+        disponibilidad: esRegistroDoc ? 'DISPONIBLE' : dispVal,
+        sharepointUrl: enlacesSecundarios?.sharepointUrl || '',
+        downloadUrl: enlacesSecundarios?.downloadUrl || '',
         estado: estado,
         estadoDocumento: estado
       };
@@ -4515,7 +4740,7 @@ export class ModalManager {
           staffService.registrarAuditoria('CREACION', {
             documentoCodigo: codigo,
             documentoTitulo: titulo,
-            documentoExtension: nuevoDocumentoObj.extension || (esRegistroDoc ? 'XLSX' : 'DOC'),
+            documentoExtension: nuevoDocumentoObj.extension || extensionHeredada,
             detalle: esRegistroDoc
               ? `Nuevo registro derivado creado (${codigo} - ${titulo})`
               : `Nuevo documento incorporado al catálogo (${codigo} - ${titulo})`
@@ -4561,9 +4786,15 @@ export class ModalManager {
   /**
    * Modal interactivo para modificar metadatos de un documento en Google Sheets
    */
-  abrirModalEditarDocumento(doc, { onGuardar = null } = {}) {
+  abrirModalEditarDocumento(doc, { onGuardar = null, docPadre = null } = {}) {
     if (!doc) return;
-    document.body.classList.add('modal-open');
+    const esRegistro = Boolean(doc.esRegistro || doc.subclase === 'Registro' || docPadre || (doc.id && String(doc.id).includes('_REG_')) || /^[A-Z]{3,4}-[A-Z]{2,4}-\d{3,4}-\d+$/.test(doc.codigo || ''));
+    if (esRegistro && !docPadre) {
+      const codPadre = doc.documentoPadreCodigo || (doc.codigo || '').replace(/-(\d+)$/, '');
+      docPadre = (sharepointService.documentosEnMemoria || []).find(
+        (d) => (d.codigo || '').toUpperCase() === (codPadre || '').toUpperCase() && !d.esRegistro
+      );
+    }
 
     this.modalContainer.innerHTML = `
       <div class="modal-backdrop">
@@ -4573,14 +4804,14 @@ export class ModalManager {
           <div class="modal-header" style="background: linear-gradient(135deg, #1f4260 0%, #265072 50%, #376c95 100%); color: #ffffff; padding: 18px 24px; display: flex; justify-content: space-between; align-items: center;">
             <div style="display: flex; align-items: center; gap: 12px;">
               <div style="width: 38px; height: 38px; border-radius: 10px; background: rgba(255,255,255,0.18); display: flex; align-items: center; justify-content: center; font-size: 1.3rem;">
-                ✏️
+                ${esRegistro ? '⚙️' : '✏️'}
               </div>
               <div>
                 <h2 style="font-family: var(--font-heading); font-size: 1.22rem; font-weight: 700; margin: 0; color: #ffffff; letter-spacing: -0.01em;">
-                  Modificar Metadatos (${doc.codigo})
+                  ${esRegistro ? `Modificar Metadatos del Registro Derivado (${doc.codigo})` : `Modificar Metadatos (${doc.codigo})`}
                 </h2>
                 <span style="font-size: 0.76rem; color: #e2edf5; font-weight: 500;">
-                  Actualización de metadatos y parámetros del catálogo
+                  ${esRegistro ? 'Actualización de metadatos del registro secundario asociado al formato' : 'Actualización de metadatos y parámetros del catálogo'}
                 </span>
               </div>
             </div>
@@ -4594,37 +4825,62 @@ export class ModalManager {
             
             <div id="edit-doc-error" style="display: none; background: #fef2f2; border: 1px solid #fecaca; color: #dc2626; padding: 10px 14px; border-radius: 8px; font-size: 0.82rem; font-weight: 600;"></div>
 
-            <!-- Panel Informativo: Nomenclatura y Codificación Oficial (Solo Lectura con Botón de Recodificación) -->
-            <div style="background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 10px; padding: 12px 16px; display: flex; flex-direction: column; gap: 8px;">
-              <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
-                <div style="display: flex; align-items: center; gap: 8px;">
-                  <span style="font-size: 1.2rem;">🏷️</span>
-                  <div>
-                    <span style="font-size: 0.70rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">Estructura y Codificación Oficial</span>
-                    <div style="font-size: 1.12rem; font-weight: 800; color: var(--brand-navy, #1f4260); letter-spacing: 0.5px;">${doc.codigo}</div>
+            <!-- Panel Informativo: Nomenclatura y Codificación Oficial -->
+            ${esRegistro ? `
+              <div style="background: #eff6ff; border: 1.5px solid #bfdbfe; border-radius: 10px; padding: 12px 16px; display: flex; flex-direction: column; gap: 8px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <span style="font-size: 1.2rem;">📑</span>
+                    <div>
+                      <span style="font-size: 0.70rem; font-weight: 700; color: #1e40af; text-transform: uppercase; letter-spacing: 0.5px;">Registro Secundario Derivado del Formato</span>
+                      <div style="font-size: 1.12rem; font-weight: 800; color: #1e3a8a; letter-spacing: 0.5px;">${doc.codigo}</div>
+                    </div>
                   </div>
+                  <span class="badge" style="background: #dbeafe; color: #1d4ed8; font-weight: 700; font-size: 0.76rem; padding: 4px 10px; border-radius: 6px; border: 1px solid #bfdbfe;">
+                    Subclase: Registro Derivado
+                  </span>
                 </div>
-                <button type="button" id="btn-open-recodificar" class="btn btn-secondary" style="font-size: 0.76rem; font-weight: 700; color: var(--brand-navy, #1f4260); border: 1.5px solid #94a3b8; background: #ffffff; padding: 6px 14px; border-radius: 6px; display: flex; align-items: center; gap: 6px; cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,0.06);">
-                  <span>🔄</span> Cambiar Codificación / Recodificar
-                </button>
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; font-size: 0.76rem; color: #1e293b; background: #ffffff; padding: 8px 12px; border-radius: 6px; border: 1px solid #bfdbfe;">
+                  <div><strong>Tipo Doc:</strong> <span style="color:#0369a1; font-weight:600;">Registro</span></div>
+                  <div><strong>Área:</strong> <span style="color:#0369a1; font-weight:600;">${doc.areaNombre || doc.area || (docPadre && (docPadre.areaNombre || docPadre.area)) || 'Gestión Integral Calidad'}</span></div>
+                  <div><strong>Proceso:</strong> <span style="color:#0369a1; font-weight:600;">${doc.proceso || (docPadre && docPadre.proceso) || 'Gestión Integral de Calidad'}</span></div>
+                </div>
+                <div style="font-size: 0.71rem; color: #1e40af; line-height: 1.35;">
+                  ℹ️ <em>Registro Derivado:</em> Este documento es una derivación o caso específico del formato base <strong>${docPadre ? docPadre.codigo : (doc.documentoPadreCodigo || (doc.codigo || '').replace(/-(\d+)$/, ''))}</strong>. Se ubica en su subcarpeta dedicada y posee su propio consecutivo (${doc.codigo}), título diferencial, versión y archivo individual.
+                </div>
               </div>
-              <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; font-size: 0.76rem; color: #334155; background: #ffffff; padding: 8px 12px; border-radius: 6px; border: 1px solid #e2e8f0;">
-                <div><strong>Tipo Doc:</strong> <span style="color:#0369a1; font-weight:600;">${doc.tipoDocumento || 'N/A'}</span></div>
-                <div><strong>Área:</strong> <span style="color:#0369a1; font-weight:600;">${doc.areaNombre || doc.area || 'N/A'}</span></div>
-                <div><strong>Proceso:</strong> <span style="color:#0369a1; font-weight:600;">${doc.proceso || doc.carpeta || 'N/A'}</span></div>
+            ` : `
+              <div style="background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 10px; padding: 12px 16px; display: flex; flex-direction: column; gap: 8px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <span style="font-size: 1.2rem;">🏷️</span>
+                    <div>
+                      <span style="font-size: 0.70rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">Estructura y Codificación Oficial</span>
+                      <div style="font-size: 1.12rem; font-weight: 800; color: var(--brand-navy, #1f4260); letter-spacing: 0.5px;">${doc.codigo}</div>
+                    </div>
+                  </div>
+                  <button type="button" id="btn-open-recodificar" class="btn btn-secondary" style="font-size: 0.76rem; font-weight: 700; color: var(--brand-navy, #1f4260); border: 1.5px solid #94a3b8; background: #ffffff; padding: 6px 14px; border-radius: 6px; display: flex; align-items: center; gap: 6px; cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,0.06);">
+                    <span>🔄</span> Cambiar Codificación / Recodificar
+                  </button>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; font-size: 0.76rem; color: #334155; background: #ffffff; padding: 8px 12px; border-radius: 6px; border: 1px solid #e2e8f0;">
+                  <div><strong>Tipo Doc:</strong> <span style="color:#0369a1; font-weight:600;">${doc.tipoDocumento || 'N/A'}</span></div>
+                  <div><strong>Área:</strong> <span style="color:#0369a1; font-weight:600;">${doc.areaNombre || doc.area || 'N/A'}</span></div>
+                  <div><strong>Proceso:</strong> <span style="color:#0369a1; font-weight:600;">${doc.proceso || doc.carpeta || 'N/A'}</span></div>
+                </div>
+                <div style="font-size: 0.71rem; color: #64748b; line-height: 1.35;">
+                  ℹ️ <em>Nota técnica:</em> El tipo de documento y el área determinan la codificación institucional. Para reclasificar este documento a otra área o tipo con su respectiva nomenclatura, utiliza la opción <strong>"Cambiar Codificación / Recodificar"</strong>.
+                </div>
               </div>
-              <div style="font-size: 0.71rem; color: #64748b; line-height: 1.35;">
-                ℹ️ <em>Nota técnica:</em> El tipo de documento y el área determinan la codificación institucional. Para reclasificar este documento a otra área o tipo con su respectiva nomenclatura, utiliza la opción <strong>"Cambiar Codificación / Recodificar"</strong>.
-              </div>
-            </div>
+            `}
 
             <!-- Fila 1: Nombre / Título y Versión -->
             <div style="display: grid; grid-template-columns: 3fr 1fr; gap: 12px;">
               <div>
                 <label style="display: block; font-size: 0.78rem; font-weight: 700; color: #1e293b; margin-bottom: 4px;">
-                  Nombre / Título del Documento <span style="color: #dc2626;">*</span>
+                  ${esRegistro ? 'Nombre / Título Diferencial del Registro' : 'Nombre / Título del Documento'} <span style="color: #dc2626;">*</span>
                 </label>
-                <input type="text" id="ed-titulo" class="form-input" value="${(doc.titulo || '').replace(/"/g, '&quot;')}" required style="width: 100%; height: 38px; font-weight: 600;" />
+                <input type="text" id="ed-titulo" class="form-input" value="${(doc.titulo || doc.nombre || '').replace(/"/g, '&quot;')}" required style="width: 100%; height: 38px; font-weight: 600;" placeholder="${esRegistro ? 'Ej: Criterios de Formación para Anticoagulados' : 'Título del documento'}" />
               </div>
               <div>
                 <label style="display: block; font-size: 0.78rem; font-weight: 700; color: #1e293b; margin-bottom: 4px;">
@@ -4707,13 +4963,13 @@ export class ModalManager {
               <div style="display: flex; align-items: center; gap: 8px;">
                 <strong>Extensión:</strong> <span class="badge" style="background: #e2e8f0; color: #0f172a; padding: 2px 8px; border-radius: 4px; font-weight: 700;">${doc.extension || 'DOC'}</span>
                 &nbsp;|&nbsp;
-                <strong>Modificación SharePoint:</strong> ${doc.modificacion || 'N/A'}
+                <strong>Modificación:</strong> ${doc.modificacion || 'N/A'}
               </div>
               <div style="display: flex; align-items: center; gap: 6px;">
                 ${doc.disponible ? `
                   <span style="display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 8px; font-size: 0.70rem; font-weight: 800; background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0;">🟢 En Línea (OneDrive)</span>
                 ` : `
-                  <span style="display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 8px; font-size: 0.70rem; font-weight: 800; background: #fee2e2; color: #b91c1c; border: 1px solid #fecaca;">🔴 No Disponible en OneDrive</span>
+                  <span style="display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 8px; font-size: 0.70rem; font-weight: 800; background: #fee2e2; color: #b91c1c; border: 1px solid #fecaca;">🔴 Sin archivo subido</span>
                 `}
               </div>
             </div>
@@ -4724,7 +4980,7 @@ export class ModalManager {
                 Cancelar
               </button>
               <button type="submit" class="btn btn-primary" id="btn-edit-doc-save" style="background: linear-gradient(135deg, #265072 0%, #376c95 100%); padding: 9px 24px; font-weight: 700; display: flex; align-items: center; gap: 7px; box-shadow: 0 2px 6px rgba(31,66,96,0.25);">
-                Actualizar Metadatos
+                ${esRegistro ? 'Actualizar Registro Derivado' : 'Actualizar Metadatos'}
               </button>
             </div>
 
@@ -4737,14 +4993,16 @@ export class ModalManager {
     const form = document.getElementById('form-edit-documento');
     const errBox = document.getElementById('edit-doc-error');
 
-    // Botón para abrir el submodal de recodificación oficial
-    document.getElementById('btn-open-recodificar')?.addEventListener('click', () => {
-      this.abrirModalRecodificarDocumento(doc, {
-        onRecodificado: (docRecod) => {
-          if (typeof onGuardar === 'function') onGuardar(docRecod);
-        }
+    // Botón para abrir el submodal de recodificación oficial (solo para documentos base)
+    if (!esRegistro) {
+      document.getElementById('btn-open-recodificar')?.addEventListener('click', () => {
+        this.abrirModalRecodificarDocumento(doc, {
+          onRecodificado: (docRecod) => {
+            if (typeof onGuardar === 'function') onGuardar(docRecod);
+          }
+        });
       });
-    });
+    }
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -4772,12 +5030,17 @@ export class ModalManager {
         documento: titulo,
         nombre: titulo,
         version: version,
-        tipoProceso: doc.tipoProceso || 'Estratégico',
-        area: doc.area || 'GAD',
-        areaNombre: doc.areaNombre || doc.area || 'Gestión Administrativa',
-        proceso: doc.proceso || doc.carpeta || 'Planeación Estratégica y Dirección',
-        carpeta: doc.carpeta || doc.proceso || 'Planeación Estratégica y Dirección',
-        tipoDocumento: doc.tipoDocumento || 'Manual',
+        tipoProceso: (docPadre && docPadre.tipoProceso) || doc.tipoProceso || 'Misional',
+        area: (docPadre && docPadre.area) || doc.area || 'GIC',
+        areaNombre: (docPadre && (docPadre.areaNombre || docPadre.area)) || doc.areaNombre || doc.area || 'Gestión Integral Calidad',
+        proceso: (docPadre && (docPadre.proceso || docPadre.carpeta)) || doc.proceso || doc.carpeta || 'Gestión Integral de Calidad',
+        carpeta: (docPadre && (docPadre.carpeta || docPadre.proceso)) || doc.carpeta || doc.proceso || 'Gestión Integral de Calidad',
+        tipoDocumento: esRegistro ? 'Registro' : (doc.tipoDocumento || 'Formato'),
+        subclase: esRegistro ? 'Registro' : (doc.subclase || 'Base'),
+        esRegistro: esRegistro,
+        tituloAnterior: doc.titulo,
+        codigoPadre: docPadre?.codigo || doc.documentoPadreCodigo || (esRegistro ? (doc.codigo || '').replace(/-(\d+)$/, '') : doc.codigo),
+        documentoPadreCodigo: esRegistro ? (docPadre?.codigo || doc.documentoPadreCodigo || (doc.codigo || '').replace(/-(\d+)$/, '')) : undefined,
         estado: estado,
         vigencia: vigencia,
         tiempoRetencion: tiempoRetencion,
@@ -4796,7 +5059,7 @@ export class ModalManager {
       };
 
       try {
-        const res = await sharepointService.modificarDocumento(doc.codigo, nuevosDatos);
+        const res = await sharepointService.modificarDocumento(doc.codigo, nuevosDatos, doc.id, esRegistro, doc.titulo);
         if (res && res.exito) {
           // Registrar en control de cambios
           const esCambioVersion = version && doc.version && !staffService.sonVersionesIguales(version, doc.version);
@@ -4809,10 +5072,12 @@ export class ModalManager {
               versionNueva: staffService.normalizarVersion(version || '1'),
               rutaAnterior: `${doc.tipoProceso || ''} / ${doc.area || ''} / ${doc.proceso || ''}`,
               rutaNueva: `${doc.tipoProceso || ''} / ${doc.area || ''} / ${doc.proceso || ''}`,
-              tipoAnterior: doc.tipoDocumento || '',
-              tipoNuevo: doc.tipoDocumento || '',
+              tipoAnterior: esRegistro ? 'Registro' : (doc.tipoDocumento || ''),
+              tipoNuevo: esRegistro ? 'Registro' : (doc.tipoDocumento || ''),
               motivo: tipoCambio || 'Actualización de metadatos',
-              detalle: `Modificación de metadatos: ${tipoCambio || 'Datos actualizados en catálogo'}`
+              detalle: esRegistro
+                ? `Modificación de metadatos de registro derivado (${doc.codigo} - ${titulo}): ${tipoCambio || 'Datos actualizados en catálogo'}`
+                : `Modificación de metadatos: ${tipoCambio || 'Datos actualizados en catálogo'}`
             }
           );
 
@@ -4821,7 +5086,9 @@ export class ModalManager {
             documentoCodigo: doc.codigo,
             documentoTitulo: titulo,
             documentoExtension: doc.extension,
-            detalle: `Modificación de metadatos (${doc.codigo}): ${tipoCambio || 'Datos actualizados en catálogo'}`
+            detalle: esRegistro
+              ? `Modificación de metadatos de registro derivado (${doc.codigo} - ${titulo}): ${tipoCambio || 'Datos actualizados en catálogo'}`
+              : `Modificación de metadatos (${doc.codigo}): ${tipoCambio || 'Datos actualizados en catálogo'}`
           });
 
           this.cerrarModal();
@@ -4830,14 +5097,14 @@ export class ModalManager {
           errBox.textContent = res?.error || 'Error al actualizar metadatos.';
           errBox.style.display = 'block';
           btnSave.disabled = false;
-          btnSave.textContent = 'Actualizar Metadatos';
+          btnSave.innerHTML = esRegistro ? 'Actualizar Registro Derivado' : 'Actualizar Metadatos';
         }
       } catch (err) {
         console.error('Error al actualizar documento:', err);
         errBox.textContent = 'Error al actualizar metadatos: ' + (err.message || '');
         errBox.style.display = 'block';
         btnSave.disabled = false;
-        btnSave.textContent = 'Actualizar Metadatos';
+        btnSave.innerHTML = esRegistro ? 'Actualizar Registro Derivado' : 'Actualizar Metadatos';
       }
     });
 

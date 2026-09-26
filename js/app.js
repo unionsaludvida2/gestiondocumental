@@ -11,11 +11,11 @@
  * - Modo Edición: Desbloqueo Automático para Acceso Total y Contraseña Personal para Directivos y Administrativos
  */
 
-import { sharepointService, determinarEstrategiaDescarga, esDocumentoFMT } from './sharepoint-service.js?v=11.6.63';
-import { filterEngine } from './filters.js?v=11.6.63';
-import { modalManager } from './modal.js?v=11.6.63';
-import { analyticsManager } from './analytics.js?v=11.6.63';
-import { staffService } from './staff-service.js?v=11.6.63';
+import { sharepointService, determinarEstrategiaDescarga, esDocumentoFMT } from './sharepoint-service.js?v=11.6.74';
+import { filterEngine } from './filters.js?v=11.6.74';
+import { modalManager } from './modal.js?v=11.6.74';
+import { analyticsManager } from './analytics.js?v=11.6.74';
+import { staffService } from './staff-service.js?v=11.6.74';
 
 const STORAGE_KEY_EDIT_MODE = 'agy_sgc_edit_mode';
 const STORAGE_KEY_FAVORITES = 'agy_sgc_favorites';
@@ -1614,12 +1614,13 @@ class AppController {
             ${
               Array.isArray(doc.registrosDerivados) && doc.registrosDerivados.length > 0
                 ? `
-                <div style="display:flex; align-items:center; gap:6px; margin-top:4px; flex-wrap:wrap;">
-                  <span class="badge-subclase-registros" style="display:inline-flex; align-items:center; gap:4px; background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; padding:2px 8px; border-radius:12px; font-size:0.72rem; font-weight:700;" title="Este formato base posee ${doc.registrosDerivados.length} registros derivados">
-                    📂 ${doc.registrosDerivados.length} ${doc.registrosDerivados.length === 1 ? 'registro' : 'registros'}
-                  </span>
-                  <button type="button" class="btn-card-ver-registros" data-action="ver-registros" data-id="${doc.id}" style="background:transparent; border:none; color:#2563eb; font-size:0.74rem; font-weight:700; cursor:pointer; text-decoration:underline; padding:0;" title="Abrir pestaña de registros en la ficha técnica">
-                    Ver registros &rsaquo;
+                <div style="margin-top:6px;">
+                  <button type="button" class="btn-card-ver-registros" data-action="ver-registros" data-id="${doc.id}" style="width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 6px; background: #e0f2fe; color: #0369a1; border: 1.5px solid #7dd3fc; padding: 5px 10px; border-radius: 6px; font-size: 0.74rem; font-weight: 700; cursor: pointer; transition: all 0.2s ease;" title="Abrir y ver los registros derivados asociados">
+                    <span style="display: flex; align-items: center; gap: 5px;">
+                      <span>📂</span>
+                      <span>Contiene ${doc.registrosDerivados.length} ${doc.registrosDerivados.length === 1 ? 'Registro Derivado' : 'Registros Derivados'}</span>
+                    </span>
+                    <span style="font-weight: 800;">Ver &rsaquo;</span>
                   </button>
                 </div>
                 `
@@ -1659,6 +1660,15 @@ class AppController {
                   <button type="button" class="doc-context-item" data-action="menu-drawer" data-id="${doc.id}">
                     <span>📋</span> Ficha técnica e historial
                   </button>
+                  ${
+                    Array.isArray(doc.registrosDerivados) && doc.registrosDerivados.length > 0
+                      ? `
+                      <button type="button" class="doc-context-item" data-action="ver-registros" data-id="${doc.id}" style="color: #0284c7; font-weight: 700;">
+                        <span>📂</span> Ver registros derivados (${doc.registrosDerivados.length})
+                      </button>
+                      `
+                      : ''
+                  }
                   ${doc.disponible
               ? `
                       <button type="button" class="doc-context-item" data-action="download" data-id="${doc.id}" title="Descargar documento">
@@ -1741,7 +1751,18 @@ class AppController {
           }
         }
 
-        return `
+        const tieneRegistros = Array.isArray(doc.registrosDerivados) && doc.registrosDerivados.length > 0;
+        const totalRegistros = tieneRegistros ? doc.registrosDerivados.length : 0;
+        const busquedaActiva = filterEngine?.busqueda ? filterEngine.busqueda.trim().toLowerCase() : '';
+        const expandidoInicial = Boolean(
+          doc.registroCoincidente || 
+          (busquedaActiva && (
+            (doc.codigo && doc.codigo.toLowerCase().includes(busquedaActiva)) || 
+            (doc.titulo && doc.titulo.toLowerCase().includes(busquedaActiva))
+          ))
+        );
+
+        const filaPrincipalHtml = `
         <tr class="docs-table-row ${rowClass}" data-id="${doc.id}">
           <td class="col-fav" style="width: 26px; text-align: center; padding: 6px 2px;">
             <button type="button" class="btn-fav-star ${isFav ? 'active' : ''}" data-action="fav" data-id="${doc.id}" title="${isFav ? 'Quitar de favoritos' : 'Marcar como favorito ⭐'}" style="font-size: 0.95rem; width: 22px; height: 22px; line-height: 22px; display: inline-flex; align-items: center; justify-content: center;">
@@ -1755,30 +1776,36 @@ class AppController {
           <td class="col-tipo" style="width: 44px; text-align: center; padding: 6px 3px;">
             <span class="badge ${extClass}" style="font-size: 0.70rem; padding: 1px 5px; font-weight: 700;">${doc.extension}</span>
           </td>
-          <td class="col-codigo" style="width: 82px; font-family: var(--font-heading); font-weight: 700; color: #334155; font-size: 0.78rem; white-space: nowrap; padding: 6px 6px;">
-            <div style="display:flex; align-items:center; gap:4px;">
+          <td class="col-codigo" style="width: 95px; font-family: var(--font-heading); font-weight: 700; color: #334155; font-size: 0.78rem; white-space: nowrap; padding: 6px 6px;">
+            <div style="display:flex; align-items:center; gap:5px;">
               <span>${doc.codigo}</span>
-              ${
-                Array.isArray(doc.registrosDerivados) && doc.registrosDerivados.length > 0
-                  ? `
-                  <button type="button" class="btn-toggle-subrows" data-doc-id="${doc.id}" data-count="${doc.registrosDerivados.length}" title="Desplegar registros derivados (${doc.registrosDerivados.length})" style="background:#eff6ff; color:#2563eb; border:1px solid #bfdbfe; border-radius:10px; padding:1px 5px; font-size:0.68rem; font-weight:700; cursor:pointer;">
-                    +${doc.registrosDerivados.length}
-                  </button>
-                  `
-                  : ''
+              ${tieneRegistros
+                ? `<span class="badge-subclase-registros" style="background:#e0f2fe; color:#0369a1; border:1px solid #bae6fd; font-size:0.68rem; padding:1px 6px; border-radius:10px; font-weight:800;" title="${totalRegistros} registros derivados">${totalRegistros}</span>`
+                : ''
               }
             </div>
           </td>
-          <td class="docs-table-title-cell" title="${doc.titulo}" style="padding: 6px 8px;">
-            ${doc.titulo}
-            ${
-              doc.registroCoincidente
-                ? `
-                <div class="table-match-registro" style="font-size:0.72rem; color:#b45309; font-weight:700; margin-top:2px;">
-                  ↳ Coincide con registro: "${doc.registroCoincidente.titulo}"
-                </div>
-                `
-                : ''
+          <td class="docs-table-title-cell" title="${doc.titulo}" style="padding: 7px 10px;">
+            <div style="font-weight: 700; color: #1e293b; font-size: 0.83rem; line-height: 1.35;">${doc.titulo}</div>
+            ${tieneRegistros
+              ? `
+              <div style="margin-top: 4px; display: inline-flex; align-items: center;">
+                <button type="button" class="btn-toggle-subrows" data-doc-id="${doc.id}" data-count="${totalRegistros}" title="Desplegar u ocultar registros derivados asociados" style="display: inline-flex; align-items: center; gap: 5px; background: ${expandidoInicial ? '#fef3c7' : '#e0f2fe'}; color: ${expandidoInicial ? '#92400e' : '#0369a1'}; border: 1.5px solid ${expandidoInicial ? '#fcd34d' : '#7dd3fc'}; border-radius: 6px; padding: 2px 8px; font-size: 0.73rem; font-weight: 700; cursor: pointer; transition: all 0.2s ease;">
+                  <span>📂</span>
+                  <span class="btn-subrows-text">${expandidoInicial ? `Ocultar ${totalRegistros} Registros` : `Ver ${totalRegistros} Registros Derivados`}</span>
+                  <span class="subrow-arrow" style="font-size: 0.68rem; font-weight: 800;">${expandidoInicial ? '▲' : '▼'}</span>
+                </button>
+              </div>
+              `
+              : ''
+            }
+            ${doc.registroCoincidente
+              ? `
+              <div class="table-match-registro" style="font-size:0.73rem; color:#b45309; font-weight:700; margin-top:4px; background:#fffbeb; padding:2px 8px; border-radius:4px; display:inline-block; border:1px solid #fde68a;">
+                ⭐ Coincide con búsqueda en: "${doc.registroCoincidente.titulo}"
+              </div>
+              `
+              : ''
             }
           </td>
           <td class="col-proceso" style="font-size: 0.78rem; padding: 6px 8px;">${doc.proceso || 'N/A'}</td>
@@ -1797,7 +1824,7 @@ class AppController {
           <td class="col-fecha" style="width: 118px; white-space: nowrap; font-size: 0.73rem; color: #64748b; padding: 6px 6px;">
             ${staffService.formatearFechaHora(doc.modificacion)}
           </td>
-          <td class="docs-table-actions-cell" style="width: ${this.modoEdicion ? '120px' : '115px'}; text-align: center; padding: 6px 4px; position: relative;">
+          <td class="docs-table-actions-cell" style="width: ${this.modoEdicion ? '205px' : '115px'}; min-width: ${this.modoEdicion ? '205px' : '115px'}; text-align: center; padding: 6px 4px; position: relative;">
             ${this.modoEdicion
             ? `
                 <div class="table-actions-inline">
@@ -1829,6 +1856,14 @@ class AppController {
                   <button type="button" class="doc-context-item" data-action="menu-drawer" data-id="${doc.id}">
                     <span>📋</span> Ficha técnica e historial
                   </button>
+                  ${tieneRegistros
+                    ? `
+                    <button type="button" class="doc-context-item" data-action="ver-registros" data-id="${doc.id}" style="color: #0284c7; font-weight: 700;">
+                      <span>📂</span> Ver registros derivados (${totalRegistros})
+                    </button>
+                    `
+                    : ''
+                  }
                   ${doc.disponible
               ? `
                       <button type="button" class="doc-context-item" data-action="download" data-id="${doc.id}" title="Descargar documento">
@@ -1871,49 +1906,87 @@ class AppController {
         </tr>`;
 
         let subfilasHtml = '';
-        if (Array.isArray(doc.registrosDerivados) && doc.registrosDerivados.length > 0) {
-          subfilasHtml = doc.registrosDerivados.map((reg) => {
-            const rExt = (reg.extension || 'DOC').toUpperCase();
-            const rExtClass = rExt.includes('XLS') ? 'badge-xls' : (rExt.includes('PDF') ? 'badge-pdf' : 'badge-doc');
+        if (tieneRegistros) {
+          subfilasHtml = doc.registrosDerivados.map((reg, regIdx) => {
+            const esXls = (reg.extension && reg.extension.toUpperCase().includes('XLS')) || reg.formato === 'Excel';
+            const rExt = esXls ? 'XLS' : 'PDF';
+            const rExtClass = esXls ? 'badge-xls' : 'badge-pdf';
             const esCoincidente = doc.registroCoincidente && (doc.registroCoincidente.id === reg.id || doc.registroCoincidente.titulo === reg.titulo);
-            const mostrarInicial = Boolean(doc.registroCoincidente);
             return `
-              <tr class="table-subrow-registro subrow-${doc.id} ${esCoincidente ? 'subrow-coincidente' : ''}" style="display: ${mostrarInicial ? 'table-row' : 'none'}; background: ${esCoincidente ? '#fffbeb' : '#f8fafc'};" data-parent-id="${doc.id}" data-reg-id="${reg.id}">
-                <td class="col-fav" style="width: 26px; text-align: center; padding: 4px 2px;"></td>
+              <tr class="table-subrow-registro subrow-${doc.id} ${esCoincidente ? 'subrow-coincidente' : ''}" style="display: ${expandidoInicial ? 'table-row' : 'none'}; background: ${esCoincidente ? '#fefce8' : (regIdx % 2 === 0 ? '#f0f9ff' : '#f8fafc')}; border-left: 4px solid #0284c7;" data-parent-id="${doc.id}" data-reg-id="${reg.id}">
+                <td class="col-fav" style="width: 26px; text-align: center; padding: 5px 2px;"></td>
                 ${esVistaTop10 ? `<td class="col-top-rank" style="width: 58px;"></td>` : ''}
-                <td class="col-tipo" style="width: 44px; text-align: center; padding: 4px 3px;">
-                  <span class="badge ${rExtClass}" style="font-size: 0.65rem; padding: 1px 4px;">${rExt}</span>
+                <td class="col-tipo" style="width: 44px; text-align: center; padding: 5px 3px;">
+                  <span class="badge ${rExtClass}" style="font-size: 0.65rem; padding: 1px 4px; font-weight: 700;">${rExt}</span>
                 </td>
-                <td class="col-codigo" style="width: 82px; font-family: var(--font-heading); font-weight: 600; color: #64748b; font-size: 0.72rem; padding: 4px 6px;">
-                  ↳
+                <td class="col-codigo" style="width: 95px; font-family: var(--font-heading); font-weight: 700; color: #0284c7; font-size: 0.72rem; padding: 5px 6px;">
+                  <span style="display: inline-flex; align-items: center; gap: 4px; background: #e0f2fe; color: #0369a1; padding: 1px 5px; border-radius: 4px; font-size: 0.68rem; font-weight: 700;" title="${reg.codigo || 'Registro Secundario'}">
+                    ↳ ${reg.codigo || 'Registro'}
+                  </span>
                 </td>
-                <td class="docs-table-title-cell" title="${reg.titulo}" style="padding: 4px 8px; font-size: 0.76rem; color: #1e293b; font-weight: 600;">
-                  📄 ${reg.titulo} ${esCoincidente ? '<span style="font-size: 0.68rem; color: #b45309; font-weight: 700; margin-left: 4px;">(Coincidencia)</span>' : ''}
+                <td class="docs-table-title-cell" title="${reg.titulo}" style="padding: 6px 10px; font-size: 0.80rem; color: #0f172a; font-weight: 600;">
+                  <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                    <span style="color: #0284c7; font-size: 0.88rem;">📄</span>
+                    <span>${reg.titulo}</span>
+                    ${esCoincidente ? '<span style="font-size: 0.68rem; background: #fef08a; color: #854d0e; padding: 1px 6px; border-radius: 4px; font-weight: 700;">⭐ Coincidencia con búsqueda</span>' : ''}
+                  </div>
                 </td>
-                <td class="col-proceso" style="font-size: 0.72rem; color: #64748b; padding: 4px 8px;">Registro Derivado</td>
-                <td class="col-area" style="font-size: 0.72rem; color: #64748b; padding: 4px 8px;">${doc.area || ''}</td>
-                <td class="col-version" style="font-size: 0.72rem; color: #64748b; text-align: center; padding: 4px 3px;">-</td>
+                <td class="col-proceso" style="font-size: 0.73rem; color: #64748b; padding: 5px 8px;">Registro Derivado</td>
+                <td class="col-area" style="font-size: 0.73rem; color: #64748b; padding: 5px 8px;">${doc.area || ''}</td>
+                <td class="col-version" style="font-size: 0.73rem; color: #64748b; text-align: center; padding: 5px 3px;">${reg.version || '-'}</td>
                 ${esVistaTop10 ? `<td class="col-descargas"></td>` : ''}
-                <td class="col-fecha" style="width: 118px; font-size: 0.70rem; color: #64748b; padding: 4px 6px;">
+                <td class="col-fecha" style="width: 118px; font-size: 0.70rem; color: #64748b; padding: 5px 6px;">
                   ${staffService.formatearFechaHora(reg.modificacion)}
                 </td>
-                <td class="docs-table-actions-cell" style="width: ${this.modoEdicion ? '120px' : '115px'}; text-align: center; padding: 4px 4px;">
-                  <div style="display: flex; justify-content: center; gap: 4px;">
-                    ${reg.disponible
-                      ? `
-                      <button type="button" class="btn btn-secondary btn-subrow-download" data-parent-id="${doc.id}" data-reg-id="${reg.id}" style="padding: 2px 7px; font-size: 0.70rem; font-weight: 600;" title="Descargar registro">
-                        📥
-                      </button>
-                      ${this.modoEdicion
-                        ? `
-                        <button type="button" class="btn btn-primary btn-subrow-edit" data-parent-id="${doc.id}" data-reg-id="${reg.id}" style="padding: 2px 7px; font-size: 0.70rem; font-weight: 600;" title="Editar registro en SharePoint">
-                          ✏️
-                        </button>
-                        `
-                        : ''
-                      }
-                      `
-                      : `<span style="font-size: 0.68rem; color: #94a3b8;">No disp.</span>`
+                <td class="docs-table-actions-cell" style="width: ${this.modoEdicion ? '205px' : '115px'}; min-width: ${this.modoEdicion ? '205px' : '115px'}; text-align: center; padding: 4px 4px;">
+                  <div style="display: inline-flex; justify-content: center; align-items: center; gap: 4px; flex-wrap: nowrap; white-space: nowrap;">
+                    ${this.modoEdicion
+                      ? (() => {
+                          const puedeGestionarCatalogo = this.perfil === 'total' || this.perfil === 'administrador' || this.perfil === 'directivo';
+                          return `
+                            ${puedeGestionarCatalogo
+                              ? `
+                              <button type="button" class="btn btn-secondary btn-subrow-meta" data-parent-id="${doc.id}" data-reg-id="${reg.id}" style="width: 26px; height: 26px; padding: 0; font-size: 0.78rem; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; border: 1.5px solid #cbd5e1; background: #ffffff; color: var(--brand-navy, #1f4260); border-radius: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); cursor: pointer;" title="Modificar metadatos del registro">
+                                <span>⚙️</span>
+                              </button>
+                              `
+                              : ''
+                            }
+                            ${reg.disponible
+                              ? `
+                              ${reg.descargable === false
+                                ? `<button type="button" class="btn btn-secondary" disabled style="width: 26px; height: 26px; padding: 0; font-size: 0.78rem; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; border-radius: 6px; color:#92400e; background:#fef3c7; cursor:not-allowed;" title="Descarga restringida"><span>🔒</span></button>`
+                                : `
+                                <button type="button" class="btn btn-secondary btn-subrow-download" data-parent-id="${doc.id}" data-reg-id="${reg.id}" style="width: 26px; height: 26px; padding: 0; font-size: 0.78rem; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; border-radius: 6px;" title="Descargar registro en PDF">
+                                  <span>📥</span>
+                                </button>
+                                `
+                              }
+                              <button type="button" class="btn btn-primary btn-subrow-edit" data-parent-id="${doc.id}" data-reg-id="${reg.id}" style="width: 26px; height: 26px; padding: 0; font-size: 0.78rem; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; border-radius: 6px;" title="Editar registro en SharePoint">
+                                <span>✏️</span>
+                              </button>
+                              `
+                              : `<span style="width: 26px; height: 26px; font-size: 0.75rem; color: #94a3b8; background: #f8fafc; border-radius: 6px; border: 1px solid #e2e8f0; display: inline-flex; align-items: center; justify-content: center;" title="Sin archivo individual asociado en SharePoint">📄</span>`
+                            }
+                            ${puedeGestionarCatalogo
+                              ? `
+                              <button type="button" class="btn btn-subrow-delete" data-parent-id="${doc.id}" data-reg-id="${reg.id}" style="width: 26px; height: 26px; padding: 0; font-size: 0.75rem; color: #dc2626; background: #fff5f5; border: 1px solid #fecaca; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center;" title="Retirar registro derivado">
+                                <span>🗑️</span>
+                              </button>
+                              `
+                              : ''
+                            }
+                          `;
+                        })()
+                      : !reg.disponible
+                        ? `<button class="btn btn-disabled" disabled style="padding: 4px 8px; font-size: 0.70rem;" title="Registro no disponible en SharePoint">No Disponible</button>`
+                        : reg.descargable === false
+                          ? `<button class="btn btn-secondary" disabled style="padding: 4px 8px; font-size: 0.70rem; color:#92400e; background:#fef3c7; cursor:not-allowed;" title="Descarga restringida">🔒 Bloqueado</button>`
+                          : `
+                          <button type="button" class="btn btn-primary btn-subrow-download" data-parent-id="${doc.id}" data-reg-id="${reg.id}" style="padding: 4px 10px; font-size: 0.74rem; font-weight: 700;" title="Descargar registro en PDF">
+                            📥 Descargar
+                          </button>
+                          `
                     }
                   </div>
                 </td>
@@ -1947,7 +2020,7 @@ class AppController {
         : ''
       }
               <th style="width: 118px; min-width: 118px; padding: 8px 6px;">Modificación</th>
-              <th style="width: ${this.modoEdicion ? '120px' : '115px'}; min-width: ${this.modoEdicion ? '115px' : '115px'}; text-align: center; padding: 8px 6px;">
+              <th style="width: ${this.modoEdicion ? '205px' : '115px'}; min-width: ${this.modoEdicion ? '205px' : '115px'}; text-align: center; padding: 8px 6px;">
                 ACCIONES
               </th>
             </tr>
@@ -2243,7 +2316,24 @@ class AppController {
         subrows.forEach((r) => {
           r.style.display = visible ? 'none' : 'table-row';
         });
-        btn.textContent = visible ? `+${count}` : `-${count}`;
+
+        const textSpan = btn.querySelector('.btn-subrows-text');
+        const arrowSpan = btn.querySelector('.subrow-arrow');
+        if (visible) {
+          // Ahora oculto
+          if (textSpan) textSpan.textContent = `Ver ${count} Registros Derivados`;
+          if (arrowSpan) arrowSpan.textContent = '▼';
+          btn.style.background = '#e0f2fe';
+          btn.style.color = '#0369a1';
+          btn.style.borderColor = '#7dd3fc';
+        } else {
+          // Ahora visible
+          if (textSpan) textSpan.textContent = `Ocultar ${count} Registros`;
+          if (arrowSpan) arrowSpan.textContent = '▲';
+          btn.style.background = '#fef3c7';
+          btn.style.color = '#92400e';
+          btn.style.borderColor = '#fcd34d';
+        }
       });
     });
 
@@ -2256,9 +2346,21 @@ class AppController {
         const doc = this.documentos.find((d) => d.id === parentId);
         const reg = (doc?.registrosDerivados || []).find((r) => r.id === regId);
         if (reg) {
+          if (!reg.downloadUrl || (doc && reg.downloadUrl === doc.downloadUrl) || reg.downloadUrl === '#') {
+            this.mostrarToast(`📄 El registro "${reg.titulo}" no tiene un archivo individual cargado en SharePoint.`, 'info');
+            return;
+          }
           const estrategia = determinarEstrategiaDescarga(reg);
           staffService.registrarDescargaDocumento(reg, estrategia.formato);
-          await sharepointService.descargarDocumento(reg, this.modoEdicion);
+          const origHtml = btn.innerHTML;
+          btn.innerHTML = this.modoEdicion ? '<span>⏳</span>' : '⏳ Descargando...';
+          btn.disabled = true;
+          try {
+            await sharepointService.descargarDocumento(reg, this.modoEdicion);
+          } finally {
+            btn.innerHTML = origHtml;
+            btn.disabled = false;
+          }
         }
       });
     });
@@ -2267,17 +2369,77 @@ class AppController {
     this.el.grid.querySelectorAll('.btn-subrow-edit').forEach((btn) => {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
+        if (this.perfil === 'operativo' || !this.modoEdicion) {
+          this.mostrarToast('🔒 El personal operativo solo tiene permisos de consulta y descarga de archivos.', 'info');
+          return;
+        }
         const parentId = btn.getAttribute('data-parent-id');
         const regId = btn.getAttribute('data-reg-id');
         const doc = this.documentos.find((d) => d.id === parentId);
         const reg = (doc?.registrosDerivados || []).find((r) => r.id === regId);
         if (reg) {
+          if (!reg.sharepointUrl || (doc && reg.sharepointUrl === doc.sharepointUrl) || reg.sharepointUrl === '#') {
+            this.mostrarToast(`📄 El registro "${reg.titulo}" no tiene un archivo individual cargado en SharePoint para editar.`, 'info');
+            return;
+          }
           sharepointService.abrirEnEdicion(reg);
           staffService.registrarAuditoria('EDICION', {
             documentoCodigo: reg.codigo,
             documentoTitulo: reg.titulo,
             documentoExtension: reg.extension,
             detalle: `Edición de registro derivado en SharePoint (${reg.codigo})`
+          });
+        }
+      });
+    });
+
+    // Modificar metadatos de registro derivado desde sub-fila de la tabla
+    this.el.grid.querySelectorAll('.btn-subrow-meta').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const puedeGestionarCatalogo = this.perfil === 'total' || this.perfil === 'administrador' || this.perfil === 'directivo';
+        if (!this.modoEdicion || !puedeGestionarCatalogo) {
+          this.mostrarToast('🔒 No tiene permisos para modificar metadatos.', 'warning');
+          return;
+        }
+        const parentId = btn.getAttribute('data-parent-id');
+        const regId = btn.getAttribute('data-reg-id');
+        const doc = this.documentos.find((d) => d.id === parentId);
+        const reg = (doc?.registrosDerivados || []).find((r) => r.id === regId);
+        if (reg) {
+          modalManager.abrirModalEditarDocumento(reg, {
+            docPadre: doc,
+            onGuardar: (docAct) => {
+              this.actualizarDocumentoEnApp(docAct || reg);
+              this.mostrarToast(`✅ Metadatos de ${reg.titulo} actualizados correctamente`, 'success');
+            }
+          });
+        }
+      });
+    });
+
+    // Retirar / Eliminar registro derivado desde sub-fila de la tabla
+    this.el.grid.querySelectorAll('.btn-subrow-delete').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const puedeGestionarCatalogo = this.perfil === 'total' || this.perfil === 'administrador' || this.perfil === 'directivo';
+        if (!this.modoEdicion || !puedeGestionarCatalogo) {
+          this.mostrarToast('🔒 No tiene permisos para retirar registros del catálogo.', 'warning');
+          return;
+        }
+        const parentId = btn.getAttribute('data-parent-id');
+        const regId = btn.getAttribute('data-reg-id');
+        const doc = this.documentos.find((d) => d.id === parentId);
+        const reg = (doc?.registrosDerivados || []).find((r) => r.id === regId);
+        if (reg) {
+          modalManager.abrirModalEliminarDocumento(reg, {
+            onConfirmar: async (motivo, borradoFisico) => {
+              await sharepointService.eliminarDocumento(doc.codigo, motivo || 'Retiro de registro derivado', borradoFisico, reg.id, true, reg.titulo);
+              const idxReg = (doc.registrosDerivados || []).findIndex(r => r.id === reg.id);
+              if (idxReg >= 0) doc.registrosDerivados.splice(idxReg, 1);
+              this.actualizarDocumentoEnApp(doc);
+              this.mostrarToast(`🗑️ Registro derivado "${reg.titulo}" retirado del catálogo`, 'info');
+            }
           });
         }
       });
@@ -2312,15 +2474,63 @@ class AppController {
     if (!docActualizado) return;
     const codUpper = (docActualizado.codigo || '').toUpperCase();
     const codAntUpper = (docActualizado.codigoAnterior || '').toUpperCase();
+    const esReg = Boolean(docActualizado.esRegistro || docActualizado.subclase === 'Registro' || (docActualizado.id && String(docActualizado.id).includes('_REG_')));
+
     let idx = -1;
     if (codAntUpper) {
-      idx = this.documentos.findIndex((d) => (d.codigo || '').toUpperCase() === codAntUpper);
+      idx = this.documentos.findIndex((d) => (d.codigo || '').toUpperCase() === codAntUpper && !d.esRegistro);
     }
     if (idx < 0) {
-      idx = this.documentos.findIndex((d) => (d.codigo || '').toUpperCase() === codUpper);
+      idx = this.documentos.findIndex((d) => (d.codigo || '').toUpperCase() === codUpper && !d.esRegistro);
     }
     if (idx >= 0) {
-      this.documentos[idx] = { ...this.documentos[idx], ...docActualizado };
+      if (esReg) {
+        // ACTUALIZACIÓN DE REGISTRO DERIVADO: NUNCA tocar propiedades del documento base
+        this.documentos[idx].registrosDerivados = this.documentos[idx].registrosDerivados || [];
+        const titAntNorm = (docActualizado.tituloAnterior || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        const titNuevoNorm = (docActualizado.titulo || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+        let regIdx = this.documentos[idx].registrosDerivados.findIndex((r) => {
+          if (docActualizado.id && r.id === docActualizado.id) return true;
+          const rTitNorm = (r.titulo || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+          if (titAntNorm && (rTitNorm === titAntNorm || rTitNorm.includes(titAntNorm) || titAntNorm.includes(rTitNorm))) return true;
+          if (titNuevoNorm && (rTitNorm === titNuevoNorm || rTitNorm.includes(titNuevoNorm) || titNuevoNorm.includes(rTitNorm))) return true;
+          return false;
+        });
+
+        const registroNormalizado = {
+          ...(regIdx >= 0 ? this.documentos[idx].registrosDerivados[regIdx] : {}),
+          ...docActualizado,
+          codigo: codUpper,
+          esRegistro: true,
+          subclase: 'Registro',
+          tipoDocumento: 'Registro',
+          proceso: this.documentos[idx].proceso || this.documentos[idx].carpeta,
+          carpeta: this.documentos[idx].carpeta || this.documentos[idx].proceso,
+          area: this.documentos[idx].area,
+          areaNombre: this.documentos[idx].areaNombre || this.documentos[idx].area,
+          tipoProceso: this.documentos[idx].tipoProceso,
+          extension: this.documentos[idx].extension || docActualizado.extension || 'doc'
+        };
+
+        if (regIdx >= 0) {
+          this.documentos[idx].registrosDerivados[regIdx] = registroNormalizado;
+        } else {
+          this.documentos[idx].registrosDerivados.push(registroNormalizado);
+        }
+
+        if (typeof sharepointService._deduplicarRegistros === 'function') {
+          this.documentos[idx].registrosDerivados = sharepointService._deduplicarRegistros(this.documentos[idx].registrosDerivados);
+        }
+      } else {
+        // ACTUALIZACIÓN DE DOCUMENTO BASE: Preservar registros derivados existentes
+        const regsExistentes = this.documentos[idx].registrosDerivados || [];
+        this.documentos[idx] = { 
+          ...this.documentos[idx], 
+          ...docActualizado,
+          registrosDerivados: docActualizado.registrosDerivados || regsExistentes
+        };
+      }
     }
     this.aplicarFiltros(true);
     if (this.vistaActual === 'analytics') {

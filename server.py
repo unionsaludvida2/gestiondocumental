@@ -691,8 +691,11 @@ class LiveOneDriveHandler(http.server.SimpleHTTPRequestHandler):
                 url_original = (params.get('url', [''])[0]).strip()
                 titulo = (params.get('titulo', [''])[0]).strip()
 
-                # 1. Si es formato FMT (Word o Excel) o Excel general: Redirigir a descarga nativa original
-                es_fmt = codigo.startswith('FMT-') or codigo.startswith('FMT_') or codigo.startswith('FMT ') or codigo == 'FMT'
+                # 1. Si es formato FMT BASE (Word o Excel) o Excel general: Redirigir a descarga nativa original
+                # NOTA: Los registros derivados / secundarios (incluso con prefijo FMT) NO son plantillas base y se descargan en PDF
+                es_reg_param = (params.get('esRegistro', ['false'])[0]).strip().lower() == 'true'
+                es_registro = es_reg_param or bool(re.search(r'-\d+$', codigo))
+                es_fmt = (codigo.startswith('FMT-') or codigo.startswith('FMT_') or codigo.startswith('FMT ') or codigo == 'FMT') and not es_registro
                 limpia_url = url_original.split('?')[0].lower()
                 es_excel = limpia_url.endswith('.xlsx') or limpia_url.endswith('.xls')
 
