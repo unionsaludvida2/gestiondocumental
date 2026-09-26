@@ -17,6 +17,7 @@ const STORAGE_KEY_CONF_CACHE = 'agy_sgc_conf_cache';
 const STORAGE_KEY_AUDITORIA_CACHE = 'agy_sgc_auditoria_cache';
 const STORAGE_KEY_MAESTRAS_CACHE = 'agy_sgc_maestras_cache';
 const STORAGE_KEY_HISTORICO_CACHE = 'agy_sgc_historico_cache';
+const STORAGE_KEY_AUTH_LOCKOUTS = 'agy_sgc_auth_lockouts';
 export const STORAGE_KEY_USER_PROFILE = 'agy_user_profile';
 
 export class StaffService {
@@ -47,6 +48,222 @@ export class StaffService {
     this.cargarDesdeStorage();
     this.hidratarDesdeIndexedDB();
     this.iniciarEscuchaRed();
+  }
+
+  // ============================================================================
+  // REGLA DE NEGOCIO 9.4: TASA LÍMITE (RATE LIMITING) Y BLOQUEO ESCALONADO
+  // 3 intentos fallidos -> Bloqueo temporal de 15 minutos.
+  // 3 bloqueos temporales consecutivos -> Bloqueo permanente de cuenta.
+  // Desbloqueo de cuenta -> Exclusivo de Superadministrador (Acceso Total).
+  // ============================================================================
+
+  obtenerLockouts() {
+    try {
+      const data = localStorage.getItem(STORAGE_KEY_AUTH_LOCKOUTS);
+      return data ? JSON.parse(data) : {};
+    } catch {
+      return {};
+    }
+  }
+
+  guardarLockouts(lockouts) {
+    try {
+      localStorage.setItem(STORAGE_KEY_AUTH_LOCKOUTS, JSON.stringify(lockouts));
+    } catch {}
+  }
+
+  normalizarIdentificadorBloqueo(idRaw) {
+    if (!idRaw) return '';
+    const str = String(idRaw).trim().toLowerCase();
+    if (str.includes('@')) return str;
+    return this.limpiarNumeros(str);
+  }
+
+  obtenerClavesIdentificador(idRaw) {
+    const claves = new Set();
+    const idNorm = this.normalizarIdentificadorBloqueo(idRaw);
+    if (idNorm) claves.add(idNorm);
+
+    // Cruzar con matriz de colaboradores
+    const listaEmpleados = (Array.isArray(this.empleados) && this.empleados.length > 0)
+      ? this.empleados
+      : (Array.isArray(EMPLEADOS_ACTIVOS_BASE) ? EMPLEADOS_ACTIVOS_BASE : []);
+
+    const emp = listaEmpleados.find((e) => 
+      (e.email && e.email.trim().toLowerCase() === idNorm) ||
+      (e.identificacion && this.limpiarNumeros(e.identificacion) === idNorm)
+    );
+    if (emp) {
+      if (emp.email) claves.add(emp.email.trim().toLowerCase());
+      if (emp.identificacion) claves.add(this.limpiarNumeros(emp.identificacion));
+    }
+    return Array.from(claves);
+  }
+
+  obtenerEstadoBloqueo(idRaw) {
+    const claves = this.obtenerClavesIdentificador(idRaw);
+    const lockouts = this.obtenerLockouts();
+    const ahora = Date.now();
+
+    for (const k of claves) {
+      const reg = lockouts[k];
+      if (!reg) continue;
+
+      if (reg.cuentaBloqueada) {
+        return {
+          bloqueado: true,
+          tipo: 'cuenta',
+          cuentaBloqueada: true,
+          bloqueosConsecutivos: reg.bloqueosConsecutivos || 3,
+          minutosRestantes: 0,
+          error: '⛔ Tu cuenta ha sido BLOQUEADA PERMANENTEMENTE por seguridad institucional debido a 3 bloqueos temporales consecutivos. Requiere desbloqueo manual por parte de un Superadministrador (Acceso Total).'
+        };
+      }
+
+      if (reg.bloqueadoHasta && reg.bloqueadoHasta > ahora) {
+        const msRestantes = reg.bloqueadoHasta - ahora;
+        const minutos = Math.ceil(msRestantes / (60 * 1000));
+        return {
+          bloqueado: true,
+          tipo: 'temporal',
+          cuentaBloqueada: false,
+          bloqueadoHasta: reg.bloqueadoHasta,
+          minutosRestantes: minutos,
+          bloqueosConsecutivos: reg.bloqueosConsecutivos || 1,
+          error: `⏳ Interfaz bloqueada temporalmente por 3 intentos fallidos. Por favor espera ${minutos} minuto(s) para volver a intentar (Bloqueo ${reg.bloqueosConsecutivos || 1} de 3 antes de bloqueo permanente de cuenta).`
+        };
+      }
+    }
+
+    return {
+      bloqueado: false,
+      tipo: 'ninguno',
+      cuentaBloqueada: false,
+      minutosRestantes: 0,
+      error: ''
+    };
+  }
+
+  registrarFalloAutenticacion(idRaw) {
+    const claves = this.obtenerClavesIdentificador(idRaw);
+    if (claves.length === 0) {
+      return { tipo: 'fallo', bloqueado: false, error: 'Contraseña o credencial incorrecta.' };
+    }
+
+    const lockouts = this.obtenerLockouts();
+    const ahora = Date.now();
+
+    let registroActual = null;
+    for (const k of claves) {
+      if (lockouts[k]) {
+        registroActual = { ...lockouts[k] };
+        break;
+      }
+    }
+
+    if (!registroActual) {
+      registroActual = {
+        intentosFallidos: 0,
+        bloqueadoHasta: 0,
+        bloqueosConsecutivos: 0,
+        cuentaBloqueada: false
+      };
+    }
+
+    // Si ya expiró el bloqueo temporal anterior, resetear intentos fallidos
+    if (registroActual.bloqueadoHasta && registroActual.bloqueadoHasta <= ahora) {
+      registroActual.bloqueadoHasta = 0;
+      registroActual.intentosFallidos = 0;
+    }
+
+    registroActual.intentosFallidos = (registroActual.intentosFallidos || 0) + 1;
+    let resultado = null;
+
+    if (registroActual.intentosFallidos >= 3) {
+      registroActual.bloqueosConsecutivos = (registroActual.bloqueosConsecutivos || 0) + 1;
+      registroActual.intentosFallidos = 0;
+
+      if (registroActual.bloqueosConsecutivos >= 3) {
+        registroActual.cuentaBloqueada = true;
+        registroActual.bloqueadoHasta = 0;
+        resultado = {
+          tipo: 'cuenta',
+          bloqueado: true,
+          cuentaBloqueada: true,
+          bloqueosConsecutivos: 3,
+          error: '⛔ Has acumulado 3 bloqueos consecutivos de seguridad. Tu cuenta ha sido BLOQUEADA PERMANENTEMENTE. Comunícate con un Superadministrador para restablecer el acceso.'
+        };
+      } else {
+        registroActual.bloqueadoHasta = ahora + (15 * 60 * 1000); // 15 minutos exactos
+        resultado = {
+          tipo: 'temporal',
+          bloqueado: true,
+          cuentaBloqueada: false,
+          bloqueadoHasta: registroActual.bloqueadoHasta,
+          minutosRestantes: 15,
+          bloqueosConsecutivos: registroActual.bloqueosConsecutivos,
+          error: `⏳ Has alcanzado 3 intentos fallidos consecutivos. La interfaz ha sido bloqueada temporalmente por 15 minutos (Bloqueo ${registroActual.bloqueosConsecutivos} de 3 antes de bloqueo permanente de cuenta).`
+        };
+      }
+    } else {
+      const restantes = 3 - registroActual.intentosFallidos;
+      resultado = {
+        tipo: 'intento_fallido',
+        bloqueado: false,
+        intentosFallidos: registroActual.intentosFallidos,
+        restantes: restantes,
+        error: `Contraseña o credencial incorrecta. Te restan ${restantes} intento(s) antes del bloqueo temporal de 15 minutos.`
+      };
+    }
+
+    for (const k of claves) {
+      lockouts[k] = { ...registroActual };
+    }
+    this.guardarLockouts(lockouts);
+
+    return resultado;
+  }
+
+  registrarExitoAutenticacion(idRaw) {
+    const claves = this.obtenerClavesIdentificador(idRaw);
+    const lockouts = this.obtenerLockouts();
+    let modificado = false;
+
+    for (const k of claves) {
+      if (lockouts[k]) {
+        delete lockouts[k];
+        modificado = true;
+      }
+    }
+    if (modificado) {
+      this.guardarLockouts(lockouts);
+    }
+  }
+
+  desbloquearUsuario(idRaw) {
+    const claves = this.obtenerClavesIdentificador(idRaw);
+    const lockouts = this.obtenerLockouts();
+
+    for (const k of claves) {
+      delete lockouts[k];
+    }
+    this.guardarLockouts(lockouts);
+
+    for (const k of claves) {
+      if (this.configuracion?.usuariosRegistrados?.[k]) {
+        delete this.configuracion.usuariosRegistrados[k].cuentaBloqueada;
+      }
+    }
+    try {
+      localStorage.setItem(STORAGE_KEY_CONF_CACHE, JSON.stringify(this.configuracion));
+    } catch {}
+    this.guardarConfiguracionEnNube();
+
+    return { ok: true, mensaje: 'Usuario desbloqueado con éxito.' };
+  }
+
+  estaUsuarioBloqueado(idRaw) {
+    return this.obtenerEstadoBloqueo(idRaw).bloqueado;
   }
 
   cargarDesdeStorage() {
@@ -1193,6 +1410,12 @@ export class StaffService {
       return { exito: false, error: 'No se detectó un usuario activo para cambiar la contraseña.' };
     }
 
+    // Regla 9.4: Verificar si el usuario está bloqueado
+    const lockCheck = this.obtenerEstadoBloqueo(docClean);
+    if (lockCheck.bloqueado) {
+      return { exito: false, error: lockCheck.error, bloqueado: true, tipoBloqueo: lockCheck.tipo };
+    }
+
     let reg = this.configuracion?.usuariosRegistrados?.[docClean] || (sesion && this.limpiarNumeros(sesion.identificacion) === docClean ? sesion : null);
 
     if (!reg) {
@@ -1215,7 +1438,8 @@ export class StaffService {
     if (reg.passwordHash) {
       const hashActual = await this.calcularHash(claveActual);
       if (hashActual !== reg.passwordHash) {
-        return { exito: false, error: 'La contraseña actual ingresada es incorrecta.' };
+        const fallo = this.registrarFalloAutenticacion(docClean);
+        return { exito: false, error: fallo.error, bloqueado: fallo.bloqueado, tipoBloqueo: fallo.tipo };
       }
     }
 
@@ -1274,6 +1498,8 @@ export class StaffService {
     // Sincronizar en Google Drive y servidor
     await this.guardarConfiguracionEnNube();
 
+    this.registrarExitoAutenticacion(docClean);
+
     return {
       exito: true,
       mensaje: '¡Contraseña personal actualizada exitosamente! Esta nueva contraseña será solicitada para iniciar sesión y para desbloquear la edición de documentos.'
@@ -1284,10 +1510,19 @@ export class StaffService {
    * Cambia la contraseña institucional tras validar la actual y registra en auditoría
    */
   cambiarClaveInstitucional(claveActual, claveNueva, sesion = null) {
+    const usuarioId = sesion?.identificacion || 'admin_institucional';
+    const lockCheck = this.obtenerEstadoBloqueo(usuarioId);
+    if (lockCheck.bloqueado) {
+      return { exito: false, error: lockCheck.error, bloqueado: true, tipoBloqueo: lockCheck.tipo };
+    }
+
     const claveCorrecta = this.obtenerClaveInstitucional();
     if ((claveActual || '').trim() !== claveCorrecta) {
-      return { exito: false, error: 'La contraseña actual ingresada es incorrecta.' };
+      const fallo = this.registrarFalloAutenticacion(usuarioId);
+      return { exito: false, error: fallo.error, bloqueado: fallo.bloqueado, tipoBloqueo: fallo.tipo };
     }
+
+    this.registrarExitoAutenticacion(usuarioId);
 
     const nuevaLimpia = (claveNueva || '').trim();
     if (!nuevaLimpia || nuevaLimpia.length < 6) {
@@ -1556,9 +1791,17 @@ export class StaffService {
    * Valida la identidad solicitando solo los últimos 4 dígitos de la cédula y el correo institucional
    */
   validar4DigitosYEmail(ultimos4, email, empleadoObjetivo = null) {
-    const d4 = this.limpiarNumeros(ultimos4);
     const emailClean = (email || '').trim().toLowerCase();
 
+    // Regla 9.4: Verificar si el correo o usuario está bloqueado
+    if (emailClean) {
+      const lockCheck = this.obtenerEstadoBloqueo(emailClean);
+      if (lockCheck.bloqueado) {
+        return { valido: false, error: lockCheck.error, bloqueado: true, tipoBloqueo: lockCheck.tipo };
+      }
+    }
+
+    const d4 = this.limpiarNumeros(ultimos4);
     if (!d4 || d4.length < 4) {
       return { valido: false, error: 'Por favor ingresa los 4 últimos dígitos de tu cédula.' };
     }
@@ -1578,6 +1821,12 @@ export class StaffService {
       };
     }
 
+    // Verificar si la cédula del colaborador está bloqueada
+    const lockCheckDoc = this.obtenerEstadoBloqueo(emp.identificacion);
+    if (lockCheckDoc.bloqueado) {
+      return { valido: false, error: lockCheckDoc.error, bloqueado: true, tipoBloqueo: lockCheckDoc.tipo };
+    }
+
     const empEmailClean = (emp.email || '').trim().toLowerCase();
     if (empEmailClean !== emailClean) {
       return {
@@ -1588,12 +1837,16 @@ export class StaffService {
 
     const docFull = this.limpiarNumeros(emp.identificacion);
     if (!docFull.endsWith(d4)) {
+      const fallo = this.registrarFalloAutenticacion(emp.identificacion || emailClean);
       return {
         valido: false,
-        error: 'Los 4 dígitos ingresados no coinciden con la cédula del colaborador.'
+        error: fallo.error,
+        bloqueado: fallo.bloqueado,
+        tipoBloqueo: fallo.tipo
       };
     }
 
+    this.registrarExitoAutenticacion(emp.identificacion || emailClean);
     return { valido: true, empleado: emp };
   }
 
@@ -1601,24 +1854,33 @@ export class StaffService {
    * Valida la identidad solicitando únicamente los últimos 4 dígitos de la cédula del colaborador
    */
   validarSolo4Digitos(ultimos4, empleadoObjetivo) {
-    const d4 = this.limpiarNumeros(ultimos4);
-
-    if (!d4 || d4.length < 4) {
-      return { valido: false, error: 'Por favor ingresa los 4 últimos dígitos de tu cédula.' };
-    }
-
     if (!empleadoObjetivo || !empleadoObjetivo.identificacion) {
       return { valido: false, error: 'No se ha detectado el usuario a restablecer.' };
     }
 
+    // Regla 9.4: Verificar si el usuario está bloqueado
+    const lockCheck = this.obtenerEstadoBloqueo(empleadoObjetivo.identificacion);
+    if (lockCheck.bloqueado) {
+      return { valido: false, error: lockCheck.error, bloqueado: true, tipoBloqueo: lockCheck.tipo };
+    }
+
+    const d4 = this.limpiarNumeros(ultimos4);
+    if (!d4 || d4.length < 4) {
+      return { valido: false, error: 'Por favor ingresa los 4 últimos dígitos de tu cédula.' };
+    }
+
     const docFull = this.limpiarNumeros(empleadoObjetivo.identificacion);
     if (!docFull.endsWith(d4)) {
+      const fallo = this.registrarFalloAutenticacion(empleadoObjetivo.identificacion);
       return {
         valido: false,
-        error: 'Los 4 dígitos ingresados no coinciden con la cédula registrada.'
+        error: fallo.error,
+        bloqueado: fallo.bloqueado,
+        tipoBloqueo: fallo.tipo
       };
     }
 
+    this.registrarExitoAutenticacion(empleadoObjetivo.identificacion);
     return { valido: true, empleado: empleadoObjetivo };
   }
 
@@ -1731,6 +1993,13 @@ export class StaffService {
     if (!emailClean || !emailClean.includes('@')) {
       return { ok: false, error: 'Por favor ingresa un correo electrónico corporativo válido.' };
     }
+
+    // Regla 9.4: Validar bloqueo temporal o permanente por correo
+    const lockCheckEmail = this.obtenerEstadoBloqueo(emailClean);
+    if (lockCheckEmail.bloqueado) {
+      return { ok: false, error: lockCheckEmail.error, bloqueado: true, tipoBloqueo: lockCheckEmail.tipo };
+    }
+
     if (!passwordPlano) {
       return { ok: false, error: 'Por favor ingresa tu contraseña.' };
     }
@@ -1763,6 +2032,14 @@ export class StaffService {
       reg = this.configuracion?.usuariosRegistrados?.[docClean];
     }
 
+    if (emp && emp.identificacion) {
+      // Regla 9.4: Validar bloqueo temporal o permanente por cédula
+      const lockCheckDoc = this.obtenerEstadoBloqueo(emp.identificacion);
+      if (lockCheckDoc.bloqueado) {
+        return { ok: false, error: lockCheckDoc.error, bloqueado: true, tipoBloqueo: lockCheckDoc.tipo };
+      }
+    }
+
     if (!emp && !reg) {
       return {
         ok: false,
@@ -1788,8 +2065,12 @@ export class StaffService {
 
     const hashIngresado = await this.calcularHash(passwordPlano);
     if (hashIngresado !== reg.passwordHash) {
-      return { ok: false, error: 'Contraseña incorrecta. Por favor verifica e intenta nuevamente.' };
+      const fallo = this.registrarFalloAutenticacion(emp.identificacion || emailClean);
+      return { ok: false, error: fallo.error, bloqueado: fallo.bloqueado, tipoBloqueo: fallo.tipo };
     }
+
+    // Login exitoso: limpiar bloqueos e intentos fallidos
+    this.registrarExitoAutenticacion(emp.identificacion || emailClean);
 
     const perfil = this.determinarPerfil(emp.cargo, emp.identificacion) || reg.perfil || 'operativo';
     const docClean = this.limpiarNumeros(emp.identificacion);
@@ -1822,6 +2103,12 @@ export class StaffService {
     }
 
     const docClean = this.limpiarNumeros(docOrEmail);
+
+    // Regla 9.4: Validar bloqueo temporal o permanente por cédula
+    const lockCheck = this.obtenerEstadoBloqueo(docClean);
+    if (lockCheck.bloqueado) {
+      return { ok: false, error: lockCheck.error, bloqueado: true, tipoBloqueo: lockCheck.tipo };
+    }
 
     // Lista de colaboradores disponibles (en memoria o base)
     const listaEmpleados = (Array.isArray(this.empleados) && this.empleados.length > 0)
@@ -1857,8 +2144,12 @@ export class StaffService {
 
     const hashIngresado = await this.calcularHash(passwordPlano);
     if (hashIngresado !== reg.passwordHash) {
-      return { ok: false, error: 'Contraseña incorrecta. Por favor verifica e intenta nuevamente.' };
+      const fallo = this.registrarFalloAutenticacion(docClean);
+      return { ok: false, error: fallo.error, bloqueado: fallo.bloqueado, tipoBloqueo: fallo.tipo };
     }
+
+    // Login exitoso: limpiar bloqueos e intentos fallidos
+    this.registrarExitoAutenticacion(docClean);
 
     // Actualizar datos del empleado y perfil
     const perfil = this.determinarPerfil(emp.cargo, emp.identificacion) || reg.perfil || 'operativo';

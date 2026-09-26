@@ -1,0 +1,1603 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Reglas de Negocio y Especificación Arquitectónica (SSOT) - Unión para la salud y la vida S.A.S.</title>
+  <meta name="description"
+    content="Portal oficial e interactivo de Reglas de Negocio, Gobernanza y Especificación Arquitectónica del Sistema de Gestión Documental." />
+
+  <!-- Tipografía Institucional Oficial -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&family=Montserrat:wght@400;500;600;700;800&family=Fira+Code:wght@400;500;600&display=swap"
+    rel="stylesheet" />
+
+  <!-- Mermaid.js para renderizado dinámico de diagramas -->
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'default',
+      themeVariables: {
+        primaryColor: '#e0f2fe',
+        primaryTextColor: '#0369a1',
+        primaryBorderColor: '#38bdf8',
+        lineColor: '#64748b',
+        secondaryColor: '#f1f5f9',
+        tertiaryColor: '#ffffff'
+      }
+    });
+  </script>
+
+  <style>
+    :root {
+      --primary: #0284c7;
+      --primary-dark: #0369a1;
+      --primary-light: #e0f2fe;
+      --accent: #0284c7;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --bg: #f8fafc;
+      --card-bg: #ffffff;
+      --text: #1e293b;
+      --text-muted: #64748b;
+      --border: #e2e8f0;
+      --border-dark: #cbd5e1;
+      --font-main: 'Montserrat', sans-serif;
+      --font-title: 'Quicksand', sans-serif;
+      --font-mono: 'Fira Code', monospace;
+      --shadow-sm: 0 1px 3px rgba(0,0,0,0.06);
+      --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.08);
+      --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: var(--font-main);
+      background-color: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Encabezado */
+    header.portal-header {
+      background: #ffffff;
+      border-bottom: 2px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .header-top {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 12px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+    }
+
+    .brand-wrap {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .brand-wrap img {
+      height: 48px;
+      width: auto;
+      object-fit: contain;
+    }
+
+    .brand-titles h1 {
+      font-family: var(--font-title);
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--primary-dark);
+      letter-spacing: -0.2px;
+    }
+
+    .brand-titles p {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .btn-action {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      font-family: var(--font-main);
+      font-size: 0.85rem;
+      font-weight: 600;
+      border-radius: 8px;
+      text-decoration: none;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border: 1px solid var(--border);
+      background: #ffffff;
+      color: var(--text);
+    }
+
+    .btn-action:hover {
+      background: var(--primary-light);
+      color: var(--primary-dark);
+      border-color: var(--primary);
+    }
+
+    .btn-action.btn-primary {
+      background: var(--primary);
+      color: #ffffff;
+      border-color: var(--primary-dark);
+    }
+
+    .btn-action.btn-primary:hover {
+      background: var(--primary-dark);
+    }
+
+    /* Barra de Búsqueda Rápida */
+    .search-bar-wrap {
+      background: #f1f5f9;
+      border-top: 1px solid var(--border);
+      padding: 8px 24px;
+    }
+
+    .search-inner {
+      max-width: 1400px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .search-box {
+      flex: 1;
+      position: relative;
+    }
+
+    .search-box input {
+      width: 100%;
+      padding: 8px 16px 8px 40px;
+      font-family: var(--font-main);
+      font-size: 0.9rem;
+      border: 1px solid var(--border-dark);
+      border-radius: 8px;
+      outline: none;
+      background: #ffffff;
+      transition: border-color 0.2s;
+    }
+
+    .search-box input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15);
+    }
+
+    .search-box .search-icon {
+      position: absolute;
+      left: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 1rem;
+      color: var(--text-muted);
+    }
+
+    .stats-badges {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .badge-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      background: #ffffff;
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+
+    .badge-chip strong {
+      color: var(--primary-dark);
+    }
+
+    /* Layout Principal */
+    .portal-layout {
+      max-width: 1400px;
+      margin: 24px auto;
+      padding: 0 24px;
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      gap: 32px;
+      align-items: start;
+    }
+
+    /* Menú Lateral */
+    aside.portal-sidebar {
+      position: sticky;
+      top: 130px;
+      background: #ffffff;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      box-shadow: var(--shadow-sm);
+      max-height: calc(100vh - 150px);
+      overflow-y: auto;
+    }
+
+    aside.portal-sidebar h3 {
+      font-family: var(--font-title);
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .nav-links {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .nav-links a {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--text);
+      text-decoration: none;
+      transition: all 0.15s ease;
+    }
+
+    .nav-links a:hover,
+    .nav-links a.active {
+      background: var(--primary-light);
+      color: var(--primary-dark);
+      font-weight: 700;
+    }
+
+    .nav-links a .nav-num {
+      display: inline-block;
+      min-width: 22px;
+      height: 22px;
+      line-height: 22px;
+      text-align: center;
+      background: #f1f5f9;
+      border-radius: 4px;
+      font-size: 0.7rem;
+      color: var(--text-muted);
+    }
+
+    .nav-links a:hover .nav-num,
+    .nav-links a.active .nav-num {
+      background: var(--primary);
+      color: #ffffff;
+    }
+
+    /* Contenido Principal */
+    main.portal-content {
+      display: flex;
+      flex-direction: column;
+      gap: 32px;
+      min-width: 0;
+    }
+
+    .content-section {
+      background: #ffffff;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 28px;
+      box-shadow: var(--shadow-sm);
+      scroll-margin-top: 140px;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+      padding-bottom: 12px;
+      border-bottom: 2px solid var(--primary-light);
+    }
+
+    .section-header h2 {
+      font-family: var(--font-title);
+      font-size: 1.35rem;
+      font-weight: 700;
+      color: var(--primary-dark);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .section-badge {
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 12px;
+      background: var(--primary-light);
+      color: var(--primary-dark);
+      text-transform: uppercase;
+    }
+
+    .section-intro {
+      font-size: 0.95rem;
+      color: var(--text);
+      margin-bottom: 20px;
+    }
+
+    /* Alertas Estilizadas */
+    .alert-box {
+      border-left: 4px solid var(--primary);
+      background: var(--primary-light);
+      padding: 14px 18px;
+      border-radius: 0 8px 8px 0;
+      margin: 16px 0;
+      font-size: 0.9rem;
+    }
+
+    .alert-box.alert-danger {
+      border-left-color: var(--danger);
+      background: #fef2f2;
+      color: #991b1b;
+    }
+
+    .alert-box.alert-warning {
+      border-left-color: var(--warning);
+      background: #fffbeb;
+      color: #92400e;
+    }
+
+    .alert-box.alert-success {
+      border-left-color: var(--success);
+      background: #ecfdf5;
+      color: #065f46;
+    }
+
+    /* Tablas Ejecutivas */
+    .table-container {
+      width: 100%;
+      overflow-x: auto;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin: 16px 0;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+    }
+
+    table.data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.88rem;
+      text-align: left;
+    }
+
+    table.data-table thead {
+      background: #f8fafc;
+      border-bottom: 2px solid var(--border-dark);
+    }
+
+    table.data-table th {
+      padding: 12px 16px;
+      font-weight: 700;
+      color: var(--text);
+      font-size: 0.82rem;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      white-space: nowrap;
+    }
+
+    table.data-table tbody tr {
+      border-bottom: 1px solid var(--border);
+      transition: background 0.15s ease;
+    }
+
+    table.data-table tbody tr:last-child {
+      border-bottom: none;
+    }
+
+    table.data-table tbody tr:hover {
+      background: #f0f9ff;
+    }
+
+    table.data-table td {
+      padding: 12px 16px;
+      color: var(--text);
+      vertical-align: middle;
+    }
+
+    /* Badges en tablas */
+    .pill-badge {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 12px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-align: center;
+      white-space: nowrap;
+    }
+
+    .pill-blue { background: #e0f2fe; color: #0369a1; }
+    .pill-green { background: #dcfce7; color: #15803d; }
+    .pill-amber { background: #fef3c7; color: #b45309; }
+    .pill-red { background: #fee2e2; color: #b91c1c; }
+    .pill-purple { background: #f3e8ff; color: #7e22ce; }
+    .pill-gray { background: #f1f5f9; color: #475569; }
+
+    code.code-inline {
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+      background: #f1f5f9;
+      color: #0f172a;
+      padding: 2px 6px;
+      border-radius: 4px;
+      border: 1px solid #e2e8f0;
+    }
+
+    /* Diagramas Mermaid */
+    .mermaid-card {
+      background: #ffffff;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px;
+      margin: 20px 0;
+      box-shadow: var(--shadow-sm);
+      overflow-x: auto;
+    }
+
+    .mermaid-title {
+      font-family: var(--font-title);
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--primary-dark);
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Decálogo Tarjetas */
+    .decalogo-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 16px;
+      margin-top: 16px;
+    }
+
+    .decalogo-card {
+      background: #ffffff;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+      border-left: 5px solid var(--primary);
+      box-shadow: var(--shadow-sm);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .decalogo-card:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-md);
+    }
+
+    .decalogo-card h4 {
+      font-family: var(--font-title);
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .decalogo-card p {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    /* Footer */
+    footer.portal-footer {
+      background: #ffffff;
+      border-top: 1px solid var(--border);
+      padding: 24px;
+      margin-top: 48px;
+      text-align: center;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    /* Responsive */
+    @media (max-width: 992px) {
+      .portal-layout {
+        grid-template-columns: 1fr;
+      }
+      aside.portal-sidebar {
+        display: none;
+      }
+    }
+
+    @media print {
+      header.portal-header,
+      .search-bar-wrap,
+      aside.portal-sidebar,
+      .btn-action {
+        display: none !important;
+      }
+      .portal-layout {
+        display: block;
+        max-width: 100%;
+        padding: 0;
+      }
+      .content-section {
+        border: none;
+        box-shadow: none;
+        padding: 12px 0;
+        page-break-inside: avoid;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- ==========================================
+       ENCABEZADO INSTITUCIONAL
+  =========================================== -->
+  <header class="portal-header">
+    <div class="header-top">
+      <div class="brand-wrap">
+        <img src="assets/logo.png" alt="Unión para la salud y la vida S.A.S." />
+        <div class="brand-titles">
+          <h1>SISTEMA DE GESTIÓN DOCUMENTAL INSTITUCIONAL</h1>
+          <p>Portal Oficial de Reglas de Negocio y Especificación Arquitectónica (SSOT v2.1.0)</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button class="btn-action" onclick="window.print()" title="Imprimir o Guardar como PDF">
+          <span>🖨️</span> Imprimir / PDF
+        </button>
+        <a href="index.html" class="btn-action btn-primary" title="Volver al Catálogo del Sistema">
+          <span>📂</span> Ir al Catálogo
+        </a>
+      </div>
+    </div>
+
+    <!-- Barra de Búsqueda Rápida e Indicadores -->
+    <div class="search-bar-wrap">
+      <div class="search-inner">
+        <div class="search-box">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="filter-input" placeholder="Filtrar por archivo, código, perfil, regla o módulo en tiempo real..." onkeyup="filterContent()" />
+        </div>
+        <div class="stats-badges">
+          <span class="badge-chip">Secciones: <strong>11</strong></span>
+          <span class="badge-chip">Tablas: <strong>15</strong></span>
+          <span class="badge-chip">Diagramas: <strong>15</strong></span>
+          <span class="badge-chip">Mandamientos: <strong>10</strong></span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ==========================================
+       LAYOUT PRINCIPAL
+  =========================================== -->
+  <div class="portal-layout">
+
+    <!-- Menú Lateral Fijo -->
+    <aside class="portal-sidebar">
+      <h3>Índice Temático</h3>
+      <ul class="nav-links">
+        <li><a href="#sec-principios"><span class="nav-num">01</span> Principios Rectores</a></li>
+        <li><a href="#sec-arquitectura"><span class="nav-num">02</span> Arquitectura Serverless</a></li>
+        <li><a href="#sec-inventario"><span class="nav-num">03</span> Inventario de Archivos</a></li>
+        <li><a href="#sec-jerarquia"><span class="nav-num">04</span> Jerarquía Documental</a></li>
+        <li><a href="#sec-rbac"><span class="nav-num">05</span> Identidad y RBAC</a></li>
+        <li><a href="#sec-descargas"><span class="nav-num">06</span> Motor de Salida</a></li>
+        <li><a href="#sec-uiux"><span class="nav-num">07</span> Experiencia UI / UX</a></li>
+        <li><a href="#sec-telemetria"><span class="nav-num">08</span> Telemetría y Auditoría</a></li>
+        <li><a href="#sec-procesos"><span class="nav-num">09</span> Automatización y Respaldo</a></li>
+        <li><a href="#sec-seguridad"><span class="nav-num">10</span> Políticas de Seguridad</a></li>
+        <li><a href="#sec-decalogo"><span class="nav-num">11</span> Decálogo de Gobernanza</a></li>
+      </ul>
+    </aside>
+
+    <!-- Contenido Principal -->
+    <main class="portal-content">
+
+      <!-- SECCIÓN 1: PRINCIPIOS RECTORES -->
+      <section id="sec-principios" class="content-section">
+        <div class="section-header">
+          <h2><span>📋</span> 1. Declaración de Principios y Gobernanza Vinculante</h2>
+          <span class="section-badge">Gobernanza SSOT</span>
+        </div>
+        <p class="section-intro">
+          El presente portal constituye la <strong>Fuente Única de Verdad (Single Source of Truth - SSOT)</strong> que rige de manera obligatoria la totalidad de la arquitectura de software, reglas de validación y políticas del Sistema de Gestión Documental de <strong>Unión para la salud y la vida S.A.S.</strong>
+        </p>
+
+        <div class="alert-box alert-warning">
+          <strong>Carácter Vinculante:</strong> Ninguna rutina de desarrollo, refactorización o corrección puede contradecir los mandamientos aquí especificados.
+        </div>
+
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Principio Rector</th>
+                <th>Justificación Técnica y Operativa</th>
+                <th>Impacto en el Sistema</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>1. Integridad Absoluta</strong></td>
+                <td>Los documentos institucionales son activos regulados en el Sistema de Garantía de Calidad en Salud.</td>
+                <td><span class="pill-badge pill-red">Prohibida sobrescritura destructiva</span></td>
+              </tr>
+              <tr>
+                <td><strong>2. Arquitectura Serverless</strong></td>
+                <td>Despliegue estático de alta disponibilidad en GitHub Pages con backend en Google Workspace y Microsoft 365.</td>
+                <td><span class="pill-badge pill-blue">Alta Disponibilidad 99.9%</span></td>
+              </tr>
+              <tr>
+                <td><strong>3. Carga Ultrarrápida</strong></td>
+                <td>Patrón <em>Stale-While-Revalidate</em> sirviendo datos desde IndexedDB y memoria en menos de 50 ms.</td>
+                <td><span class="pill-badge pill-green">Respuesta &lt; 50 ms</span></td>
+              </tr>
+              <tr>
+                <td><strong>4. Mínimo Privilegio (Default Deny)</strong></td>
+                <td>Toda celda vacía deniega acceso por defecto. Únicamente la 'X' explícita concede privilegios.</td>
+                <td><span class="pill-badge pill-amber">Protección de Datos</span></td>
+              </tr>
+              <tr>
+                <td><strong>5. Inmutabilidad (Soft-Delete)</strong></td>
+                <td>Prohibido el borrado físico de registros maestros. Todo retiro documental es lógico y trazable.</td>
+                <td><span class="pill-badge pill-purple">Auditoría Perpetua</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- SECCIÓN 2: ARQUITECTURA -->
+      <section id="sec-arquitectura" class="content-section">
+        <div class="section-header">
+          <h2><span>🌐</span> 2. Topología y Arquitectura Serverless Híbrida</h2>
+          <span class="section-badge">Arquitectura</span>
+        </div>
+        <p class="section-intro">
+          La solución distribuye armónicamente sus componentes entre el navegador del cliente (SPA), microservicios locales en Python, nube de Google y almacenamiento corporativo en Microsoft 365.
+        </p>
+
+        <div class="mermaid-card">
+          <div class="mermaid-title"><span>📊</span> Diagrama 2.1: Topología General del Ecosistema Híbrido</div>
+          <pre class="mermaid">
+flowchart TD
+    subgraph CLIENTE["Capa Cliente (Navegador Web / SPA)"]
+        UI["Interfaz Web SPA (index.html + CSS3)"]
+        APP["AppController (app.js)"]
+        FILTER["Motor Filtros NFD (filters.js)"]
+        STAFF["Personal & RBAC (staff-service.js)"]
+        MODAL["Modales & Drawer (modal.js)"]
+        IDB[("Caché IndexedDB / LocalStorage")]
+    end
+
+    subgraph ENTORNO_LOCAL["Servidor Local de Soporte (server.py)"]
+        API_LOCAL["API Local REST (/api/*)"]
+        COM_WORD["Word COM Automation (win32com)"]
+        PDF_CACHE[("pdf_cache/ (PDFs Preconvertidos)")]
+    end
+
+    subgraph GOOGLE_CLOUD["Google Workspace Cloud Platform"]
+        GAS["Google Apps Script Web App"]
+        GSHEET[("Google Sheets (Biblioteca Maestra)")]
+        GDRIVE[("Google Drive (usuarios.conf / auditoria.dat)")]
+    end
+
+    subgraph MICROSOFT_CLOUD["Microsoft 365 Enterprise"]
+        SPO["SharePoint Online (unionsaludvida.sharepoint.com)"]
+        OD["OneDrive Corporativo"]
+    end
+
+    subgraph CI_CD["Automatización & CI/CD"]
+        GHA["GitHub Actions (daily-backup.yml)"]
+        GHPAGES["GitHub Pages (Alojamiento Web SPA)"]
+    end
+
+    UI <--> APP
+    APP <--> FILTER
+    APP <--> STAFF
+    APP <--> MODAL
+    APP <--> IDB
+
+    APP -- "1. Consulta Rápida (<50ms)" --> IDB
+    APP -- "2. Localhost (/api/*)" --> API_LOCAL
+    API_LOCAL --> COM_WORD
+    COM_WORD --> PDF_CACHE
+
+    APP -- "3. Nube Serverless (POST JSON)" --> GAS
+    GAS --> GSHEET
+    GAS --> GDRIVE
+
+    APP -- "4. Enlaces Directos + SSO Navegador" --> SPO
+    APP -- "5. Sincronización Catálogo" --> OD
+
+    GHA -- "Respaldo diario 04:00 UTC" --> GAS
+    GHA -- "Commit de snapshots" --> GHPAGES
+          </pre>
+        </div>
+
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Nivel</th>
+                <th>Componente de Persistencia</th>
+                <th>Protocolo</th>
+                <th>Latencia</th>
+                <th>Modo Offline</th>
+                <th>Criterio de Activación</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Nivel 1</strong></td>
+                <td><code class="code-inline">IndexedDB</code> / <code class="code-inline">localStorage</code></td>
+                <td>JS Storage API</td>
+                <td><span class="pill-badge pill-green">&lt; 50 ms</span></td>
+                <td><span class="pill-badge pill-green">100% Offline</span></td>
+                <td>Arranque estándar por defecto en toda sesión.</td>
+              </tr>
+              <tr>
+                <td><strong>Nivel 2</strong></td>
+                <td><code class="code-inline">server.py</code> (:8086)</td>
+                <td>HTTP REST (/api/*)</td>
+                <td><span class="pill-badge pill-blue">50 - 120 ms</span></td>
+                <td>Parcial (Local)</td>
+                <td>Si <code class="code-inline">hostname === 'localhost'</code>.</td>
+              </tr>
+              <tr>
+                <td><strong>Nivel 3</strong></td>
+                <td>Google Apps Script Web App</td>
+                <td>HTTPS POST / JSON</td>
+                <td><span class="pill-badge pill-amber">600 - 1,800 ms</span></td>
+                <td>Requiere Red</td>
+                <td>Despliegue en GitHub Pages con internet.</td>
+              </tr>
+              <tr>
+                <td><strong>Nivel 4</strong></td>
+                <td>CSV / DAT Estáticos Directos</td>
+                <td>Fetch HTTP GET</td>
+                <td><span class="pill-badge pill-amber">800 - 2,500 ms</span></td>
+                <td>Requiere Red</td>
+                <td>Contingencia por fallo en microservicio Cloud.</td>
+              </tr>
+              <tr>
+                <td><strong>Nivel 5</strong></td>
+                <td><code class="code-inline">data.js</code> en memoria</td>
+                <td>ES6 Module Bundled</td>
+                <td><span class="pill-badge pill-purple">0 ms (RAM)</span></td>
+                <td><span class="pill-badge pill-green">100% Offline</span></td>
+                <td>Pérdida total de red y caché persistente.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- SECCIÓN 3: INVENTARIO DE ARCHIVOS -->
+      <section id="sec-inventario" class="content-section">
+        <div class="section-header">
+          <h2><span>📁</span> 3. Inventario Canónico de Archivos y Persistencia</h2>
+          <span class="section-badge">Inventario</span>
+        </div>
+        <p class="section-intro">
+          Catálogo estructurado de cada archivo que compone el sistema, su rol técnico y las reglas obligatorias asociadas a su procesamiento.
+        </p>
+
+        <div class="table-container">
+          <table class="data-table" id="table-inventario">
+            <thead>
+              <tr>
+                <th>Archivo / Recurso</th>
+                <th>Tipo</th>
+                <th>Ubicación</th>
+                <th>Función Principal</th>
+                <th>Regla Operativa Clave</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code class="code-inline">REPOSITORIO_DOCUMENTAL.csv</code></td>
+                <td><span class="pill-badge pill-blue">CSV (;)</span></td>
+                <td>Raíz / OneDrive</td>
+                <td>Catálogo de enlaces físicos en SharePoint.</td>
+                <td><strong>Filtrado Estricto:</strong> Excluir carpetas sin extensión.</td>
+              </tr>
+              <tr>
+                <td><code class="code-inline">EMPLEADOS_ACTIVOS.csv</code></td>
+                <td><span class="pill-badge pill-blue">CSV (,)</span></td>
+                <td>Raíz / Servidor</td>
+                <td>Matriz oficial de 1,305 colaboradores activos.</td>
+                <td><strong>Validación Primaria:</strong> Nadie entra sin estado <code>Activo</code>.</td>
+              </tr>
+              <tr>
+                <td><code class="code-inline">Historico_Documentos_USV.csv</code></td>
+                <td><span class="pill-badge pill-blue">CSV (;)</span></td>
+                <td>Raíz / Drive</td>
+                <td>Bitácora inmutable de versiones del SGC.</td>
+                <td><strong>Append-Only:</strong> Solo adición; prohibido truncar o borrar.</td>
+              </tr>
+              <tr>
+                <td><code class="code-inline">usuarios.conf</code></td>
+                <td><span class="pill-badge pill-amber">JSON</span></td>
+                <td>Raíz / Drive</td>
+                <td>Base de contraseñas SHA-256 y perfiles.</td>
+                <td><strong>Merge Atómico:</strong> Deep merge con LockService.</td>
+              </tr>
+              <tr>
+                <td><code class="code-inline">auditoria.dat</code></td>
+                <td><span class="pill-badge pill-amber">JSON</span></td>
+                <td>Raíz / Drive</td>
+                <td>Registro inmutable de eventos y accesos.</td>
+                <td><strong>Anti-Flood:</strong> Deduplicación temporal de 5 a 10s.</td>
+              </tr>
+              <tr>
+                <td><code class="code-inline">maestro.dat</code></td>
+                <td><span class="pill-badge pill-amber">JSON</span></td>
+                <td>Raíz / Drive</td>
+                <td>Catálogo maestro de Tipos y Áreas SGC.</td>
+                <td><strong>Taxonomía:</strong> Gobierna la nomenclatura oficial.</td>
+              </tr>
+              <tr>
+                <td><code class="code-inline">google_drive_backup_script.gs</code></td>
+                <td><span class="pill-badge pill-purple">GAS (V8)</span></td>
+                <td>Google Apps Script</td>
+                <td>Microservicio Cloud serverless con LockService.</td>
+                <td><strong>Script Lock:</strong> Espera exclusiva de hasta 30s.</td>
+              </tr>
+              <tr>
+                <td><code class="code-inline">daily-backup.yml</code></td>
+                <td><span class="pill-badge pill-gray">GHA YAML</span></td>
+                <td>.github/workflows/</td>
+                <td>Respaldo automatizado diario a las 04:00 UTC.</td>
+                <td><strong>Snapshots:</strong> Versionado inmutable en <code>backups/</code>.</td>
+              </tr>
+              <tr>
+                <td><code class="code-inline">server.py</code></td>
+                <td><span class="pill-badge pill-green">Python 3</span></td>
+                <td>Raíz Workspace</td>
+                <td>Servidor local y motor de conversión DOCX a PDF.</td>
+                <td><strong>Word Lock:</strong> Exclusión mutua <code>WORD_CONVERT_LOCK</code>.</td>
+              </tr>
+              <tr>
+                <td><code class="code-inline">index.html</code></td>
+                <td><span class="pill-badge pill-blue">HTML5</span></td>
+                <td>Raíz Workspace</td>
+                <td>Estructura SPA del Sistema Documental.</td>
+                <td><strong>Caché:</strong> Sufijo de versión canónico <code>?v=11.6.XX</code>.</td>
+              </tr>
+              <tr>
+                <td><code class="code-inline">styles.css</code></td>
+                <td><span class="pill-badge pill-blue">CSS3</span></td>
+                <td>Raíz Workspace</td>
+                <td>Sistema de diseño institucional y temas.</td>
+                <td><strong>Vanilla Estricto:</strong> Sin dependencias externas ni Tailwind.</td>
+              </tr>
+              <tr>
+                <td><code class="code-inline">js/staff-service.js</code></td>
+                <td><span class="pill-badge pill-purple">ES6 Module</span></td>
+                <td>js/</td>
+                <td>Seguridad, autenticación, rate limiting y RBAC.</td>
+                <td><strong>Autoridad Única:</strong> Gestiona identidades y bloqueos.</td>
+              </tr>
+              <tr>
+                <td><code class="code-inline">js/sharepoint-service.js</code></td>
+                <td><span class="pill-badge pill-purple">ES6 Module</span></td>
+                <td>js/</td>
+                <td>Conexión con SharePoint, enlaces y descargas.</td>
+                <td><strong>Motor Salida:</strong> Aplica matriz determinística de descargas.</td>
+              </tr>
+              <tr>
+                <td><code class="code-inline">js/filters.js</code></td>
+                <td><span class="pill-badge pill-purple">ES6 Module</span></td>
+                <td>js/</td>
+                <td>Filtros en cascada y búsqueda NFD normalizada.</td>
+                <td><strong>Default Deny:</strong> Evaluación estricta <code>=== true</code>.</td>
+              </tr>
+              <tr>
+                <td><code class="code-inline">js/modal.js</code></td>
+                <td><span class="pill-badge pill-purple">ES6 Module</span></td>
+                <td>js/</td>
+                <td>Gestor de modales, Drawer lateral y formularios.</td>
+                <td><strong>Soft-Delete:</strong> Fuerza <code>borradoFisico = false</code>.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- SECCIÓN 4: JERARQUÍA DOCUMENTAL -->
+      <section id="sec-jerarquia" class="content-section">
+        <div class="section-header">
+          <h2><span>📑</span> 4. Jerarquía Documental: Base vs. Registros Derivados</h2>
+          <span class="section-badge">Estructura SGC</span>
+        </div>
+        <p class="section-intro">
+          Diferenciación conceptual y operativa estricta entre un <strong>Documento Base (Padre)</strong> y un <strong>Registro Derivado (Subregistro / Hijo)</strong>.
+        </p>
+
+        <div class="mermaid-card">
+          <div class="mermaid-title"><span>📊</span> Diagrama 4.1: Caso Canónico FMT-GIC-016 y Registros Hijos</div>
+          <pre class="mermaid">
+graph TD
+    subgraph DOC_BASE["Documento Base (Padre)"]
+        BASE["Código Canónico: FMT-GIC-016
+        Título: Definición de criterios de formación
+        Formato Físico: Word (.docx) Editable
+        Insignia Visual: DOC (Azul)
+        Naturaleza: Plantilla Maestra en Blanco"]
+    end
+
+    subgraph DERIVADOS["Registros Derivados (Subregistros / Hijos)"]
+        REG1["Código: FMT-GIC-016-1
+        ID Canónico: FMT-GIC-016_REG_001
+        Título: Formación anticoagulados 2026-1
+        Formato Salida: PDF Protegido
+        Insignia Visual: PDF (Roja)"]
+
+        REG2["Código: FMT-GIC-016-2
+        ID Canónico: FMT-GIC-016_REG_002
+        Título: Formación anticoagulados 2026-2
+        Formato Salida: PDF Protegido
+        Insignia Visual: PDF (Roja)"]
+
+        REG3["Código: FMT-GIC-016-3
+        ID Canónico: FMT-GIC-016_REG_003
+        Título: Formación Asma y EPOC 2026
+        Formato Salida: PDF Protegido
+        Insignia Visual: PDF (Roja)"]
+    end
+
+    BASE -->|"Contiene arreglo registrosDerivados[]"| REG1
+    BASE -->|"Contiene arreglo registrosDerivados[]"| REG2
+    BASE -->|"Contiene arreglo registrosDerivados[]"| REG3
+          </pre>
+        </div>
+
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Criterio Comparativo</th>
+                <th>Documento Base (Padre)</th>
+                <th>Registro Derivado (Hijo)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Estructura del Código</strong></td>
+                <td>Sin sufijos secuenciales (<code class="code-inline">FMT-GIC-016</code>, <code class="code-inline">PRC-GMD-001</code>).</td>
+                <td>Con sufijo numérico precedido de guion (<code class="code-inline">-1</code>, <code class="code-inline">-2</code>).</td>
+              </tr>
+              <tr>
+                <td><strong>Finalidad SGC</strong></td>
+                <td>Plantilla en blanco o directriz normativa institucional.</td>
+                <td>Registro operativo diligenciado con datos clínicos o técnicos.</td>
+              </tr>
+              <tr>
+                <td><strong>Formato al Descargar</strong></td>
+                <td><strong>Word (.docx)</strong> en formatos FMT; <strong>PDF</strong> en normativos.</td>
+                <td><span class="pill-badge pill-red">OBLIGATORIAMENTE PDF PROTEGIDO</span> (salvo .xlsx).</td>
+              </tr>
+              <tr>
+                <td><strong>Insignia Visual en Tabla</strong></td>
+                <td><span class="pill-badge pill-blue">DOC</span> (Word), <span class="pill-badge pill-red">PDF</span>, <span class="pill-badge pill-green">XLS</span>.</td>
+                <td><span class="pill-badge pill-red">Siempre PDF</span> (o XLS si es hoja de cálculo).</td>
+              </tr>
+              <tr>
+                <td><strong>Comportamiento al Clic</strong></td>
+                <td>Despliega / Oculta el acordeón de subregistros hijos.</td>
+                <td>Abre el Drawer lateral derecho con su ficha técnica.</td>
+              </tr>
+              <tr>
+                <td><strong>Vínculo Físico / URL</strong></td>
+                <td>Apunta a la URL maestra en SharePoint Online.</td>
+                <td><strong>JAMÁS hereda la URL del padre</strong>. Requiere archivo propio.</td>
+              </tr>
+              <tr>
+                <td><strong>Resolución en el DOM</strong></td>
+                <td>Búsqueda simple por <code class="code-inline">doc.codigo</code>.</td>
+                <td>Búsqueda dual: <code class="code-inline">r.id === id || r.codigo === id</code>.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- SECCIÓN 5: IDENTIDAD Y RBAC -->
+      <section id="sec-rbac" class="content-section">
+        <div class="section-header">
+          <h2><span>🔐</span> 5. Gestión de Identidad, Perfiles y Matriz RBAC</h2>
+          <span class="section-badge">Seguridad RBAC</span>
+        </div>
+        <p class="section-intro">
+          Estructura de cuatro perfiles con principio de Mínimo Privilegio, saneamiento automático de cargos y matriz estricta de capacidades.
+        </p>
+
+        <div class="mermaid-card">
+          <div class="mermaid-title"><span>📊</span> Diagrama 5.1: Jerarquía Oficial de Perfiles de Usuario</div>
+          <pre class="mermaid">
+graph TD
+    TOTAL["🛡️ Acceso Total (total / administrador)
+    Cédula Maestra: 8160602
+    Control Total de Catálogo, Seguridad, Desbloqueo y Auditoría"]
+    
+    DIR["👑 Directivo (directivo)
+    Cargos: Director, Gerente, Subdirector, Subgerente
+    Visualiza 100% de documentos, Edición habilitada con Clave"]
+    
+    ADM["💼 Administrativo (administrativo)
+    Cargos: Líderes, Analistas, Coordinadores, Auxiliares no asistenciales
+    Visualiza Administrativos y Operativos con permiso explícito"]
+    
+    OPE["👷 Operativo (operativo)
+    Cargos: Médicos, Terapeutas, Enfermeros, Personal asistencial
+    Visualiza únicamente Operativos con permiso explícito en Solo Lectura"]
+
+    TOTAL --> DIR
+    DIR --> ADM
+    ADM --> OPE
+          </pre>
+        </div>
+
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Capacidad / Función</th>
+                <th>Total (<code>total</code>)</th>
+                <th>Directivo (<code>directivo</code>)</th>
+                <th>Administrativo (<code>administrativo</code>)</th>
+                <th>Operativo (<code>operativo</code>)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Visualización en Catálogo</strong></td>
+                <td><span class="pill-badge pill-green">100% Docs</span></td>
+                <td><span class="pill-badge pill-green">100% Docs</span></td>
+                <td><span class="pill-badge pill-blue">Admin u Operativo</span></td>
+                <td><span class="pill-badge pill-amber">Únicamente Operativo</span></td>
+              </tr>
+              <tr>
+                <td><strong>Descarga Directa (📥)</strong></td>
+                <td><span class="pill-badge pill-green">Habilitada</span></td>
+                <td><span class="pill-badge pill-green">Habilitada</span></td>
+                <td><span class="pill-badge pill-green">Habilitada</span></td>
+                <td><span class="pill-badge pill-green">Habilitada (según matriz)</span></td>
+              </tr>
+              <tr>
+                <td><strong>Documentos Restringidos</strong></td>
+                <td><span class="pill-badge pill-blue">Desbloqueable</span></td>
+                <td><span class="pill-badge pill-blue">Desbloqueable</span></td>
+                <td><span class="pill-badge pill-blue">Desbloqueable</span></td>
+                <td><span class="pill-badge pill-red">ESTRICTAMENTE BLOQUEADO</span></td>
+              </tr>
+              <tr>
+                <td><strong>Activar Modo Edición</strong></td>
+                <td><span class="pill-badge pill-green">Automática</span></td>
+                <td><span class="pill-badge pill-amber">Requiere Clave</span></td>
+                <td><span class="pill-badge pill-amber">Requiere Clave</span></td>
+                <td><span class="pill-badge pill-red">ESTRICTAMENTE BLOQUEADO</span></td>
+              </tr>
+              <tr>
+                <td><strong>Editar SharePoint (✏️)</strong></td>
+                <td><span class="pill-badge pill-green">Habilitada</span></td>
+                <td><span class="pill-badge pill-green">Habilitada</span></td>
+                <td><span class="pill-badge pill-blue">Habilitada (su proceso)</span></td>
+                <td><span class="pill-badge pill-red">DESHABILITADA</span></td>
+              </tr>
+              <tr>
+                <td><strong>Abrir Carpeta (📁)</strong></td>
+                <td><span class="pill-badge pill-green">Habilitada</span></td>
+                <td><span class="pill-badge pill-green">Habilitada</span></td>
+                <td><span class="pill-badge pill-green">Habilitada</span></td>
+                <td><span class="pill-badge pill-red">DESHABILITADA</span></td>
+              </tr>
+              <tr>
+                <td><strong>Modificar Metadatos (⚙️)</strong></td>
+                <td><span class="pill-badge pill-green">Habilitada</span></td>
+                <td><span class="pill-badge pill-green">Habilitada</span></td>
+                <td><span class="pill-badge pill-red">DESHABILITADA</span></td>
+                <td><span class="pill-badge pill-red">DESHABILITADA</span></td>
+              </tr>
+              <tr>
+                <td><strong>Retirar Documento (🗑️)</strong></td>
+                <td><span class="pill-badge pill-green">Habilitada</span></td>
+                <td><span class="pill-badge pill-green">Habilitada</span></td>
+                <td><span class="pill-badge pill-red">DESHABILITADA</span></td>
+                <td><span class="pill-badge pill-red">DESHABILITADA</span></td>
+              </tr>
+              <tr>
+                <td><strong>Crear Documento (➕)</strong></td>
+                <td><span class="pill-badge pill-green">Habilitada</span></td>
+                <td><span class="pill-badge pill-green">Habilitada</span></td>
+                <td><span class="pill-badge pill-red">DESHABILITADA</span></td>
+                <td><span class="pill-badge pill-red">DESHABILITADA</span></td>
+              </tr>
+              <tr>
+                <td><strong>Dashboard Calidad / Auditoría</strong></td>
+                <td><span class="pill-badge pill-green">Habilitada</span></td>
+                <td><span class="pill-badge pill-green">Habilitada</span></td>
+                <td><span class="pill-badge pill-gray">Oculta</span></td>
+                <td><span class="pill-badge pill-red">BLOQUEADA</span></td>
+              </tr>
+              <tr>
+                <td><strong>Desbloquear Cuentas</strong></td>
+                <td><span class="pill-badge pill-green">Exclusivo (8160602)</span></td>
+                <td><span class="pill-badge pill-red">Deshabilitada</span></td>
+                <td><span class="pill-badge pill-red">Deshabilitada</span></td>
+                <td><span class="pill-badge pill-red">Deshabilitada</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- SECCIÓN 6: MOTOR DE SALIDA -->
+      <section id="sec-descargas" class="content-section">
+        <div class="section-header">
+          <h2><span>📥</span> 6. Motor de Salida y Matriz Determinística de Descarga</h2>
+          <span class="section-badge">Formatos de Salida</span>
+        </div>
+        <p class="section-intro">
+          Árbol de decisión que gobierna el formato exacto entregado al presionar el botón de descarga, garantizando la inalterabilidad de los registros diligenciados.
+        </p>
+
+        <div class="mermaid-card">
+          <div class="mermaid-title"><span>📊</span> Diagrama 6.1: Árbol Determinístico de Salida Documental</div>
+          <pre class="mermaid">
+flowchart TD
+    START(["Clic en Botón Descargar (📥)"]) --> CHECK_EXCEL{"¿El archivo es Excel?
+    (.xlsx, .xls, .csv)"}
+
+    CHECK_EXCEL -- SÍ --> OUT_EXCEL["🟩 DESCARGA NATIVA EXCEL
+    (tipoAccion: 'NATIVO_EXCEL')
+    Conserva fórmulas, macros y datos"]
+
+    CHECK_EXCEL -- NO --> CHECK_REG{"¿Es un Registro Derivado?
+    (esRegistro === true o sufijo -\\d+)"}
+
+    CHECK_REG -- SÍ --> OUT_PDF_REG["🟥 CONVERSIÓN A PDF PROTEGIDO
+    (Insignia Roja 'PDF')
+    Protege información clínica y operativa"]
+
+    CHECK_REG -- NO --> CHECK_FMT{"¿Es Documento Base FMT?
+    (Inicia con FMT- y !esRegistro)"}
+
+    CHECK_FMT -- SÍ --> OUT_WORD["🟦 DESCARGA NATIVA WORD (.docx)
+    (Insignia Azul 'DOC')
+    Plantilla en blanco para diligenciamiento"]
+
+    CHECK_FMT -- NO --> OUT_PDF_DOC["🟥 CONVERSIÓN A PDF PROTEGIDO
+    (Insignia Roja 'PDF')
+    Normativa SGC: Procedimientos, Manuales, Guías"]
+          </pre>
+        </div>
+
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Prefijo</th>
+                <th>Tipo de Documento Institucional</th>
+                <th>Documento Base (Padre)</th>
+                <th>Registro Derivado (Hijo)</th>
+                <th>Justificación de Calidad</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code class="code-inline">FMT-</code> / <code class="code-inline">FT-</code></td>
+                <td>Formato / Plantilla Institucional</td>
+                <td><span class="pill-badge pill-blue">Word (.docx) Editable</span></td>
+                <td><span class="pill-badge pill-red">PDF Protegido</span></td>
+                <td>La plantilla debe poder diligenciarse; el registro diligenciado no debe alterarse.</td>
+              </tr>
+              <tr>
+                <td><code class="code-inline">PRC-</code> / <code class="code-inline">PR-</code></td>
+                <td>Procedimiento Institucional</td>
+                <td><span class="pill-badge pill-red">PDF Protegido</span></td>
+                <td><span class="pill-badge pill-red">PDF Protegido</span></td>
+                <td>Directriz de estricto cumplimiento; lectura inalterable.</td>
+              </tr>
+              <tr>
+                <td><code class="code-inline">INS-</code> / <code class="code-inline">IN-</code></td>
+                <td>Instructivo Técnico</td>
+                <td><span class="pill-badge pill-red">PDF Protegido</span></td>
+                <td><span class="pill-badge pill-red">PDF Protegido</span></td>
+                <td>Instrucción técnica estandarizada protegida contra ediciones.</td>
+              </tr>
+              <tr>
+                <td><code class="code-inline">MN-</code></td>
+                <td>Manual Organizacional</td>
+                <td><span class="pill-badge pill-red">PDF Protegido</span></td>
+                <td><span class="pill-badge pill-red">PDF Protegido</span></td>
+                <td>Manual de calidad institucional; consumo en solo lectura.</td>
+              </tr>
+              <tr>
+                <td><code class="code-inline">POL-</code> / <code class="code-inline">PT-</code></td>
+                <td>Política Corporativa</td>
+                <td><span class="pill-badge pill-red">PDF Protegido</span></td>
+                <td><span class="pill-badge pill-red">PDF Protegido</span></td>
+                <td>Política vinculante organizacional; distribución inmutable.</td>
+              </tr>
+              <tr>
+                <td><code class="code-inline">GUA-</code> / <code class="code-inline">GU-</code></td>
+                <td>Guía de Práctica Clínica / Operativa</td>
+                <td><span class="pill-badge pill-red">PDF Protegido</span></td>
+                <td><span class="pill-badge pill-red">PDF Protegido</span></td>
+                <td>Protocolo asistencial de estricto apego médico.</td>
+              </tr>
+              <tr>
+                <td><code class="code-inline">XLSX</code> / <code class="code-inline">XLS</code></td>
+                <td>Cualquier Hoja de Cálculo</td>
+                <td><span class="pill-badge pill-green">Excel Nativo</span></td>
+                <td><span class="pill-badge pill-green">Excel Nativo</span></td>
+                <td>Conservación obligatoria de fórmulas, macros y datos dinámicos.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- SECCIÓN 10: POLÍTICAS DE SEGURIDAD (CON SUBSECCIONES 10.1, 10.2, 10.3, 10.4) -->
+      <section id="sec-seguridad" class="content-section">
+        <div class="section-header">
+          <h2><span>🛡️</span> 10. Políticas Oficiales de Seguridad y Decisiones de Negocio</h2>
+          <span class="section-badge">Seguridad y Normativa</span>
+        </div>
+        <p class="section-intro">
+          Políticas institucionales aprobadas que definen los estándares de acceso, privilegios por defecto, inmutabilidad y prevención de fuerza bruta.
+        </p>
+
+        <!-- 10.1 AUTENTICACIÓN LOCAL -->
+        <h3 style="margin: 24px 0 12px 0; color: var(--primary-dark); font-family: var(--font-title);">
+          10.1. Arquitectura de Autenticación Local con SSO de Navegador
+        </h3>
+        <p style="font-size: 0.9rem; margin-bottom: 12px;">
+          Validación interna de credenciales contra la matriz de personal y contraseñas SHA-256 en <code>usuarios.conf</code>, combinada con acceso federado pasivo por cookies corporativas a SharePoint Online. El componente legado <code>auth.js</code> queda formalmente eliminado.
+        </p>
+
+        <div class="mermaid-card">
+          <div class="mermaid-title"><span>📊</span> Diagrama 10.1.1: Secuencia de Autenticación Local y Apertura Federada</div>
+          <pre class="mermaid">
+sequenceDiagram
+    autonumber
+    participant USR as Colaborador (Navegador)
+    participant APP as AppController (SPA)
+    participant STAFF as StaffService (Local)
+    participant GAS as Apps Script Cloud
+    participant SPO as SharePoint Online / Microsoft 365
+
+    Note over USR,STAFF: FASE 1: Autenticación en Sistema Documental
+    USR->>APP: Ingresa Correo Institucional y Contraseña
+    APP->>STAFF: autenticarUsuario(email, password)
+    STAFF->>STAFF: Validar existencia y estado en EMPLEADOS_ACTIVOS.csv
+    STAFF->>STAFF: Validar Hash SHA-256(password) contra usuarios.conf
+    
+    alt Credenciales Válidas
+        STAFF-->>APP: Sesión Aprobada (Perfil RBAC, Nombre, Cargo)
+        APP-->>USR: Despliega Catálogo Documental Personalizado
+    else Credenciales Incorrectas
+        STAFF->>STAFF: Incrementar intentos fallidos (Rate Limiting)
+        STAFF-->>APP: Rechazo y advertencia de intentos restantes
+    end
+
+    Note over USR,SPO: FASE 2: Consumo y Edición en Microsoft 365
+    USR->>APP: Clic en 'Editar en SharePoint' (✏️) o 'Abrir Carpeta' (📁)
+    APP->>USR: Abre ventana a URL oficial en unionsaludvida.sharepoint.com
+    USR->>SPO: Petición HTTP acompañada de cookies corporativas M365
+    SPO-->>USR: Abre documento en Word/Excel Online bajo SSO institucional
+          </pre>
+        </div>
+
+        <!-- 10.2 DEFAULT DENY -->
+        <h3 style="margin: 28px 0 12px 0; color: var(--primary-dark); font-family: var(--font-title);">
+          10.2. Mínimo Privilegio y Denegación por Defecto (Default Deny)
+        </h3>
+        <p style="font-size: 0.9rem; margin-bottom: 12px;">
+          Toda celda en blanco o vacía en las columnas <em>Directivo</em>, <em>Administrativo</em> u <em>Operativo</em> equivale estrictamente a <strong>DENEGACIÓN (<code>false</code>)</strong>. Solo la 'X' explícita otorga permiso.
+        </p>
+
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Valor en Celda Google Sheets</th>
+                <th>Interpretación Booleana</th>
+                <th>Perfil Total</th>
+                <th>Perfil Directivo</th>
+                <th>Perfil Administrativo</th>
+                <th>Perfil Operativo</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code class="code-inline">'X'</code> / <code class="code-inline">'x'</code></td>
+                <td><span class="pill-badge pill-green">true (Concedido)</span></td>
+                <td>Visible</td>
+                <td>Visible</td>
+                <td>Visible</td>
+                <td>Visible (si en Operativo)</td>
+              </tr>
+              <tr>
+                <td><code class="code-inline">'SI'</code> / <code class="code-inline">'TRUE'</code></td>
+                <td><span class="pill-badge pill-green">true (Concedido)</span></td>
+                <td>Visible</td>
+                <td>Visible</td>
+                <td>Visible</td>
+                <td>Visible (si en Operativo)</td>
+              </tr>
+              <tr>
+                <td><em>[Celda en Blanco]</em></td>
+                <td><span class="pill-badge pill-red">false (DENEGADO)</span></td>
+                <td>Visible</td>
+                <td>Visible</td>
+                <td><span class="pill-badge pill-red">Oculto</span></td>
+                <td><span class="pill-badge pill-red">Oculto</span></td>
+              </tr>
+              <tr>
+                <td><em>[Espacios en Blanco]</em></td>
+                <td><span class="pill-badge pill-red">false (DENEGADO)</span></td>
+                <td>Visible</td>
+                <td>Visible</td>
+                <td><span class="pill-badge pill-red">Oculto</span></td>
+                <td><span class="pill-badge pill-red">Oculto</span></td>
+              </tr>
+              <tr>
+                <td><code class="code-inline">'NO'</code> / <code class="code-inline">'0'</code></td>
+                <td><span class="pill-badge pill-red">false (DENEGADO)</span></td>
+                <td>Visible</td>
+                <td>Visible</td>
+                <td><span class="pill-badge pill-red">Oculto</span></td>
+                <td><span class="pill-badge pill-red">Oculto</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- 10.3 SOFT-DELETE -->
+        <h3 style="margin: 28px 0 12px 0; color: var(--primary-dark); font-family: var(--font-title);">
+          10.3. Prohibición de Borrado Físico y Retiro Lógico (Soft-Delete)
+        </h3>
+        <p style="font-size: 0.9rem; margin-bottom: 12px;">
+          El borrado físico de filas en la hoja maestra está estrictamente prohibido por políticas de calidad en salud. Retirar un documento corresponde únicamente a un cambio de estado a <code>Eliminado</code> u <code>Obsoleto</code> con justificación obligatoria.
+        </p>
+
+        <div class="mermaid-card">
+          <div class="mermaid-title"><span>📊</span> Diagrama 10.3.1: Ciclo de Vida y Retiro Lógico Trazable</div>
+          <pre class="mermaid">
+stateDiagram-v2
+    [*] --> Activo: Creación de Documento
+    
+    state Activo {
+        VisibleEnCatalogo: Visible para usuarios según RBAC
+        DisponibleDescarga: Enlaces de Descarga y Edición Operativos
+    }
+    
+    Activo --> RetiroSolicitado: Usuario Directivo pulsa 🗑️ Retirar
+    
+    state RetiroSolicitado {
+        Justificacion: Ingreso OBLIGATORIO de justificación técnica
+        ProhibicionPurga: Borrado Físico BLOQUEADO (borradoFisico = false)
+    }
+
+    RetiroSolicitado --> RetiroLogico: Confirmación en el modal
+    RetiroSolicitado --> Activo: Cancelación de la acción
+
+    state RetiroLogico {
+        EstadoActualizado: Estado cambia a 'Eliminado' u 'Obsoleto'
+        ExclusionCatalogo: Se oculta de las vistas operativas
+        AuditoriaInmutable: Registro en Historico_Documentos y auditoria.dat
+    }
+
+    RetiroLogico --> [*]: Registro preservado permanentemente en base de datos
+          </pre>
+        </div>
+
+        <!-- 10.4 RATE LIMITING -->
+        <h3 style="margin: 28px 0 12px 0; color: var(--primary-dark); font-family: var(--font-title);">
+          10.4. Tasa Límite (Rate Limiting) y Bloqueo Escalonado
+        </h3>
+        <p style="font-size: 0.9rem; margin-bottom: 12px;">
+          Protección escalonada contra ataques de fuerza bruta y suplantación de credenciales.
+        </p>
+
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Estado de Seguridad</th>
+                <th>Condición de Disparo</th>
+                <th>Impacto en Interfaz</th>
+                <th>Duración</th>
+                <th>Procedimiento de Desbloqueo</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Normal (Activo)</strong></td>
+                <td>0 a 2 fallos consecutivos.</td>
+                <td>Interfaz 100% funcional.</td>
+                <td>Indefinida.</td>
+                <td>Acceso ordinario sin restricciones.</td>
+              </tr>
+              <tr>
+                <td><strong>Bloqueo Nivel 1</strong></td>
+                <td>3 intentos fallidos consecutivos.</td>
+                <td>Banner advertencia; inputs bloqueados.</td>
+                <td><span class="pill-badge pill-amber">15 Minutos</span></td>
+                <td>Automático tras expirar el temporizador.</td>
+              </tr>
+              <tr>
+                <td><strong>Bloqueo Nivel 2</strong></td>
+                <td>3 fallos tras cumplir el nivel 1.</td>
+                <td>Banner advertencia; inputs bloqueados.</td>
+                <td><span class="pill-badge pill-amber">15 Minutos</span></td>
+                <td>Automático tras expirar el temporizador.</td>
+              </tr>
+              <tr>
+                <td><strong>Bloqueo Permanente</strong></td>
+                <td>Acumulación de <strong>3 bloqueos</strong>.</td>
+                <td>Acceso denegado; badge 🔒 Bloqueado.</td>
+                <td><span class="pill-badge pill-red">Perpetuo</span></td>
+                <td><span class="pill-badge pill-green">Solo Superadmin (Cédula 8160602)</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- SECCIÓN 11: DECÁLOGO DE GOBERNANZA -->
+      <section id="sec-decalogo" class="content-section">
+        <div class="section-header">
+          <h2><span>📜</span> 11. Decálogo de Gobernanza para Desarrolladores</h2>
+          <span class="section-badge">Mandamientos SSOT</span>
+        </div>
+        <p class="section-intro">
+          Los 10 mandamientos de estricto cumplimiento para cualquier desarrollador que mantenga o extienda la plataforma.
+        </p>
+
+        <div class="decalogo-grid">
+          <div class="decalogo-card">
+            <h4><span>1️⃣</span> Formato de Subregistros</h4>
+            <p>Ningún registro derivado debe descargarse en Word. Todos en PDF protegido (salvo .xlsx) para blindar datos diligenciados.</p>
+          </div>
+          <div class="decalogo-card">
+            <h4><span>2️⃣</span> Caso Canónico FMT-GIC-016</h4>
+            <p>El documento base descarga su archivo .docx original en blanco. Jamás debe abrir la carpeta de SharePoint.</p>
+          </div>
+          <div class="decalogo-card">
+            <h4><span>3️⃣</span> Restricción Operativa</h4>
+            <p>El perfil Operativo jamás accede a botones de edición ni al Dashboard. Solo lectura estricta de sus documentos.</p>
+          </div>
+          <div class="decalogo-card">
+            <h4><span>4️⃣</span> Criptografía SHA-256</h4>
+            <p>Toda contraseña en <code>usuarios.conf</code> se hashea en SHA-256 antes de guardarse o transmitirse.</p>
+          </div>
+          <div class="decalogo-card">
+            <h4><span>5️⃣</span> Bloqueo COM en Conversión</h4>
+            <p>El servidor local <code>server.py</code> mantiene activo el bloqueo <code>WORD_CONVERT_LOCK</code> en toda conversión.</p>
+          </div>
+          <div class="decalogo-card">
+            <h4><span>6️⃣</span> Default Deny en Sheets</h4>
+            <p>Columnas en blanco en Directivo, Administrativo u Operativo = Denegación estricta (<code>false</code>). Solo 'X' concede permiso.</p>
+          </div>
+          <div class="decalogo-card">
+            <h4><span>7️⃣</span> Prohibición de Borrado Físico</h4>
+            <p>Queda estrictamente prohibido el borrado de filas en Google Sheets. Todo retiro es un retiro lógico (Soft-Delete).</p>
+          </div>
+          <div class="decalogo-card">
+            <h4><span>8️⃣</span> Tasa Límite y Bloqueo</h4>
+            <p>3 fallos = 15 min; 3 bloqueos = cuenta bloqueada permanentemente. Desbloqueo condicionado a Cédula 8160602.</p>
+          </div>
+          <div class="decalogo-card">
+            <h4><span>9️⃣</span> Autenticación Local Oficial</h4>
+            <p>Autenticación mediante <code>staff-service.js</code> con SSO de navegador para SharePoint. <code>auth.js</code> queda eliminado.</p>
+          </div>
+          <div class="decalogo-card">
+            <h4><span>🔟</span> Resolución Dual de IDs</h4>
+            <p>Todo registro derivado se resuelve por búsqueda dual: <code>r.id === id || r.codigo === id</code> para consistencia en el DOM.</p>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- Pie de Página -->
+  <footer class="portal-footer">
+    <p><strong>Unión para la salud y la vida S.A.S.</strong> • Sistema de Gestión Documental y Calidad Institucional</p>
+    <p>Documento Maestro de Fuente Única de Verdad (SSOT v2.1.0) • Aprobación Institucional Septiembre 2026</p>
+  </footer>
+
+  <!-- Script de Filtro en Vivo -->
+  <script>
+    function filterContent() {
+      const input = document.getElementById('filter-input');
+      const filter = input.value.toLowerCase().trim();
+      const rows = document.querySelectorAll('table.data-table tbody tr');
+      const cards = document.querySelectorAll('.decalogo-card');
+
+      // Filtrar tablas
+      rows.forEach(row => {
+        const text = row.innerText.toLowerCase();
+        row.style.display = text.includes(filter) ? '' : 'none';
+      });
+
+      // Filtrar tarjetas del decálogo
+      cards.forEach(card => {
+        const text = card.innerText.toLowerCase();
+        card.style.display = text.includes(filter) ? '' : 'none';
+      });
+    }
+
+    // Scroll Spy para menú lateral
+    window.addEventListener('scroll', () => {
+      const sections = document.querySelectorAll('section.content-section');
+      const links = document.querySelectorAll('.nav-links a');
+      let currentSectionId = '';
+
+      sections.forEach(sec => {
+        const top = sec.offsetTop - 180;
+        if (window.scrollY >= top) {
+          currentSectionId = sec.getAttribute('id');
+        }
+      });
+
+      links.forEach(link => {
+        link.classList.remove('active');
+        if (link.getAttribute('href') === '#' + currentSectionId) {
+          link.classList.add('active');
+        }
+      });
+    });
+  </script>
+
+</body>
+
+</html>

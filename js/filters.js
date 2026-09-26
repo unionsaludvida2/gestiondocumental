@@ -40,14 +40,14 @@ export class FilterEngine {
       return documentos;
     }
 
-    // 3. Administrativo: Puede ver lo administrativo u operativo
+    // 3. Administrativo: Puede ver lo administrativo u operativo (exclusivamente si tiene permiso explícito === true)
     if (p === 'administrativo') {
-      return documentos.filter((d) => d.permisoAdministrativo === true || d.permisoOperativo === true || d.permisoAdministrativo !== false || d.permisoOperativo !== false);
+      return documentos.filter((d) => d.permisoAdministrativo === true || d.permisoOperativo === true);
     }
 
-    // 4. Operativo: Solo puede ver lo operativo
+    // 4. Operativo: Solo puede ver lo operativo (exclusivamente si tiene permiso explícito === true)
     if (p === 'operativo') {
-      return documentos.filter((d) => d.permisoOperativo === true || (d.permisoOperativo !== false && d.permisoOperativo !== 'false'));
+      return documentos.filter((d) => d.permisoOperativo === true);
     }
 
     return documentos;

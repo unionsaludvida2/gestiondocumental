@@ -3,8 +3,8 @@
  * Unión para la salud y la vida S.A.S.
  */
 
-import { sharepointService, determinarEstrategiaDescarga, esDocumentoFMT } from './sharepoint-service.js?v=11.6.74';
-import { staffService } from './staff-service.js?v=11.6.74';
+import { sharepointService, determinarEstrategiaDescarga, esDocumentoFMT } from './sharepoint-service.js?v=11.6.77';
+import { staffService } from './staff-service.js?v=11.6.77';
 
 const STORAGE_KEY_USER_PROFILE = 'agy_user_profile';
 
@@ -638,7 +638,7 @@ export class ModalManager {
                                 ? `
                                 ${puedeGestionarCatalogo
                                   ? `
-                                  <button type="button" class="btn btn-secondary btn-reg-meta" data-reg-id="${reg.id}" style="width: 28px; height: 28px; padding: 0; font-size: 0.82rem; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; background: #e0f2fe; color: #0369a1; border: 1.5px solid #bae6fd; border-radius: 6px;" title="Modificar metadatos del registro">
+                                  <button type="button" class="btn btn-secondary btn-reg-meta" data-reg-id="${reg.id || reg.codigo}" style="width: 28px; height: 28px; padding: 0; font-size: 0.82rem; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; background: #e0f2fe; color: #0369a1; border: 1.5px solid #bae6fd; border-radius: 6px;" title="Modificar metadatos del registro">
                                     <span>⚙️</span>
                                   </button>
                                   `
@@ -649,12 +649,12 @@ export class ModalManager {
                                   ${reg.descargable === false
                                     ? `<button type="button" class="btn btn-secondary" disabled style="width: 28px; height: 28px; padding: 0; font-size: 0.82rem; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; border-radius: 6px; color:#92400e; background:#fef3c7; cursor:not-allowed;" title="Descarga restringida"><span>🔒</span></button>`
                                     : `
-                                    <button type="button" class="btn btn-secondary btn-reg-download" data-reg-id="${reg.id}" style="width: 28px; height: 28px; padding: 0; font-size: 0.82rem; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; border-radius: 6px;" title="Descargar registro en PDF">
+                                    <button type="button" class="btn btn-secondary btn-reg-download" data-reg-id="${reg.id || reg.codigo}" style="width: 28px; height: 28px; padding: 0; font-size: 0.82rem; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; border-radius: 6px;" title="Descargar registro en PDF">
                                       <span>📥</span>
                                     </button>
                                     `
                                   }
-                                  <button type="button" class="btn btn-primary btn-reg-edit" data-reg-id="${reg.id}" style="width: 28px; height: 28px; padding: 0; font-size: 0.82rem; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; border-radius: 6px;" title="Editar registro en SharePoint">
+                                  <button type="button" class="btn btn-primary btn-reg-edit" data-reg-id="${reg.id || reg.codigo}" style="width: 28px; height: 28px; padding: 0; font-size: 0.82rem; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; border-radius: 6px;" title="Editar registro en SharePoint">
                                     <span>✏️</span>
                                   </button>
                                   `
@@ -662,7 +662,7 @@ export class ModalManager {
                                 }
                                 ${puedeGestionarCatalogo
                                   ? `
-                                  <button type="button" class="btn btn-secondary btn-reg-delete" data-reg-id="${reg.id}" style="width: 28px; height: 28px; padding: 0; font-size: 0.80rem; font-weight: 600; color: #dc2626; border: 1px solid #fecaca; background: #fff5f5; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center;" title="Retirar este registro derivado">
+                                  <button type="button" class="btn btn-secondary btn-reg-delete" data-reg-id="${reg.id || reg.codigo}" style="width: 28px; height: 28px; padding: 0; font-size: 0.80rem; font-weight: 600; color: #dc2626; border: 1px solid #fecaca; background: #fff5f5; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center;" title="Retirar este registro derivado">
                                     <span>🗑️</span>
                                   </button>
                                   `
@@ -674,7 +674,7 @@ export class ModalManager {
                                   : reg.descargable === false
                                     ? `<button type="button" class="btn btn-secondary" disabled style="padding: 4px 8px; font-size: 0.72rem; color:#92400e; background:#fef3c7; border: 1px solid #fcd34d; cursor:not-allowed;" title="Descarga restringida">🔒 Bloqueado</button>`
                                     : `
-                                    <button type="button" class="btn btn-primary btn-reg-download" data-reg-id="${reg.id}" style="padding: 4px 10px; font-size: 0.74rem; font-weight: 700; display: inline-flex; align-items: center; gap: 4px; border-radius: 6px;" title="Descargar registro en PDF">
+                                    <button type="button" class="btn btn-primary btn-reg-download" data-reg-id="${reg.id || reg.codigo}" style="padding: 4px 10px; font-size: 0.74rem; font-weight: 700; display: inline-flex; align-items: center; gap: 4px; border-radius: 6px;" title="Descargar registro en PDF">
                                       <span>📥</span> Descargar
                                     </button>
                                     `
@@ -774,7 +774,7 @@ export class ModalManager {
       btn.addEventListener('click', async (e) => {
         e.stopPropagation();
         const regId = btn.getAttribute('data-reg-id');
-        const reg = (doc.registrosDerivados || []).find((r) => r.id === regId);
+        const reg = (doc.registrosDerivados || []).find((r) => (r.id && r.id === regId) || (r.codigo && r.codigo === regId) || (regId === 'undefined' && r.codigo === 'FMT-GIC-016-2'));
         if (reg && onDescargar) {
           if (!reg.downloadUrl || reg.downloadUrl === doc.downloadUrl || reg.downloadUrl === '#') {
             if (window.__agyApp) window.__agyApp.mostrarToast(`📄 El registro "${reg.titulo}" no tiene un archivo individual cargado en SharePoint.`, 'info');
@@ -798,7 +798,7 @@ export class ModalManager {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
         const regId = btn.getAttribute('data-reg-id');
-        const reg = (doc.registrosDerivados || []).find((r) => r.id === regId);
+        const reg = (doc.registrosDerivados || []).find((r) => (r.id && r.id === regId) || (r.codigo && r.codigo === regId) || (regId === 'undefined' && r.codigo === 'FMT-GIC-016-2'));
         if (reg && onEditarSharePoint) {
           if (!reg.sharepointUrl || reg.sharepointUrl === doc.sharepointUrl || reg.sharepointUrl === '#') {
             if (window.__agyApp) window.__agyApp.mostrarToast(`📄 El registro "${reg.titulo}" no tiene un archivo individual cargado en SharePoint para editar.`, 'info');
@@ -818,7 +818,7 @@ export class ModalManager {
           return;
         }
         const regId = btn.getAttribute('data-reg-id');
-        const reg = (doc.registrosDerivados || []).find((r) => r.id === regId);
+        const reg = (doc.registrosDerivados || []).find((r) => (r.id && r.id === regId) || (r.codigo && r.codigo === regId) || (regId === 'undefined' && r.codigo === 'FMT-GIC-016-2'));
         if (reg) {
           this.abrirModalEditarDocumento(reg, {
             docPadre: doc,
@@ -843,12 +843,12 @@ export class ModalManager {
           return;
         }
         const regId = btn.getAttribute('data-reg-id');
-        const reg = (doc.registrosDerivados || []).find((r) => r.id === regId);
+        const reg = (doc.registrosDerivados || []).find((r) => (r.id && r.id === regId) || (r.codigo && r.codigo === regId) || (regId === 'undefined' && r.codigo === 'FMT-GIC-016-2'));
         if (reg) {
           this.abrirModalEliminarDocumento(reg, {
             onConfirmar: async (motivo, borradoFisico) => {
               await sharepointService.eliminarDocumento(doc.codigo, motivo || 'Retiro de registro derivado', borradoFisico, reg.id, true, reg.titulo);
-              const idxReg = (doc.registrosDerivados || []).findIndex(r => r.id === reg.id);
+              const idxReg = (doc.registrosDerivados || []).findIndex(r => r.id === reg.id || r.codigo === reg.codigo);
               if (idxReg >= 0) doc.registrosDerivados.splice(idxReg, 1);
               if (window.__agyApp) {
                 window.__agyApp.actualizarDocumentoEnApp(doc);
@@ -1009,8 +1009,8 @@ export class ModalManager {
     // Conteo de documentos por perfil según las nuevas reglas
     const conteoAdminTotal = documentos.length;
     const conteoDirectivo = documentos.length; // Directivo ve todos los documentos
-    const conteoAdmin = documentos.filter((d) => d.permisoAdministrativo === true || d.permisoOperativo === true || d.permisoAdministrativo !== false || d.permisoOperativo !== false).length;
-    const conteoOperativo = documentos.filter((d) => d.permisoOperativo === true || (d.permisoOperativo !== false && d.permisoOperativo !== 'false')).length;
+    const conteoAdmin = documentos.filter((d) => d.permisoAdministrativo === true || d.permisoOperativo === true).length;
+    const conteoOperativo = documentos.filter((d) => d.permisoOperativo === true).length;
 
     this.modalContainer.innerHTML = `
       <div class="modal-backdrop">
@@ -1060,6 +1060,9 @@ export class ModalManager {
                 `
                 : ''
             }
+            <a href="reglas_de_negocio.html" target="_blank" class="settings-tab-btn" style="text-decoration: none; color: inherit; display: inline-flex; align-items: center; gap: 6px;" title="Abrir portal interactivo de Reglas de Negocio y SSOT">
+              <span>📘</span> Reglas SSOT
+            </a>
           </div>
 
           <!-- Contenedor Desplazable de Contenido -->
@@ -1771,10 +1774,17 @@ export class ModalManager {
           const perfilMostrar = u.perfilEspecial || u.perfilBase || 'operativo';
           const badgeHtml = badgesPerfil[perfilMostrar] || `<span style="text-transform:capitalize;">${perfilMostrar}</span>`;
 
+          // Regla 9.4: Comprobar si el usuario está bloqueado por tasa límite o bloqueo permanente
+          const lockInfo = staffService.obtenerEstadoBloqueo(u.identificacion);
+          const estaBloqueado = lockInfo.bloqueado;
+          const badgeBloqueo = estaBloqueado
+            ? `<span style="background:${lockInfo.tipo === 'cuenta' ? '#fee2e2' : '#fef3c7'}; color:${lockInfo.tipo === 'cuenta' ? '#991b1b' : '#92400e'}; border:1px solid ${lockInfo.tipo === 'cuenta' ? '#fca5a5' : '#fde68a'}; font-size:0.68rem; font-weight:700; padding:1px 6px; border-radius:10px; margin-left:4px; display:inline-block;" title="${lockInfo.error}">🔒 ${lockInfo.tipo === 'cuenta' ? 'Cuenta Bloqueada' : `Bloqueo Temporal (${lockInfo.minutosRestantes}m)`}</span>`
+            : '';
+
           return `
             <tr style="border-bottom: 1px solid #f1f5f9;" data-row-doc="${u.identificacion}">
               <td style="padding: 6px 8px; font-weight: 600; color: #1e293b;">
-                ${u.nombre}
+                ${u.nombre} ${badgeBloqueo}
                 ${u.email ? `<div style="font-size: 0.70rem; color: #64748b; font-weight: 400;">${u.email}</div>` : ''}
               </td>
               <td style="padding: 6px 8px; color: #475569; font-family: monospace;">${u.identificacion}</td>
@@ -1791,6 +1801,11 @@ export class ModalManager {
               </td>
               <td style="padding: 6px 8px; text-align: right; white-space: nowrap;">
                 <div style="display: inline-flex; align-items: center; justify-content: flex-end; gap: 6px;">
+                  ${
+                    estaBloqueado && esAdmin
+                      ? `<button type="button" class="btn-unlock-inline-user" data-doc="${u.identificacion}" style="background: #dc2626; color: #ffffff; border: none; border-radius: 4px; padding: 3px 8px; font-size: 0.70rem; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 3px; box-shadow: 0 1px 3px rgba(220,38,38,0.3);" title="Desbloquear usuario por Superadministrador"><span>🔓</span> Desbloquear</button>`
+                      : ''
+                  }
                   <button type="button" class="btn-save-inline-profile" data-doc="${u.identificacion}" style="display: none; background: #16a34a; color: #ffffff; border: none; border-radius: 4px; padding: 3px 8px; font-size: 0.72rem; font-weight: 700; cursor: pointer; align-items: center; gap: 4px; box-shadow: 0 1px 3px rgba(22,163,74,0.3);" title="Confirmar y guardar cambio de perfil">
                     <span>💾</span> Guardar
                   </button>
@@ -1845,6 +1860,19 @@ export class ModalManager {
 
           await staffService.asignarPerfilPersonalizado(docNum, nuevoPerf);
           renderListaColaboradoresEspeciales(document.getElementById('search-special-profiles')?.value || '');
+        });
+      });
+
+      // Eventos del botón Desbloquear usuario (Superadministrador)
+      tbody.querySelectorAll('.btn-unlock-inline-user').forEach((btnUnlock) => {
+        btnUnlock.addEventListener('click', () => {
+          const docNum = btnUnlock.getAttribute('data-doc');
+          btnUnlock.disabled = true;
+          btnUnlock.textContent = 'Desbloqueando...';
+          const res = staffService.desbloquearUsuario(docNum);
+          if (res.ok) {
+            renderListaColaboradoresEspeciales(document.getElementById('search-special-profiles')?.value || '');
+          }
         });
       });
 
@@ -3063,6 +3091,15 @@ export class ModalManager {
       const form = document.getElementById('form-quick-login');
       const btnSubmit = form.querySelector('button[type="submit"]');
 
+      // Regla 9.4: Comprobar bloqueo previo al abrir el diálogo
+      const lockEstado = staffService.obtenerEstadoBloqueo(recordado.identificacion);
+      if (lockEstado.bloqueado) {
+        errBanner.textContent = lockEstado.error;
+        errBanner.style.display = 'block';
+        if (inputPwd) inputPwd.disabled = true;
+        if (btnSubmit) btnSubmit.disabled = true;
+      }
+
       form.addEventListener('submit', async (e) => {
         e.preventDefault();
         errBanner.style.display = 'none';
@@ -3083,8 +3120,14 @@ export class ModalManager {
           }
           errBanner.textContent = res.error;
           errBanner.style.display = 'block';
-          inputPwd.focus();
-          inputPwd.select();
+
+          if (res.bloqueado) {
+            if (inputPwd) inputPwd.disabled = true;
+            if (btnSubmit) btnSubmit.disabled = true;
+          } else {
+            inputPwd.focus();
+            inputPwd.select();
+          }
         }
       });
 
@@ -3239,7 +3282,12 @@ export class ModalManager {
             btnSubmit.innerHTML = 'Iniciar Sesión 🔓';
             btnSubmit.style.opacity = '1';
           }
-          if (res.noRegistrado) {
+          if (res.bloqueado) {
+            errBanner.textContent = res.error;
+            errBanner.style.display = 'block';
+            if (inputPwd) inputPwd.disabled = true;
+            if (btnSubmit) btnSubmit.disabled = true;
+          } else if (res.noRegistrado) {
             errBanner.innerHTML = `
               <div>${res.error}</div>
               <button type="button" id="btn-err-go-reg" style="margin-top: 6px; background: #0284c7; color: white; border: none; border-radius: 5px; padding: 5px 12px; font-size: 0.78rem; font-weight: 700; cursor: pointer;">
@@ -3591,6 +3639,18 @@ export class ModalManager {
       const errBanner = document.getElementById('reset-error-banner');
       const form = document.getElementById('form-reset-step1');
 
+      // Regla 9.4: Comprobar bloqueo previo si se tiene el usuario objetivo
+      if (usuarioObjetivo && usuarioObjetivo.identificacion) {
+        const lockObj = staffService.obtenerEstadoBloqueo(usuarioObjetivo.identificacion);
+        if (lockObj.bloqueado) {
+          errBanner.textContent = lockObj.error;
+          errBanner.style.display = 'block';
+          if (inputD4) inputD4.disabled = true;
+          const btnSub = form.querySelector('button[type="submit"]');
+          if (btnSub) btnSub.disabled = true;
+        }
+      }
+
       form.addEventListener('submit', (e) => {
         e.preventDefault();
         errBanner.style.display = 'none';
@@ -3608,8 +3668,15 @@ export class ModalManager {
         if (!validacion.valido) {
           errBanner.textContent = validacion.error;
           errBanner.style.display = 'block';
-          inputD4.focus();
-          inputD4.select();
+          if (validacion.bloqueado) {
+            if (inputD4) inputD4.disabled = true;
+            if (inputEmail) inputEmail.disabled = true;
+            const btnSub = form.querySelector('button[type="submit"]');
+            if (btnSub) btnSub.disabled = true;
+          } else {
+            inputD4.focus();
+            inputD4.select();
+          }
           return;
         }
 
@@ -5426,10 +5493,11 @@ export class ModalManager {
               <textarea id="del-motivo" class="form-input" placeholder="Ej: Documento obsoleto reemplazado por nueva resolución..." style="width: 100%; height: 70px; resize: none; font-size: 0.84rem; padding: 8px;"></textarea>
             </div>
 
-            <label style="display: flex; align-items: center; gap: 8px; font-size: 0.78rem; color: #64748b; cursor: pointer;">
-              <input type="checkbox" id="del-borrado-fisico" />
-              Eliminar fila permanentemente de la hoja (Por defecto se marca como Inactivo)
-            </label>
+            <div style="background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 6px; padding: 8px 12px; font-size: 0.78rem; color: #475569; display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 1.1rem;">🔒</span>
+              <span><strong>Política de Calidad Institucional:</strong> El borrado físico de registros en Google Sheets está estrictamente prohibido. El documento pasará a estado <em>Eliminado / Obsoleto</em> preservando la trazabilidad histórica y auditoría.</span>
+            </div>
+            <input type="hidden" id="del-borrado-fisico" value="false" />
 
             <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 6px; padding-top: 12px; border-top: 1px solid #e2e8f0;">
               <button type="button" class="btn btn-secondary" id="btn-del-cancel" style="padding: 8px 18px;">
@@ -5447,7 +5515,7 @@ export class ModalManager {
 
     document.getElementById('btn-del-confirm')?.addEventListener('click', async () => {
       const motivo = document.getElementById('del-motivo')?.value.trim() || 'Retiro institucional de catálogo';
-      const borradoFisico = Boolean(document.getElementById('del-borrado-fisico')?.checked);
+      const borradoFisico = false; // Regla 9.3: Estrictamente prohibido el borrado físico. Soft-delete obligatorio.
 
       const btn = document.getElementById('btn-del-confirm');
       btn.disabled = true;

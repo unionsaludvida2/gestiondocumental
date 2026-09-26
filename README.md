@@ -17,9 +17,9 @@ Aplicación web moderna, rápida y adaptable para la administración y consulta 
 - **Control de Acceso por Perfiles (RBAC) de SharePoint:**
   - La aplicación consulta la lista de usuarios en SharePoint (`Perfiles_Usuarios`) para determinar a qué procesos y áreas tiene acceso cada persona.
   - Selector de perfiles integrado en la cabecera para simular y auditar los permisos de cada cargo institucional (Administrador, Médicos, Auditores de Calidad, Personal Asistencial, TI).
-- **Conector a Microsoft 365 / SharePoint Online:**
-  - Integración nativa con **Microsoft Graph API** y autenticación segura **MSAL.js** (OAuth2 / Entra ID).
-  - Modal de configuración rápida (icono ⚙️) para ingresar `Tenant ID`, `Client ID` y la URL del sitio SharePoint.
+- **Conector y Enlace con Microsoft 365 / SharePoint Online:**
+  - Enlaces directos determinísticos a SharePoint Online y OneDrive corporativo con Single Sign-On (SSO) federado de navegador.
+  - Autenticación institucional interna (`staff-service.js`) validada contra matriz de 1,305 colaboradores activos (`EMPLEADOS_ACTIVOS.csv`) y contraseñas SHA-256 en `usuarios.conf`.
 
 ---
 

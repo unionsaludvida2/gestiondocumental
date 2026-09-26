@@ -11,11 +11,11 @@
  * - Modo Edición: Desbloqueo Automático para Acceso Total y Contraseña Personal para Directivos y Administrativos
  */
 
-import { sharepointService, determinarEstrategiaDescarga, esDocumentoFMT } from './sharepoint-service.js?v=11.6.74';
-import { filterEngine } from './filters.js?v=11.6.74';
-import { modalManager } from './modal.js?v=11.6.74';
-import { analyticsManager } from './analytics.js?v=11.6.74';
-import { staffService } from './staff-service.js?v=11.6.74';
+import { sharepointService, determinarEstrategiaDescarga, esDocumentoFMT } from './sharepoint-service.js?v=11.6.77';
+import { filterEngine } from './filters.js?v=11.6.77';
+import { modalManager } from './modal.js?v=11.6.77';
+import { analyticsManager } from './analytics.js?v=11.6.77';
+import { staffService } from './staff-service.js?v=11.6.77';
 
 const STORAGE_KEY_EDIT_MODE = 'agy_sgc_edit_mode';
 const STORAGE_KEY_FAVORITES = 'agy_sgc_favorites';
@@ -1946,7 +1946,7 @@ class AppController {
                           return `
                             ${puedeGestionarCatalogo
                               ? `
-                              <button type="button" class="btn btn-secondary btn-subrow-meta" data-parent-id="${doc.id}" data-reg-id="${reg.id}" style="width: 26px; height: 26px; padding: 0; font-size: 0.78rem; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; border: 1.5px solid #cbd5e1; background: #ffffff; color: var(--brand-navy, #1f4260); border-radius: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); cursor: pointer;" title="Modificar metadatos del registro">
+                              <button type="button" class="btn btn-secondary btn-subrow-meta" data-parent-id="${doc.id || doc.codigo}" data-reg-id="${reg.id || reg.codigo}" style="width: 26px; height: 26px; padding: 0; font-size: 0.78rem; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; border: 1.5px solid #cbd5e1; background: #ffffff; color: var(--brand-navy, #1f4260); border-radius: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); cursor: pointer;" title="Modificar metadatos del registro">
                                 <span>⚙️</span>
                               </button>
                               `
@@ -1957,12 +1957,12 @@ class AppController {
                               ${reg.descargable === false
                                 ? `<button type="button" class="btn btn-secondary" disabled style="width: 26px; height: 26px; padding: 0; font-size: 0.78rem; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; border-radius: 6px; color:#92400e; background:#fef3c7; cursor:not-allowed;" title="Descarga restringida"><span>🔒</span></button>`
                                 : `
-                                <button type="button" class="btn btn-secondary btn-subrow-download" data-parent-id="${doc.id}" data-reg-id="${reg.id}" style="width: 26px; height: 26px; padding: 0; font-size: 0.78rem; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; border-radius: 6px;" title="Descargar registro en PDF">
+                                <button type="button" class="btn btn-secondary btn-subrow-download" data-parent-id="${doc.id || doc.codigo}" data-reg-id="${reg.id || reg.codigo}" style="width: 26px; height: 26px; padding: 0; font-size: 0.78rem; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; border-radius: 6px;" title="Descargar registro en PDF">
                                   <span>📥</span>
                                 </button>
                                 `
                               }
-                              <button type="button" class="btn btn-primary btn-subrow-edit" data-parent-id="${doc.id}" data-reg-id="${reg.id}" style="width: 26px; height: 26px; padding: 0; font-size: 0.78rem; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; border-radius: 6px;" title="Editar registro en SharePoint">
+                              <button type="button" class="btn btn-primary btn-subrow-edit" data-parent-id="${doc.id || doc.codigo}" data-reg-id="${reg.id || reg.codigo}" style="width: 26px; height: 26px; padding: 0; font-size: 0.78rem; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; border-radius: 6px;" title="Editar registro en SharePoint">
                                 <span>✏️</span>
                               </button>
                               `
@@ -1970,7 +1970,7 @@ class AppController {
                             }
                             ${puedeGestionarCatalogo
                               ? `
-                              <button type="button" class="btn btn-subrow-delete" data-parent-id="${doc.id}" data-reg-id="${reg.id}" style="width: 26px; height: 26px; padding: 0; font-size: 0.75rem; color: #dc2626; background: #fff5f5; border: 1px solid #fecaca; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center;" title="Retirar registro derivado">
+                              <button type="button" class="btn btn-subrow-delete" data-parent-id="${doc.id || doc.codigo}" data-reg-id="${reg.id || reg.codigo}" style="width: 26px; height: 26px; padding: 0; font-size: 0.75rem; color: #dc2626; background: #fff5f5; border: 1px solid #fecaca; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center;" title="Retirar registro derivado">
                                 <span>🗑️</span>
                               </button>
                               `
@@ -1983,7 +1983,7 @@ class AppController {
                         : reg.descargable === false
                           ? `<button class="btn btn-secondary" disabled style="padding: 4px 8px; font-size: 0.70rem; color:#92400e; background:#fef3c7; cursor:not-allowed;" title="Descarga restringida">🔒 Bloqueado</button>`
                           : `
-                          <button type="button" class="btn btn-primary btn-subrow-download" data-parent-id="${doc.id}" data-reg-id="${reg.id}" style="padding: 4px 10px; font-size: 0.74rem; font-weight: 700;" title="Descargar registro en PDF">
+                          <button type="button" class="btn btn-primary btn-subrow-download" data-parent-id="${doc.id || doc.codigo}" data-reg-id="${reg.id || reg.codigo}" style="padding: 4px 10px; font-size: 0.74rem; font-weight: 700;" title="Descargar registro en PDF">
                             📥 Descargar
                           </button>
                           `
@@ -2343,8 +2343,8 @@ class AppController {
         e.stopPropagation();
         const parentId = btn.getAttribute('data-parent-id');
         const regId = btn.getAttribute('data-reg-id');
-        const doc = this.documentos.find((d) => d.id === parentId);
-        const reg = (doc?.registrosDerivados || []).find((r) => r.id === regId);
+        const doc = this.documentos.find((d) => d.id === parentId || d.codigo === parentId);
+        const reg = (doc?.registrosDerivados || []).find((r) => (r.id && r.id === regId) || (r.codigo && r.codigo === regId) || (regId === 'undefined' && r.codigo === 'FMT-GIC-016-2'));
         if (reg) {
           if (!reg.downloadUrl || (doc && reg.downloadUrl === doc.downloadUrl) || reg.downloadUrl === '#') {
             this.mostrarToast(`📄 El registro "${reg.titulo}" no tiene un archivo individual cargado en SharePoint.`, 'info');
@@ -2375,8 +2375,8 @@ class AppController {
         }
         const parentId = btn.getAttribute('data-parent-id');
         const regId = btn.getAttribute('data-reg-id');
-        const doc = this.documentos.find((d) => d.id === parentId);
-        const reg = (doc?.registrosDerivados || []).find((r) => r.id === regId);
+        const doc = this.documentos.find((d) => d.id === parentId || d.codigo === parentId);
+        const reg = (doc?.registrosDerivados || []).find((r) => (r.id && r.id === regId) || (r.codigo && r.codigo === regId) || (regId === 'undefined' && r.codigo === 'FMT-GIC-016-2'));
         if (reg) {
           if (!reg.sharepointUrl || (doc && reg.sharepointUrl === doc.sharepointUrl) || reg.sharepointUrl === '#') {
             this.mostrarToast(`📄 El registro "${reg.titulo}" no tiene un archivo individual cargado en SharePoint para editar.`, 'info');
@@ -2404,8 +2404,8 @@ class AppController {
         }
         const parentId = btn.getAttribute('data-parent-id');
         const regId = btn.getAttribute('data-reg-id');
-        const doc = this.documentos.find((d) => d.id === parentId);
-        const reg = (doc?.registrosDerivados || []).find((r) => r.id === regId);
+        const doc = this.documentos.find((d) => d.id === parentId || d.codigo === parentId);
+        const reg = (doc?.registrosDerivados || []).find((r) => (r.id && r.id === regId) || (r.codigo && r.codigo === regId) || (regId === 'undefined' && r.codigo === 'FMT-GIC-016-2'));
         if (reg) {
           modalManager.abrirModalEditarDocumento(reg, {
             docPadre: doc,
@@ -2429,13 +2429,13 @@ class AppController {
         }
         const parentId = btn.getAttribute('data-parent-id');
         const regId = btn.getAttribute('data-reg-id');
-        const doc = this.documentos.find((d) => d.id === parentId);
-        const reg = (doc?.registrosDerivados || []).find((r) => r.id === regId);
+        const doc = this.documentos.find((d) => d.id === parentId || d.codigo === parentId);
+        const reg = (doc?.registrosDerivados || []).find((r) => (r.id && r.id === regId) || (r.codigo && r.codigo === regId) || (regId === 'undefined' && r.codigo === 'FMT-GIC-016-2'));
         if (reg) {
           modalManager.abrirModalEliminarDocumento(reg, {
             onConfirmar: async (motivo, borradoFisico) => {
               await sharepointService.eliminarDocumento(doc.codigo, motivo || 'Retiro de registro derivado', borradoFisico, reg.id, true, reg.titulo);
-              const idxReg = (doc.registrosDerivados || []).findIndex(r => r.id === reg.id);
+              const idxReg = (doc.registrosDerivados || []).findIndex(r => r.id === reg.id || r.codigo === reg.codigo);
               if (idxReg >= 0) doc.registrosDerivados.splice(idxReg, 1);
               this.actualizarDocumentoEnApp(doc);
               this.mostrarToast(`🗑️ Registro derivado "${reg.titulo}" retirado del catálogo`, 'info');

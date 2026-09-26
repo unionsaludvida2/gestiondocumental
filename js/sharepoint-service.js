@@ -324,6 +324,7 @@ export class DataService {
 
       const docsOficiales = [
         {
+          id: 'FMT-GIC-016_REG_001',
           codigo: 'FMT-GIC-016-1',
           titulo: 'Definición de criterios de formación anticoagulados 2026-1',
           formato: 'PDF',
@@ -342,6 +343,7 @@ export class DataService {
           modificacion: '2026-09-26 00:45:00'
         },
         {
+          id: 'FMT-GIC-016_REG_002',
           codigo: 'FMT-GIC-016-2',
           titulo: 'Definición de criterios de formación anticoagulados 2026-2',
           formato: 'PDF',
@@ -360,6 +362,7 @@ export class DataService {
           modificacion: '2026-09-26 00:45:00'
         },
         {
+          id: 'FMT-GIC-016_REG_003',
           codigo: 'FMT-GIC-016-3',
           titulo: 'Definición de criterios de formación Asma y EPOC 2026',
           formato: 'PDF',
@@ -392,7 +395,7 @@ export class DataService {
         try { creados = JSON.parse(rawLocal); } catch {}
       }
       for (const k of Object.keys(creados)) {
-        if (k.startsWith('REG_FMT-GIC-016') || k === 'FMT-GIC-016') {
+        if (k.startsWith('REG_FMT-GIC-016') || k.startsWith('FMT-GIC-016')) {
           delete creados[k];
         }
       }
@@ -407,7 +410,7 @@ export class DataService {
           const confObj = JSON.parse(rawConf);
           if (confObj && typeof confObj.documentosCreados === 'object') {
             for (const k of Object.keys(confObj.documentosCreados)) {
-              if (k.startsWith('REG_FMT-GIC-016') || k === 'FMT-GIC-016') {
+              if (k.startsWith('REG_FMT-GIC-016') || k.startsWith('FMT-GIC-016')) {
                 delete confObj.documentosCreados[k];
               }
             }
@@ -1938,6 +1941,7 @@ export class DataService {
           }
           const docCorregido = {
             ...docObj,
+            id: docObj.id || `${codUpper}_REG_${Date.now()}`,
             codigo: codUpper,
             subclase: 'Registro',
             esRegistro: true,
@@ -2236,6 +2240,7 @@ export class DataService {
       const esExcelReg = reg.formato === 'Excel' || reg.extension === 'XLS' || (reg.downloadUrl && (reg.downloadUrl.endsWith('.xlsx') || reg.downloadUrl.endsWith('.xls')));
       reg.esRegistro = true;
       reg.subclase = 'Registro';
+      reg.id = reg.id || `${reg.codigo || 'REG'}_REG`;
       if (!esExcelReg) {
         reg.formato = 'PDF';
         reg.extension = 'PDF';
@@ -2263,7 +2268,7 @@ export class DataService {
         const fechaReg = new Date(reg.modificacion || 0).getTime();
 
         if (preferirNuevo || (!tieneRepeticion(reg.titulo) && (fechaReg >= fechaExistente || reg.titulo.length <= existente.titulo.length))) {
-          resultado[idxExistente] = { ...existente, ...reg, id: existente.id || reg.id };
+          resultado[idxExistente] = { ...existente, ...reg, id: existente.id || reg.id || `${reg.codigo || existente.codigo || 'REG'}_REG` };
         }
       } else {
         resultado.push(reg);
