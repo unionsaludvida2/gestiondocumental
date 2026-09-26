@@ -11,11 +11,11 @@
  * - Modo Edición: Desbloqueo Automático para Acceso Total y Contraseña Personal para Directivos y Administrativos
  */
 
-import { sharepointService, determinarEstrategiaDescarga, esDocumentoFMT } from './sharepoint-service.js?v=11.6.62';
-import { filterEngine } from './filters.js?v=11.6.62';
-import { modalManager } from './modal.js?v=11.6.62';
-import { analyticsManager } from './analytics.js?v=11.6.62';
-import { staffService } from './staff-service.js?v=11.6.62';
+import { sharepointService, determinarEstrategiaDescarga, esDocumentoFMT } from './sharepoint-service.js?v=11.6.63';
+import { filterEngine } from './filters.js?v=11.6.63';
+import { modalManager } from './modal.js?v=11.6.63';
+import { analyticsManager } from './analytics.js?v=11.6.63';
+import { staffService } from './staff-service.js?v=11.6.63';
 
 const STORAGE_KEY_EDIT_MODE = 'agy_sgc_edit_mode';
 const STORAGE_KEY_FAVORITES = 'agy_sgc_favorites';
@@ -2286,7 +2286,21 @@ class AppController {
 
   agregarNuevoDocumentoEnApp(nuevoDoc) {
     if (!nuevoDoc) return;
-    this.documentos.unshift(nuevoDoc);
+    const codUpper = (nuevoDoc.codigo || '').toUpperCase();
+    if (nuevoDoc.subclase === 'Registro' || nuevoDoc.esRegistro === true) {
+      const docBase = this.documentos.find((d) => (d.codigo || '').toUpperCase() === codUpper && !d.esRegistro);
+      if (docBase) {
+        docBase.registrosDerivados = docBase.registrosDerivados || [];
+        const existeIdx = docBase.registrosDerivados.findIndex(r => r.id === nuevoDoc.id || (r.titulo && r.titulo.toLowerCase() === nuevoDoc.titulo.toLowerCase()));
+        if (existeIdx >= 0) {
+          docBase.registrosDerivados[existeIdx] = nuevoDoc;
+        } else {
+          docBase.registrosDerivados.push(nuevoDoc);
+        }
+      }
+    } else {
+      this.documentos.unshift(nuevoDoc);
+    }
     this.aplicarFiltros(true);
     if (this.vistaActual === 'analytics') {
       const docsPerfil = filterEngine.obtenerDocumentosPorPerfil(this.documentos);

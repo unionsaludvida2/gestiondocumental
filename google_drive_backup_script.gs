@@ -371,27 +371,49 @@ function crearDocumentoEnSheet(doc) {
   }
   const sheet = obtenerSheetActiva();
   const codigoUpper = String(doc.codigo).trim().toUpperCase();
+  const esRegistro = (doc.subclase === 'Registro' || doc.esRegistro === true);
   const data = sheet.getDataRange().getValues();
 
   let codIdx = 4;
+  let tituloIdx = 5;
+  let subclaseIdx = -1;
   if (data.length > 0) {
     const headers = data[0].map(h => String(h || '').trim().toLowerCase());
     for (let c = 0; c < headers.length; c++) {
-      if (headers[c] === 'codigo' || headers[c] === 'código') {
+      const h = headers[c];
+      if (h === 'codigo' || h === 'código') {
         codIdx = c;
-        break;
+      }
+      if (h === 'nombre del documento' || h === 'documento' || h === 'titulo' || h === 'título') {
+        tituloIdx = c;
+      }
+      if (h === 'subclase' || h === 'nivel' || h === 'nivel documental') {
+        subclaseIdx = c;
       }
     }
   }
 
-  // Validar código duplicado
+  // Validar código duplicado: si es Registro, permitir mismo código si el título es diferente
   for (let r = 1; r < data.length; r++) {
-    if (String(data[r][codIdx] || '').trim().toUpperCase() === codigoUpper) {
-      return { status: 'error', error: 'Ya existe un documento registrado con el código ' + codigoUpper };
+    const rowCod = String(data[r][codIdx] || '').trim().toUpperCase();
+    if (rowCod === codigoUpper) {
+      if (!esRegistro) {
+        return { status: 'error', error: 'Ya existe un documento registrado con el código ' + codigoUpper };
+      } else {
+        const rowTitulo = String(data[r][tituloIdx] || '').trim().toLowerCase();
+        const nuevoTitulo = String(doc.titulo || doc.nombre || '').trim().toLowerCase();
+        if (rowTitulo === nuevoTitulo) {
+          return { status: 'error', error: 'Ya existe un registro con este mismo nombre para el código ' + codigoUpper };
+        }
+      }
     }
   }
 
   const fila = normalizarFilaDocumento(doc);
+  if (subclaseIdx >= 0) {
+    while (fila.length <= subclaseIdx) fila.push('');
+    fila[subclaseIdx] = esRegistro ? 'Registro' : 'Base';
+  }
   sheet.appendRow(fila);
 
   return { status: 'ok', mensaje: 'Documento creado exitosamente en Google Sheets', codigo: codigoUpper };

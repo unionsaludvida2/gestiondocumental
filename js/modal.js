@@ -3,8 +3,8 @@
  * Unión para la salud y la vida S.A.S.
  */
 
-import { sharepointService, determinarEstrategiaDescarga, esDocumentoFMT } from './sharepoint-service.js?v=11.6.62';
-import { staffService } from './staff-service.js?v=11.6.62';
+import { sharepointService, determinarEstrategiaDescarga, esDocumentoFMT } from './sharepoint-service.js?v=11.6.63';
+import { staffService } from './staff-service.js?v=11.6.63';
 
 const STORAGE_KEY_USER_PROFILE = 'agy_user_profile';
 
@@ -352,10 +352,10 @@ export class ModalManager {
             <span>📋</span> Ficha Técnica
           </button>
           ${
-            Array.isArray(doc.registrosDerivados) && doc.registrosDerivados.length > 0
+            !doc.esRegistro && (esDocumentoFMT(doc.codigo) || (Array.isArray(doc.registrosDerivados) && doc.registrosDerivados.length > 0))
               ? `
               <button type="button" class="doc-drawer-tab-btn" data-tab="registros">
-                <span>📂</span> Registros Derivados (${doc.registrosDerivados.length})
+                <span>📂</span> Registros Derivados (${(doc.registrosDerivados || []).length})
               </button>
               `
               : ''
@@ -576,51 +576,73 @@ export class ModalManager {
 
           <!-- PESTAÑA: REGISTROS DERIVADOS -->
           ${
-            Array.isArray(doc.registrosDerivados) && doc.registrosDerivados.length > 0
+            !doc.esRegistro && (esDocumentoFMT(doc.codigo) || (Array.isArray(doc.registrosDerivados) && doc.registrosDerivados.length > 0))
               ? `
               <div class="drawer-tab-content" id="drawer-tab-registros" style="display: none; flex-direction: column; gap: 12px;">
-                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; font-size: 0.82rem; color: #475569; line-height: 1.4;">
-                  <strong>Registros asociados:</strong> Estos documentos derivan de este formato institucional y conservan la codificación <strong>${doc.codigo}</strong>, pero corresponden a implementaciones operativas específicas con títulos diferenciales.
+                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; font-size: 0.82rem; color: #475569; line-height: 1.4; display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap;">
+                  <div style="flex: 1; min-width: 200px;">
+                    <strong>Registros asociados:</strong> Estos documentos derivan de este formato institucional y conservan la codificación <strong>${doc.codigo}</strong>, pero corresponden a implementaciones operativas específicas con títulos diferenciales.
+                  </div>
+                  ${(puedeGestionarCatalogo || modoEdicion) ? `
+                    <button type="button" class="btn btn-primary" id="btn-drawer-crear-registro" style="background-color: #1f4260; border-color: #16334c; font-size: 0.76rem; font-weight: 700; padding: 7px 12px; display: inline-flex; align-items: center; gap: 6px; border-radius: 6px; white-space: nowrap; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                      <span>➕</span> Añadir Registro
+                    </button>
+                  ` : ''}
                 </div>
-                <div class="drawer-registros-list" style="display: flex; flex-direction: column; gap: 10px;">
-                  ${doc.registrosDerivados.map((reg) => {
-                    const rExt = (reg.extension || 'DOC').toUpperCase();
-                    const rBadgeClass = rExt.includes('XLS') ? 'badge-xls' : (rExt.includes('PDF') ? 'badge-pdf' : 'badge-doc');
-                    const esCoincidente = doc.registroCoincidente && (doc.registroCoincidente.id === reg.id || doc.registroCoincidente.titulo === reg.titulo);
-                    return `
-                      <div class="drawer-registro-card ${esCoincidente ? 'registro-coincidente-active' : ''}" style="border: 1.5px solid ${esCoincidente ? '#f59e0b' : '#cbd5e1'}; border-radius: 8px; padding: 12px; background: ${esCoincidente ? '#fffbeb' : '#ffffff'}; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-                        ${esCoincidente ? `<div style="font-size:0.72rem; color:#b45309; font-weight:700;">⭐ Coincidencia con tu búsqueda</div>` : ''}
-                        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;">
-                          <div style="display: flex; align-items: center; gap: 6px;">
-                            <span class="badge ${rBadgeClass}" style="font-size: 0.70rem; padding: 2px 6px;">${rExt}</span>
-                            <span style="font-weight: 700; color: #1e293b; font-size: 0.85rem; line-height: 1.3;">${reg.titulo}</span>
+                ${(Array.isArray(doc.registrosDerivados) && doc.registrosDerivados.length > 0) ? `
+                  <div class="drawer-registros-list" style="display: flex; flex-direction: column; gap: 10px;">
+                    ${doc.registrosDerivados.map((reg) => {
+                      const rExt = (reg.extension || 'DOC').toUpperCase();
+                      const rBadgeClass = rExt.includes('XLS') ? 'badge-xls' : (rExt.includes('PDF') ? 'badge-pdf' : 'badge-doc');
+                      const esCoincidente = doc.registroCoincidente && (doc.registroCoincidente.id === reg.id || doc.registroCoincidente.titulo === reg.titulo);
+                      return `
+                        <div class="drawer-registro-card ${esCoincidente ? 'registro-coincidente-active' : ''}" style="border: 1.5px solid ${esCoincidente ? '#f59e0b' : '#cbd5e1'}; border-radius: 8px; padding: 12px; background: ${esCoincidente ? '#fffbeb' : '#ffffff'}; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                          ${esCoincidente ? `<div style="font-size:0.72rem; color:#b45309; font-weight:700;">⭐ Coincidencia con tu búsqueda</div>` : ''}
+                          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;">
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                              <span class="badge ${rBadgeClass}" style="font-size: 0.70rem; padding: 2px 6px;">${rExt}</span>
+                              <span style="font-weight: 700; color: #1e293b; font-size: 0.85rem; line-height: 1.3;">${reg.titulo}</span>
+                            </div>
                           </div>
-                        </div>
-                        <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 4px;">
-                          <span style="font-size: 0.73rem; color: #64748b;">${staffService.formatearFechaHora(reg.modificacion)}</span>
-                          <div style="display: flex; gap: 6px;">
-                            ${reg.disponible
-                              ? `
-                              <button type="button" class="btn btn-secondary btn-reg-download" data-reg-id="${reg.id}" style="padding: 4px 10px; font-size: 0.75rem; font-weight: 600;" title="Descargar registro">
-                                📥 Descargar
-                              </button>
-                              ${modoEdicion
+                          <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 4px;">
+                            <span style="font-size: 0.73rem; color: #64748b;">${staffService.formatearFechaHora(reg.modificacion)}</span>
+                            <div style="display: flex; gap: 6px;">
+                              ${reg.disponible
                                 ? `
-                                <button type="button" class="btn btn-primary btn-reg-edit" data-reg-id="${reg.id}" style="padding: 4px 10px; font-size: 0.75rem; font-weight: 600;" title="Editar registro en SharePoint">
-                                  ✏️ Editar
+                                <button type="button" class="btn btn-secondary btn-reg-download" data-reg-id="${reg.id}" style="padding: 4px 10px; font-size: 0.75rem; font-weight: 600;" title="Descargar registro">
+                                  📥 Descargar
                                 </button>
+                                ${modoEdicion
+                                  ? `
+                                  <button type="button" class="btn btn-primary btn-reg-edit" data-reg-id="${reg.id}" style="padding: 4px 10px; font-size: 0.75rem; font-weight: 600;" title="Editar registro en SharePoint">
+                                    ✏️ Editar
+                                  </button>
+                                  `
+                                  : ''
+                                }
                                 `
-                                : ''
+                                : `<span style="font-size: 0.74rem; color: #94a3b8;">No disponible</span>`
                               }
-                              `
-                              : `<span style="font-size: 0.74rem; color: #94a3b8;">No disponible</span>`
-                            }
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    `;
-                  }).join('')}
-                </div>
+                      `;
+                    }).join('')}
+                  </div>
+                ` : `
+                  <div style="text-align: center; padding: 28px 16px; background: #ffffff; border: 1.5px dashed #cbd5e1; border-radius: 8px; color: #64748b;">
+                    <span style="font-size: 2.2rem; display: block; margin-bottom: 8px;">📂</span>
+                    <p style="margin: 0 0 6px 0; font-size: 0.88rem; font-weight: 700; color: #1e293b;">Aún no hay registros derivados</p>
+                    <span style="font-size: 0.76rem; display: block; margin-bottom: 14px; color: #64748b; max-width: 380px; margin-left: auto; margin-right: auto;">
+                      Puedes registrar variantes u hojas derivadas que salieron de este formato modificado conservando la misma codificación.
+                    </span>
+                    ${(puedeGestionarCatalogo || modoEdicion) ? `
+                      <button type="button" class="btn btn-primary" id="btn-drawer-crear-primer-registro" style="background-color: var(--primary, #376c95); font-size: 0.78rem; font-weight: 700; padding: 8px 16px; display: inline-flex; align-items: center; gap: 6px;">
+                        <span>➕</span> Añadir Primer Registro Derivado
+                      </button>
+                    ` : ''}
+                  </div>
+                `}
               </div>
               `
               : ''
@@ -718,6 +740,29 @@ export class ModalManager {
         }
       });
     });
+
+    // Vincular Creación de Registro Derivado desde el Drawer
+    const handlerCrearRegistro = () => {
+      this.abrirModalNuevoDocumento({
+        esRegistro: true,
+        docPadre: doc,
+        onGuardar: (nuevoDoc) => {
+          if (window.__agyApp) {
+            window.__agyApp.agregarNuevoDocumentoEnApp(nuevoDoc);
+          }
+          const docActualizado = (sharepointService.documentosEnMemoria || []).find((d) => (d.codigo || '').toUpperCase() === (doc.codigo || '').toUpperCase());
+          if (docActualizado) {
+            this.abrirDrawerDocumento(docActualizado, { onDescargar, onEditarSharePoint, onEditarMetadatos });
+            setTimeout(() => {
+              const tabBtn = this.drawerContainer?.querySelector('.doc-drawer-tab-btn[data-tab="registros"]');
+              if (tabBtn) tabBtn.click();
+            }, 60);
+          }
+        }
+      });
+    };
+    this.drawerContainer.querySelector('#btn-drawer-crear-registro')?.addEventListener('click', handlerCrearRegistro);
+    this.drawerContainer.querySelector('#btn-drawer-crear-primer-registro')?.addEventListener('click', handlerCrearRegistro);
 
     // Vincular Cierre
     this.drawerContainer.querySelector('#btn-drawer-close')?.addEventListener('click', () => this.cerrarDrawer());
@@ -3819,7 +3864,7 @@ export class ModalManager {
   /**
    * Modal interactivo para crear y registrar un nuevo documento en Google Sheets
    */
-  abrirModalNuevoDocumento({ onGuardar = null } = {}) {
+  abrirModalNuevoDocumento({ onGuardar = null, esRegistro = false, docPadre = null } = {}) {
     document.body.classList.add('modal-open');
 
     // Cargar listas dinámicas desde las Tablas Maestras ordenadas alfabéticamente
@@ -3828,14 +3873,28 @@ export class ModalManager {
     const areasMaestras = [...staffService.obtenerAreasInstitucionales()]
       .sort((a, b) => (a.nombre || '').localeCompare(b.nombre || '', 'es'));
 
-    const tipoDocDefault = tiposDocMaestros[0]?.nombre || 'Formato';
-    const areaDefault = areasMaestras[0]?.nombre || 'Gestión Talento Humano';
+    // Lista de formatos base disponibles para registros derivados
+    const formatosBase = (sharepointService.documentosEnMemoria || [])
+      .filter((d) => !d.esRegistro && d.subclase !== 'Registro')
+      .sort((a, b) => (a.codigo || '').localeCompare(b.codigo || '', 'es'));
+
+    let docPadreSeleccionado = docPadre || (esRegistro && formatosBase.length > 0 ? formatosBase[0] : null);
+
+    const tipoDocDefault = esRegistro ? 'Formato' : (tiposDocMaestros[0]?.nombre || 'Formato');
+    const areaDefault = docPadreSeleccionado?.areaNombre || docPadreSeleccionado?.area || areasMaestras[0]?.nombre || 'Gestión Talento Humano';
 
     // Código inicial por defecto calculado
-    const codigoInicial = this.calcularSiguienteCodigo(tipoDocDefault, areaDefault);
+    const codigoInicial = esRegistro && docPadreSeleccionado
+      ? { codigoCompleto: docPadreSeleccionado.codigo, prefijoTipo: 'FMT', siglaArea: docPadreSeleccionado.area || 'GIC' }
+      : this.calcularSiguienteCodigo(tipoDocDefault, areaDefault);
+
+    const optionsFormatosPadreHtml = formatosBase.map((d) => {
+      const selected = docPadreSeleccionado && (docPadreSeleccionado.codigo === d.codigo) ? 'selected' : '';
+      return `<option value="${d.codigo}" ${selected}>${d.codigo} - ${d.titulo}</option>`;
+    }).join('');
 
     const optionsTiposHtml = tiposDocMaestros
-      .map((t, idx) => `<option value="${t.nombre}" ${idx === 0 ? 'selected' : ''}>${t.nombre} (${t.prefijo})</option>`)
+      .map((t, idx) => `<option value="${t.nombre}" ${(esRegistro ? t.nombre === 'Formato' : idx === 0) ? 'selected' : ''}>${t.nombre} (${t.prefijo})</option>`)
       .join('');
 
     const optionsAreasHtml = areasMaestras
@@ -3855,7 +3914,7 @@ export class ModalManager {
       return procs.map((p) => `<option value="${p}" ${p.toLowerCase() === (procesoSeleccionado || '').toLowerCase() ? 'selected' : ''}>${p}</option>`).join('');
     };
 
-    const optionsProcesosHtml = generarOptionsProcesosND(areaDefault);
+    const optionsProcesosHtml = generarOptionsProcesosND(areaDefault, docPadreSeleccionado?.proceso || '');
 
     this.modalContainer.innerHTML = `
       <div class="modal-backdrop">
@@ -3865,14 +3924,14 @@ export class ModalManager {
           <div class="modal-header" style="background: linear-gradient(135deg, #1f4260 0%, #265072 50%, #376c95 100%); color: #ffffff; padding: 18px 24px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.15);">
             <div style="display: flex; align-items: center; gap: 12px;">
               <div style="width: 38px; height: 38px; border-radius: 10px; background: rgba(255,255,255,0.18); display: flex; align-items: center; justify-content: center; font-size: 1.3rem;">
-                📄
+                ${esRegistro ? '📂' : '📄'}
               </div>
               <div>
-                <h2 style="font-family: var(--font-heading); font-size: 1.22rem; font-weight: 700; margin: 0; color: #ffffff; letter-spacing: -0.01em;">
-                  Nuevo Documento Institucional
+                <h2 id="nd-header-title" style="font-family: var(--font-heading); font-size: 1.22rem; font-weight: 700; margin: 0; color: #ffffff; letter-spacing: -0.01em;">
+                  ${esRegistro ? 'Nuevo Registro Derivado' : 'Nuevo Documento Institucional'}
                 </h2>
-                <span style="font-size: 0.76rem; color: #e2edf5; font-weight: 500;">
-                  Nomenclatura institucional y registro en catálogo maestro
+                <span id="nd-header-desc" style="font-size: 0.76rem; color: #e2edf5; font-weight: 500;">
+                  ${esRegistro ? 'Alta de documento secundario modificado a partir de formato base' : 'Nomenclatura institucional y registro en catálogo maestro'}
                 </span>
               </div>
             </div>
@@ -3886,13 +3945,46 @@ export class ModalManager {
             
             <div id="nuevo-doc-error" style="display: none; background: #fef2f2; border: 1px solid #fecaca; color: #dc2626; padding: 10px 14px; border-radius: 8px; font-size: 0.82rem; font-weight: 600;"></div>
 
-            <!-- Fila 1: Tipo de Documento, Área Institucional y Código Automático -->
-            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 10px; padding: 12px 14px; align-items: start;">
+            <!-- Selector de Clasificación / Nivel Documental -->
+            <div style="background: #f1f5f9; border: 1.5px solid #cbd5e1; border-radius: 10px; padding: 10px 14px; display: flex; flex-direction: column; gap: 8px;">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-size: 0.78rem; font-weight: 700; color: var(--brand-navy, #1f4260); display: flex; align-items: center; gap: 6px;">
+                  <span>🏷️</span> Nivel / Clasificación Documental:
+                </span>
+                <span id="nd-subclase-badge" style="font-size: 0.70rem; font-weight: 700; padding: 2px 8px; border-radius: 6px; background: ${esRegistro ? '#fef3c7' : '#e0f2fe'}; color: ${esRegistro ? '#92400e' : '#0369a1'};">
+                  ${esRegistro ? '📂 REGISTRO DERIVADO' : '📄 DOCUMENTO BASE'}
+                </span>
+              </div>
+              <div style="display: flex; gap: 18px; flex-wrap: wrap;">
+                <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 0.82rem; font-weight: 600; color: #1e293b;">
+                  <input type="radio" name="nd-subclase-radio" id="nd-subclase-base" value="Base" ${!esRegistro ? 'checked' : ''} />
+                  <span>Documento Base (Principal)</span>
+                </label>
+                <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 0.82rem; font-weight: 600; color: #1e293b;">
+                  <input type="radio" name="nd-subclase-radio" id="nd-subclase-registro" value="Registro" ${esRegistro ? 'checked' : ''} />
+                  <span>Registro Derivado (Hijo de Formato Base)</span>
+                </label>
+              </div>
+            </div>
+
+            <!-- Panel de Formato Base Asociado (visible cuando es Registro) -->
+            <div id="nd-seccion-padre" style="display: ${esRegistro ? 'flex' : 'none'}; flex-direction: column; gap: 6px; background: #fffbeb; border: 1.5px solid #fde68a; border-radius: 10px; padding: 12px 14px;">
+              <label for="nd-select-padre" style="display: flex; align-items: center; justify-content: space-between; font-size: 0.78rem; font-weight: 700; color: #92400e;">
+                <span>Formato Base Asociado <span style="color: #dc2626;">*</span></span>
+                <span style="font-size: 0.70rem; font-weight: 600; color: #b45309;">El registro conservará el mismo código del formato</span>
+              </label>
+              <select id="nd-select-padre" class="form-input" style="width: 100%; height: 38px; font-weight: 600; background: #ffffff; border: 1.5px solid #f59e0b;">
+                ${optionsFormatosPadreHtml}
+              </select>
+            </div>
+
+            <!-- Fila 1: Tipo de Documento, Área Institucional y Código Automático / Heredado -->
+            <div id="nd-fila-codificacion" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 10px; padding: 12px 14px; align-items: start;">
               <div>
                 <label style="display: block; font-size: 0.78rem; font-weight: 700; color: var(--brand-navy, #1f4260); margin-bottom: 4px;">
                   1. Tipo de Documento <span style="color: #dc2626;">*</span>
                 </label>
-                <select id="nd-tipo-doc" class="form-input" style="width: 100%; height: 38px; font-weight: 600;">
+                <select id="nd-tipo-doc" class="form-input" style="width: 100%; height: 38px; font-weight: 600;" ${esRegistro ? 'disabled' : ''}>
                   ${optionsTiposHtml}
                 </select>
               </div>
@@ -3900,25 +3992,25 @@ export class ModalManager {
                 <label style="display: block; font-size: 0.78rem; font-weight: 700; color: var(--brand-navy, #1f4260); margin-bottom: 4px;">
                   2. Área Institucional <span style="color: #dc2626;">*</span>
                 </label>
-                <select id="nd-area" class="form-input" style="width: 100%; height: 38px; font-weight: 600;">
+                <select id="nd-area" class="form-input" style="width: 100%; height: 38px; font-weight: 600;" ${esRegistro ? 'disabled' : ''}>
                   ${optionsAreasHtml}
                 </select>
               </div>
               <div>
-                <label style="display: block; font-size: 0.78rem; font-weight: 700; color: var(--brand-navy, #1f4260); margin-bottom: 4px;">
-                  3. Código Automático <span style="color: #dc2626;">*</span>
+                <label id="nd-label-codigo" style="display: block; font-size: 0.78rem; font-weight: 700; color: var(--brand-navy, #1f4260); margin-bottom: 4px;">
+                  ${esRegistro ? '3. Código Heredado 🔒' : '3. Código Automático *'}
                 </label>
-                <input type="text" id="nd-codigo" class="form-input" value="${codigoInicial.codigoCompleto}" required style="width: 100%; height: 38px; font-weight: 800; font-size: 0.95rem; text-align: center; text-transform: uppercase; background: #ffffff; border: 1.5px solid #376c95; color: #1f4260; letter-spacing: 0.5px;" title="Código del documento (editable)" />
+                <input type="text" id="nd-codigo" class="form-input" value="${codigoInicial.codigoCompleto}" required style="width: 100%; height: 38px; font-weight: 800; font-size: 0.95rem; text-align: center; text-transform: uppercase; background: ${esRegistro ? '#f1f5f9' : '#ffffff'}; border: 1.5px solid #376c95; color: #1f4260; letter-spacing: 0.5px;" ${esRegistro ? 'readonly' : ''} title="Código del documento" />
               </div>
             </div>
 
             <!-- Fila 2: Nombre / Título del Documento y Versión -->
             <div style="display: grid; grid-template-columns: 3fr 1fr; gap: 12px;">
               <div>
-                <label style="display: block; font-size: 0.78rem; font-weight: 700; color: #1e293b; margin-bottom: 4px;">
-                  Nombre / Título del Documento <span style="color: #dc2626;">*</span>
+                <label id="nd-label-titulo" style="display: block; font-size: 0.78rem; font-weight: 700; color: #1e293b; margin-bottom: 4px;">
+                  ${esRegistro ? 'Nombre / Título Diferencial del Registro *' : 'Nombre / Título del Documento *'}
                 </label>
-                <input type="text" id="nd-titulo" class="form-input" placeholder="Nombre completo del formato, guía o procedimiento..." required style="width: 100%; height: 38px;" />
+                <input type="text" id="nd-titulo" class="form-input" value="${esRegistro && docPadreSeleccionado ? docPadreSeleccionado.titulo + ' ' : ''}" placeholder="${esRegistro ? 'ej. ' + (docPadreSeleccionado?.titulo || 'Formato') + ' Anticoagulados' : 'Nombre completo del formato, guía o procedimiento...'}" required style="width: 100%; height: 38px;" />
               </div>
               <div>
                 <label style="display: block; font-size: 0.78rem; font-weight: 700; color: #1e293b; margin-bottom: 4px;">
@@ -4214,8 +4306,100 @@ export class ModalManager {
       return 'Misional';
     };
 
+    // Selectores y elementos reactivos para cambio de Subclase / Registro
+    const radioBase = document.getElementById('nd-subclase-base');
+    const radioRegistro = document.getElementById('nd-subclase-registro');
+    const seccionPadre = document.getElementById('nd-seccion-padre');
+    const selectPadre = document.getElementById('nd-select-padre');
+    const badgeSubclase = document.getElementById('nd-subclase-badge');
+    const labelCodigo = document.getElementById('nd-label-codigo');
+    const labelTitulo = document.getElementById('nd-label-titulo');
+    const inputTitulo = document.getElementById('nd-titulo');
+    const headerTitle = document.getElementById('nd-header-title');
+    const headerDesc = document.getElementById('nd-header-desc');
+
+    const actualizarDesdePadre = () => {
+      const codPadre = selectPadre?.value;
+      const padre = formatosBase.find((d) => (d.codigo || '').toUpperCase() === (codPadre || '').toUpperCase());
+      if (padre) {
+        inputCodigo.value = padre.codigo;
+        if (inputArea) {
+          const areaMatch = areasMaestras.find((a) => 
+            (a.nombre || '').toLowerCase() === (padre.areaNombre || padre.area || '').toLowerCase() || 
+            (a.sigla || '').toUpperCase() === (padre.area || '').toUpperCase()
+          );
+          if (areaMatch) inputArea.value = areaMatch.nombre;
+        }
+        if (selectTipoProceso) {
+          selectTipoProceso.value = padre.tipoProceso || 'Estratégicos';
+        }
+        if (selectProceso) {
+          selectProceso.innerHTML = generarOptionsProcesosND(inputArea.value, padre.proceso || '');
+        }
+        if (inputTitulo) {
+          inputTitulo.placeholder = `ej. ${padre.titulo} Anticoagulados`;
+          if (!inputTitulo.value.trim() || formatosBase.some(f => inputTitulo.value.trim() === f.titulo || inputTitulo.value.trim() === `${f.titulo} `)) {
+            inputTitulo.value = `${padre.titulo} `;
+          }
+        }
+        actualizarDisponibilidadYRutas();
+      }
+    };
+
+    const cambiarSubclase = (esReg) => {
+      if (esReg) {
+        if (seccionPadre) seccionPadre.style.display = 'flex';
+        if (headerTitle) headerTitle.textContent = 'Nuevo Registro Derivado';
+        if (headerDesc) headerDesc.textContent = 'Alta de documento secundario modificado a partir de formato base';
+        if (badgeSubclase) {
+          badgeSubclase.style.background = '#fef3c7';
+          badgeSubclase.style.color = '#92400e';
+          badgeSubclase.textContent = '📂 REGISTRO DERIVADO';
+        }
+        if (labelCodigo) labelCodigo.innerHTML = '3. Código Heredado 🔒';
+        inputCodigo.readOnly = true;
+        inputCodigo.style.background = '#f1f5f9';
+        inputTipoDoc.value = 'Formato';
+        inputTipoDoc.disabled = true;
+        inputArea.disabled = true;
+        if (labelTitulo) labelTitulo.innerHTML = 'Nombre / Título Diferencial del Registro <span style="color: #dc2626;">*</span>';
+        actualizarDesdePadre();
+      } else {
+        if (seccionPadre) seccionPadre.style.display = 'none';
+        if (headerTitle) headerTitle.textContent = 'Nuevo Documento Institucional';
+        if (headerDesc) headerDesc.textContent = 'Nomenclatura institucional y registro en catálogo maestro';
+        if (badgeSubclase) {
+          badgeSubclase.style.background = '#e0f2fe';
+          badgeSubclase.style.color = '#0369a1';
+          badgeSubclase.textContent = '📄 DOCUMENTO BASE';
+        }
+        if (labelCodigo) labelCodigo.innerHTML = '3. Código Automático <span style="color: #dc2626;">*</span>';
+        inputCodigo.readOnly = false;
+        inputCodigo.style.background = '#ffffff';
+        inputTipoDoc.disabled = false;
+        inputArea.disabled = false;
+        if (labelTitulo) labelTitulo.innerHTML = 'Nombre / Título del Documento <span style="color: #dc2626;">*</span>';
+        if (inputTitulo) {
+          inputTitulo.placeholder = 'Nombre completo del formato, guía o procedimiento...';
+          if (formatosBase.some(f => inputTitulo.value.trim() === f.titulo || inputTitulo.value.trim() === `${f.titulo} `)) {
+            inputTitulo.value = '';
+          }
+        }
+        recalcularCodigoEnTiempoReal();
+      }
+    };
+
+    radioBase?.addEventListener('change', () => cambiarSubclase(false));
+    radioRegistro?.addEventListener('change', () => cambiarSubclase(true));
+    selectPadre?.addEventListener('change', actualizarDesdePadre);
+
     // Función reactiva para actualizar el código y opciones de procesos según Tipo de Documento y Área
     const recalcularCodigoEnTiempoReal = () => {
+      const esReg = Boolean(document.getElementById('nd-subclase-registro')?.checked);
+      if (esReg) {
+        actualizarDesdePadre();
+        return;
+      }
       const t = inputTipoDoc.value;
       const a = inputArea.value;
       const res = this.calcularSiguienteCodigo(t, a);
@@ -4241,7 +4425,11 @@ export class ModalManager {
     });
 
     // Inicializar estado reactivo
-    recalcularCodigoEnTiempoReal();
+    if (esRegistro) {
+      cambiarSubclase(true);
+    } else {
+      recalcularCodigoEnTiempoReal();
+    }
 
     const form = document.getElementById('form-nuevo-documento');
     const errBox = document.getElementById('nuevo-doc-error');
@@ -4250,26 +4438,29 @@ export class ModalManager {
       e.preventDefault();
       errBox.style.display = 'none';
 
+      const esRegistroDoc = Boolean(document.getElementById('nd-subclase-registro')?.checked);
       const codigo = document.getElementById('nd-codigo').value.trim().toUpperCase();
       const titulo = document.getElementById('nd-titulo').value.trim();
       const version = staffService.formatearVersion(document.getElementById('nd-version').value.trim() || 'v01');
       const tipoProceso = document.getElementById('nd-tipo-proceso').value;
       const areaNombre = document.getElementById('nd-area').value.trim() || 'Gestión Integral Calidad';
       const proceso = document.getElementById('nd-proceso').value.trim() || 'Gestión Integral de Calidad';
-      const tipoDocNombre = document.getElementById('nd-tipo-doc').value;
+      const tipoDocNombre = esRegistroDoc ? 'Registro Derivado' : document.getElementById('nd-tipo-doc').value;
       const estado = document.getElementById('nd-estado').value || 'Activo';
       const dispVal = document.getElementById('nd-disponibilidad').value;
       const vigenciaInput = document.getElementById('nd-vigencia')?.value.trim();
       const tiempoRetencion = document.getElementById('nd-tiempo-retencion')?.value.trim() || '5 Años';
       const lugar = document.getElementById('nd-lugar')?.value.trim() || 'Oficina central y sede';
-      const tipoCambio = document.getElementById('nd-tipo-cambio')?.value.trim() || 'Creación del documento';
+      const tipoCambio = esRegistroDoc 
+        ? `Registro derivado de ${codigo}` 
+        : (document.getElementById('nd-tipo-cambio')?.value.trim() || 'Creación del documento');
       const permOp = document.getElementById('nd-perm-op').checked;
       const permAdm = document.getElementById('nd-perm-adm').checked;
       const permDir = document.getElementById('nd-perm-dir').checked;
       const descargable = document.getElementById('nd-descargable').checked;
 
       const partesCod = codigo.split('-');
-      const prefijoSigla = partesCod[0] || 'DA';
+      const prefijoSigla = partesCod[0] || (esRegistroDoc ? 'FMT' : 'DA');
       const areaSigla = partesCod[1] || 'GMD';
       const consecutivoNum = partesCod[2] || '001';
 
@@ -4280,15 +4471,17 @@ export class ModalManager {
 
       const btnSave = document.getElementById('btn-nuevo-doc-save');
       btnSave.disabled = true;
-      btnSave.innerHTML = '<span>⏳</span> Guardando documento...';
+      btnSave.innerHTML = `<span>⏳</span> ${esRegistroDoc ? 'Guardando registro...' : 'Guardando documento...'}`;
 
       const nuevoDocumentoObj = {
         codigo: codigo,
         titulo: titulo,
         documento: titulo,
+        subclase: esRegistroDoc ? 'Registro' : 'Base',
+        esRegistro: esRegistroDoc,
         version: version,
         consecutivo: consecutivoNum,
-        tipoDocumento: prefijoSigla,
+        tipoDocumento: esRegistroDoc ? 'Registro' : prefijoSigla,
         tipoDocumentoNombre: tipoDocNombre,
         area: areaSigla,
         areaNombre: areaNombre,
@@ -4322,8 +4515,10 @@ export class ModalManager {
           staffService.registrarAuditoria('CREACION', {
             documentoCodigo: codigo,
             documentoTitulo: titulo,
-            documentoExtension: nuevoDocumentoObj.extension || 'DOC',
-            detalle: `Nuevo documento incorporado al catálogo (${codigo} - ${titulo})`
+            documentoExtension: nuevoDocumentoObj.extension || (esRegistroDoc ? 'XLSX' : 'DOC'),
+            detalle: esRegistroDoc
+              ? `Nuevo registro derivado creado (${codigo} - ${titulo})`
+              : `Nuevo documento incorporado al catálogo (${codigo} - ${titulo})`
           });
 
           // 2. Registrar evento en control de cambios
@@ -4335,8 +4530,10 @@ export class ModalManager {
             rutaAnterior: 'N/A',
             rutaNueva: `${tipoProceso} / ${areaNombre || areaSigla} / ${proceso}`,
             tipoAnterior: 'N/A',
-            tipoNuevo: tipoDocNombre || prefijoSigla,
-            detalle: `Nuevo documento incorporado al catálogo (${codigo})`
+            tipoNuevo: tipoDocNombre || (esRegistroDoc ? 'Registro Derivado' : prefijoSigla),
+            detalle: esRegistroDoc
+              ? `Registro derivado incorporado al catálogo (${codigo} - ${titulo})`
+              : `Nuevo documento incorporado al catálogo (${codigo})`
           });
 
           this.cerrarModal();
@@ -4345,14 +4542,14 @@ export class ModalManager {
           errBox.textContent = res?.error || 'Error al guardar el documento.';
           errBox.style.display = 'block';
           btnSave.disabled = false;
-          btnSave.innerHTML = 'Guardar Documento';
+          btnSave.innerHTML = esRegistroDoc ? 'Guardar Registro' : 'Guardar Documento';
         }
       } catch (err) {
         console.error('Error al guardar documento:', err);
         errBox.textContent = 'Error al guardar el documento: ' + (err.message || '');
         errBox.style.display = 'block';
         btnSave.disabled = false;
-        btnSave.innerHTML = 'Guardar Documento';
+        btnSave.innerHTML = esRegistroDoc ? 'Guardar Registro' : 'Guardar Documento';
       }
     });
 

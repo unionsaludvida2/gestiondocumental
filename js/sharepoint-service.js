@@ -5,7 +5,7 @@
  */
 
 import { DOCUMENTOS_REALES, URL_ORIGEN_CSV } from './data.js?v=11.6.31';
-import { cacheService } from './cache-service.js?v=11.6.62';
+import { cacheService } from './cache-service.js?v=11.6.63';
 
 
 export const MAPA_NORMALIZACION_AREAS = {
@@ -1497,6 +1497,24 @@ export class DataService {
     const todosCreados = { ...creadosConf, ...creadosLocal };
     const nuevosParaAgregar = [];
     Object.entries(todosCreados).forEach(([cod, docObj]) => {
+      if (!docObj) return;
+
+      // Si es un Registro Derivado, asociarlo a su Documento Base padre
+      if (docObj.subclase === 'Registro' || docObj.esRegistro === true || cod.startsWith('REG_') || cod.includes('::')) {
+        const codUpper = (docObj.codigo || cod.replace(/^REG_/, '').split('::')[0]).trim().toUpperCase();
+        const base = docsUnificados.find(d => (d.codigo || '').toUpperCase() === codUpper && !d.esRegistro);
+        if (base) {
+          base.registrosDerivados = base.registrosDerivados || [];
+          const idxReg = base.registrosDerivados.findIndex(r => r.id === docObj.id || (r.titulo && docObj.titulo && r.titulo.toLowerCase() === docObj.titulo.toLowerCase()));
+          if (idxReg >= 0) {
+            base.registrosDerivados[idxReg] = { ...base.registrosDerivados[idxReg], ...docObj };
+          } else {
+            base.registrosDerivados.push(docObj);
+          }
+        }
+        return;
+      }
+
       const codUpper = cod.trim().toUpperCase();
       if (!codigosExistentes.has(codUpper) && docObj) {
         const od = mapOD?.get(codUpper);
@@ -1546,6 +1564,7 @@ export class DataService {
     }
 
     const codUpper = (nuevoDoc.codigo || '').trim().toUpperCase();
+    const esRegistro = (nuevoDoc.subclase === 'Registro' || nuevoDoc.esRegistro === true);
     const spUrl = nuevoDoc.sharepointUrl || '';
     const dlUrl = nuevoDoc.downloadUrl || spUrl;
     const tieneEnlaceActivo = Boolean(
@@ -1555,7 +1574,7 @@ export class DataService {
     const estaDisponible = (nuevoDoc.disponible !== false) && tieneEnlaceActivo;
 
     const docNormalizado = {
-      id: codUpper,
+      id: esRegistro ? `${codUpper}_REG_${Date.now()}` : codUpper,
       codigo: codUpper,
       titulo: nuevoDoc.titulo || nuevoDoc.nombre || 'Nuevo Documento',
       version: nuevoDoc.version || '01',
@@ -1564,9 +1583,12 @@ export class DataService {
       tipoProceso: nuevoDoc.tipoProceso || 'Estratégicos',
       proceso: nuevoDoc.proceso || 'Gestión Integral de Calidad',
       carpeta: nuevoDoc.carpeta || 'N/A',
-      tipoDocumento: nuevoDoc.tipoDocumento || 'Instructivo',
-      formato: nuevoDoc.formato || 'Word',
-      extension: nuevoDoc.extension || 'DOC',
+      tipoDocumento: nuevoDoc.tipoDocumento || (esRegistro ? 'Registro' : 'Instructivo'),
+      subclase: esRegistro ? 'Registro' : 'Base',
+      esRegistro: esRegistro,
+      registrosDerivados: [],
+      formato: nuevoDoc.formato || (esRegistro ? 'Excel' : 'Word'),
+      extension: nuevoDoc.extension || (esRegistro ? 'XLSX' : 'DOC'),
       tiempoVigencia: nuevoDoc.tiempoVigencia || '5 Años',
       descargable: nuevoDoc.descargable !== false,
       disponible: estaDisponible,
@@ -1583,14 +1605,15 @@ export class DataService {
       let creadosLocal = {};
       const rawLocal = localStorage.getItem('agy_sgc_documentos_creados');
       if (rawLocal) creadosLocal = JSON.parse(rawLocal);
-      creadosLocal[codUpper] = docNormalizado;
+      const storageKey = esRegistro ? `REG_${codUpper}::${docNormalizado.titulo}` : codUpper;
+      creadosLocal[storageKey] = docNormalizado;
       localStorage.setItem('agy_sgc_documentos_creados', JSON.stringify(creadosLocal));
 
       const rawConf = localStorage.getItem('agy_sgc_conf_cache');
       if (rawConf) {
         const confObj = JSON.parse(rawConf);
         confObj.documentosCreados = confObj.documentosCreados || {};
-        confObj.documentosCreados[codUpper] = docNormalizado;
+        confObj.documentosCreados[storageKey] = docNormalizado;
         localStorage.setItem('agy_sgc_conf_cache', JSON.stringify(confObj));
       }
     } catch {}
@@ -1627,11 +1650,24 @@ export class DataService {
     }
 
     // 3. Actualizar catálogo en memoria
-    const idxExistente = this.documentosEnMemoria.findIndex((d) => (d.codigo || '').toUpperCase() === codUpper);
-    if (idxExistente >= 0) {
-      this.documentosEnMemoria[idxExistente] = { ...this.documentosEnMemoria[idxExistente], ...docNormalizado };
+    if (esRegistro) {
+      const docBase = this.documentosEnMemoria.find((d) => (d.codigo || '').toUpperCase() === codUpper && !d.esRegistro);
+      if (docBase) {
+        docBase.registrosDerivados = docBase.registrosDerivados || [];
+        const idxReg = docBase.registrosDerivados.findIndex(r => r.id === docNormalizado.id || (r.titulo && r.titulo.toLowerCase() === docNormalizado.titulo.toLowerCase()));
+        if (idxReg >= 0) {
+          docBase.registrosDerivados[idxReg] = { ...docBase.registrosDerivados[idxReg], ...docNormalizado };
+        } else {
+          docBase.registrosDerivados.push(docNormalizado);
+        }
+      }
     } else {
-      this.documentosEnMemoria.unshift(docNormalizado);
+      const idxExistente = this.documentosEnMemoria.findIndex((d) => (d.codigo || '').toUpperCase() === codUpper && !d.esRegistro);
+      if (idxExistente >= 0) {
+        this.documentosEnMemoria[idxExistente] = { ...this.documentosEnMemoria[idxExistente], ...docNormalizado };
+      } else {
+        this.documentosEnMemoria.unshift(docNormalizado);
+      }
     }
 
     return { exito: true, documento: docNormalizado };
