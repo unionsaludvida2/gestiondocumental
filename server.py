@@ -255,10 +255,45 @@ CACHE = {
 }
 
 
+def sanitizar_evento_auditoria(ev):
+    if not isinstance(ev, dict):
+        return ev
+    cod = str(ev.get('documentoCodigo') or '').strip()
+    tit = str(ev.get('documentoTitulo') or '').lower()
+    det = str(ev.get('detalle') or '').lower()
+
+    # 1. Detectar códigos derivados con 4 partes (p.ej. FMT-GIC-016-1, FMT-GIC-016-2)
+    m = re.match(r'^([A-Za-z0-9]+-[A-Za-z0-9]+-\d+)-(\d+)$', cod)
+    if m:
+        ev['esRegistro'] = True
+        ev['documentoPadreCodigo'] = ev.get('documentoPadreCodigo') or m.group(1)
+        return ev
+
+    # 2. Curación inteligente para registros creados históricamente bajo FMT-GIC-016
+    if cod == 'FMT-GIC-016' or 'fmt-gic-016' in det:
+        if '2026-1' in tit or '2026-1' in det:
+            ev['esRegistro'] = True
+            ev['documentoPadreCodigo'] = 'FMT-GIC-016'
+            ev['documentoCodigo'] = 'FMT-GIC-016-1'
+        elif '2026-2' in tit or '2026-2' in det:
+            ev['esRegistro'] = True
+            ev['documentoPadreCodigo'] = 'FMT-GIC-016'
+            ev['documentoCodigo'] = 'FMT-GIC-016-2'
+        elif 'asma' in tit or 'asma' in det:
+            ev['esRegistro'] = True
+            ev['documentoPadreCodigo'] = 'FMT-GIC-016'
+            ev['documentoCodigo'] = 'FMT-GIC-016-3'
+        elif 'anticoagula' in tit or 'anticoagula' in det:
+            ev['esRegistro'] = True
+            ev['documentoPadreCodigo'] = 'FMT-GIC-016'
+            ev['documentoCodigo'] = 'FMT-GIC-016-4'
+    return ev
+
+
 def deduplicar_registro_auditoria(lista_aud):
     if not isinstance(lista_aud, list):
         return []
-    purgados = [ev for ev in lista_aud if isinstance(ev, dict)]
+    purgados = [sanitizar_evento_auditoria(ev) for ev in lista_aud if isinstance(ev, dict)]
     purgados.sort(key=lambda x: parsear_fecha_ms(x.get('fechaHora') or x.get('timestamp')), reverse=True)
 
     resultado = []

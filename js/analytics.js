@@ -460,6 +460,54 @@ export class AnalyticsManager {
     URL.revokeObjectURL(url);
   }
 
+  detectarRegistroDerivado(item) {
+    if (!item) return { esDerivado: false, codPadre: '', codDisplay: '' };
+    let esDerivado = Boolean(item.esRegistro);
+    let codPadre = item.documentoPadreCodigo || '';
+    const codRaw = (item.codigo || item.documentoCodigo || '').trim();
+    let codDisplay = codRaw;
+
+    // 1. Detectar códigos derivados con 4 partes (p.ej. FMT-GIC-016-1, FMT-GIC-016-2)
+    const mSec = codRaw.match(/^([A-Za-z0-9]+-[A-Za-z0-9]+-\d+)-(\d+)$/);
+    if (mSec) {
+      esDerivado = true;
+      codPadre = codPadre || mSec[1];
+      codDisplay = codRaw;
+    }
+
+    // 2. Curación inteligente para registros creados históricamente bajo FMT-GIC-016
+    const tit = (item.titulo || item.documentoTitulo || '').toLowerCase();
+    const det = (item.detalle || '').toLowerCase();
+    if (!mSec && (codRaw === 'FMT-GIC-016' || det.includes('fmt-gic-016'))) {
+      if (tit.includes('2026-1') || det.includes('2026-1')) {
+        esDerivado = true;
+        codPadre = 'FMT-GIC-016';
+        codDisplay = 'FMT-GIC-016-1';
+      } else if (tit.includes('2026-2') || det.includes('2026-2')) {
+        esDerivado = true;
+        codPadre = 'FMT-GIC-016';
+        codDisplay = 'FMT-GIC-016-2';
+      } else if (tit.includes('asma') || det.includes('asma')) {
+        esDerivado = true;
+        codPadre = 'FMT-GIC-016';
+        codDisplay = 'FMT-GIC-016-3';
+      } else if (tit.includes('anticoagula') || det.includes('anticoagula')) {
+        esDerivado = true;
+        codPadre = 'FMT-GIC-016';
+        codDisplay = 'FMT-GIC-016-4';
+      }
+    }
+
+    if (!esDerivado && (det.includes('registro derivado') || (item.tipoDocumento || item.tipoNuevo || '').toUpperCase().includes('REGISTRO'))) {
+      esDerivado = true;
+      if (!codPadre && codRaw.split('-').length >= 4) {
+        codPadre = codRaw.split('-').slice(0, 3).join('-');
+      }
+    }
+
+    return { esDerivado, codPadre, codDisplay };
+  }
+
   exportarAuditoriaCSV() {
     const eventos = staffService.obtenerRegistroAuditoria();
     if (!eventos || eventos.length === 0) {
@@ -467,20 +515,25 @@ export class AnalyticsManager {
       return;
     }
 
-    const headers = ['ID', 'Fecha_Hora', 'Evento', 'Colaborador', 'Identificación', 'Cargo', 'Perfil', 'Código_Documento', 'Título_Documento', 'Formato', 'Detalle'];
-    const rows = eventos.map((e) => [
-      `"${e.id || ''}"`,
-      `"${staffService.formatearFechaHora(e.fechaHora || e.timestamp || '')}"`,
-      `"${e.tipo || ''}"`,
-      `"${(e.usuario || '').replace(/"/g, '""')}"`,
-      `"${e.identificacion || ''}"`,
-      `"${(e.cargo || '').replace(/"/g, '""')}"`,
-      `"${e.perfil || ''}"`,
-      `"${e.documentoCodigo || ''}"`,
-      `"${(e.documentoTitulo || '').replace(/"/g, '""')}"`,
-      `"${e.documentoExtension || ''}"`,
-      `"${(e.detalle || '').replace(/"/g, '""')}"`
-    ]);
+    const headers = ['ID', 'Fecha_Hora', 'Evento', 'Colaborador', 'Identificación', 'Cargo', 'Perfil', 'Código_Documento', 'Subclase', 'Código_Padre', 'Título_Documento', 'Formato', 'Detalle'];
+    const rows = eventos.map((e) => {
+      const { esDerivado, codPadre, codDisplay } = this.detectarRegistroDerivado(e);
+      return [
+        `"${e.id || ''}"`,
+        `"${staffService.formatearFechaHora(e.fechaHora || e.timestamp || '')}"`,
+        `"${e.tipo || ''}"`,
+        `"${(e.usuario || '').replace(/"/g, '""')}"`,
+        `"${e.identificacion || ''}"`,
+        `"${(e.cargo || '').replace(/"/g, '""')}"`,
+        `"${e.perfil || ''}"`,
+        `"${codDisplay}"`,
+        `"${esDerivado ? 'Registro Derivado' : 'Documento Base'}"`,
+        `"${codPadre}"`,
+        `"${(e.documentoTitulo || '').replace(/"/g, '""')}"`,
+        `"${e.documentoExtension || ''}"`,
+        `"${(e.detalle || '').replace(/"/g, '""')}"`
+      ];
+    });
 
     const csvContent = '\uFEFF' + [headers.join(';'), ...rows.map((r) => r.join(';'))].join('\r\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -956,6 +1009,7 @@ export class AnalyticsManager {
                   <button class="btn btn-secondary btn-audit-filter" data-audit-filter="DESCARGA" style="padding: 4px 10px; font-size: 0.76rem;">📥 Descargas</button>
                   <button class="btn btn-secondary btn-audit-filter" data-audit-filter="CARPETA" style="padding: 4px 10px; font-size: 0.76rem;">📁 Carpetas</button>
                   <button class="btn btn-secondary btn-audit-filter" data-audit-filter="CREACION" style="padding: 4px 10px; font-size: 0.76rem;">✨ Creaciones</button>
+                  <button class="btn btn-secondary btn-audit-filter" data-audit-filter="REGISTROS" style="padding: 4px 10px; font-size: 0.76rem;">📂 Registros Derivados</button>
                   <button class="btn btn-secondary btn-audit-filter" data-audit-filter="EDICION" style="padding: 4px 10px; font-size: 0.76rem;">✏️ Edición</button>
                   <button class="btn btn-secondary btn-audit-filter" data-audit-filter="METADATOS" style="padding: 4px 10px; font-size: 0.76rem;">📋 Metadatos</button>
                   <button class="btn btn-secondary btn-audit-filter" data-audit-filter="ELIMINACION" style="padding: 4px 10px; font-size: 0.76rem;">🗑️ Eliminaciones</button>
@@ -1026,6 +1080,7 @@ export class AnalyticsManager {
                 <div style="display: flex; gap: 6px; flex-wrap: wrap;" id="group-hist-filters-dashboard">
                   <button class="btn btn-secondary btn-hist-filter active" data-hist-filter="TODOS" style="padding: 4px 10px; font-size: 0.76rem;">Todos</button>
                   <button class="btn btn-secondary btn-hist-filter" data-hist-filter="CREACION" style="padding: 4px 10px; font-size: 0.76rem;">🆕 Creados</button>
+                  <button class="btn btn-secondary btn-hist-filter" data-hist-filter="REGISTROS" style="padding: 4px 10px; font-size: 0.76rem;">📂 Registros Derivados</button>
                   <button class="btn btn-secondary btn-hist-filter" data-hist-filter="CAMBIO_VERSION" style="padding: 4px 10px; font-size: 0.76rem;">🔄 Versiones</button>
                   <button class="btn btn-secondary btn-hist-filter" data-hist-filter="METADATOS" style="padding: 4px 10px; font-size: 0.76rem;">📋 Metadatos</button>
                   <button class="btn btn-secondary btn-hist-filter" data-hist-filter="EDICION_SHAREPOINT" style="padding: 4px 10px; font-size: 0.76rem;">✏️ Ediciones SP</button>
@@ -1790,14 +1845,17 @@ export class AnalyticsManager {
       const filtrados = eventos.filter((ev) => {
         const evTipoUpper = (ev.tipo || '').toUpperCase();
         if (fTipoUpper !== 'TODOS') {
-          if (fTipoUpper === 'METADATOS') {
+          if (fTipoUpper === 'REGISTROS') {
+            const { esDerivado } = this.detectarRegistroDerivado(ev);
+            if (!esDerivado) return false;
+          } else if (fTipoUpper === 'METADATOS') {
             if (!['METADATOS', 'CAMBIO_METADATOS', 'CAMBIO_RUTA', 'CAMBIO_TIPO'].includes(evTipoUpper)) return false;
           } else if (evTipoUpper !== fTipoUpper) {
             return false;
           }
         }
         if (!q) return true;
-        const texto = `${ev.usuario || ''} ${ev.identificacion || ''} ${ev.cargo || ''} ${ev.documentoCodigo || ''} ${ev.documentoTitulo || ''} ${ev.detalle || ''}`.toLowerCase();
+        const texto = `${ev.usuario || ''} ${ev.identificacion || ''} ${ev.cargo || ''} ${ev.documentoCodigo || ''} ${ev.documentoPadreCodigo || ''} ${ev.documentoTitulo || ''} ${ev.detalle || ''} ${ev.esRegistro ? 'registro derivado' : ''}`.toLowerCase();
         return texto.includes(q);
       });
 
@@ -1858,10 +1916,27 @@ export class AnalyticsManager {
           }
 
           let detalleDoc = '-';
-          if (ev.documentoCodigo || ev.documentoTitulo) {
+          const { esDerivado, codPadre, codDisplay } = this.detectarRegistroDerivado(ev);
+
+          if (codDisplay || ev.documentoTitulo) {
+            const badgeDerivadoHtml = esDerivado 
+              ? `<span style="background:#fef3c7; color:#92400e; font-size:0.67rem; font-weight:700; padding:1px 6px; border-radius:4px; border:1px solid #fde68a; display:inline-flex; align-items:center; gap:2px; vertical-align:middle; margin-left:6px;">📂 REGISTRO DERIVADO</span>` 
+              : '';
+            const padreHtml = (esDerivado && codPadre)
+              ? `<div style="font-size:0.71rem; color:#0369a1; font-weight:600; margin-top:2px;">Formato Base: <span>${codPadre}</span></div>`
+              : '';
+            const detalleExtra = (ev.detalle && !ev.detalle.toLowerCase().includes(codDisplay.toLowerCase()))
+              ? `<div style="font-size:0.70rem; color:#64748b; margin-top:2px;">${ev.detalle}</div>`
+              : '';
+
             detalleDoc = `
-              <div style="font-weight: 700; color: #1e293b;">${ev.documentoCodigo || ''}</div>
-              <div style="font-size: 0.74rem; color: #64748b;">${ev.documentoTitulo || ''}</div>
+              <div style="font-weight: 700; color: #1e293b; display:flex; align-items:center; flex-wrap:wrap; gap:4px;">
+                <span>${codDisplay}</span>
+                ${badgeDerivadoHtml}
+              </div>
+              <div style="font-size: 0.74rem; color: #475569; margin-top:1px;">${ev.documentoTitulo || ''}</div>
+              ${padreHtml}
+              ${detalleExtra}
             `;
           } else if (ev.detalle) {
             detalleDoc = `<div style="font-size: 0.74rem; color: #475569;">${ev.detalle}</div>`;
@@ -1901,6 +1976,21 @@ export class AnalyticsManager {
       (this.documentosActuales || []).forEach((d) => {
         if (d && d.codigo) {
           mapaDocs.set(d.codigo.trim().toUpperCase(), d);
+          if (Array.isArray(d.registrosDerivados)) {
+            d.registrosDerivados.forEach((r) => {
+              if (r && r.codigo) {
+                mapaDocs.set(r.codigo.trim().toUpperCase(), {
+                  ...r,
+                  esRegistro: true,
+                  documentoPadreCodigo: d.codigo,
+                  tipoProceso: r.tipoProceso || d.tipoProceso,
+                  area: r.area || d.area,
+                  proceso: r.proceso || d.proceso,
+                  tipoDocumento: 'Registro Derivado'
+                });
+              }
+            });
+          }
         }
       });
 
@@ -1949,8 +2039,12 @@ export class AnalyticsManager {
 
       let filtrados = eventosHist.filter((ev) => {
         const evTipoUpper = (ev.tipoEvento || '').toUpperCase();
+        const docCat = mapaDocs.get((ev.codigo || '').trim().toUpperCase());
         if (fTipoUpper !== 'TODOS') {
-          if (fTipoUpper === 'METADATOS') {
+          if (fTipoUpper === 'REGISTROS') {
+            const { esDerivado } = this.detectarRegistroDerivado(ev);
+            if (!esDerivado && !(docCat && docCat.esRegistro)) return false;
+          } else if (fTipoUpper === 'METADATOS') {
             if (!['CAMBIO_METADATOS', 'CAMBIO_RUTA', 'CAMBIO_TIPO', 'METADATOS'].includes(evTipoUpper)) return false;
           } else if (fTipoUpper === 'EDICION_SHAREPOINT') {
             if (!['EDICION_SHAREPOINT', 'EDICION'].includes(evTipoUpper)) return false;
@@ -1959,7 +2053,7 @@ export class AnalyticsManager {
           }
         }
         if (!q) return true;
-        const texto = `${ev.codigo || ''} ${ev.titulo || ''} ${ev.usuario || ''} ${ev.identificacion || ''} ${ev.detalle || ''} ${ev.motivo || ''} ${ev.tipoNuevo || ''}`.toLowerCase();
+        const texto = `${ev.codigo || ''} ${ev.documentoPadreCodigo || ''} ${ev.titulo || ''} ${ev.usuario || ''} ${ev.identificacion || ''} ${ev.detalle || ''} ${ev.motivo || ''} ${ev.tipoNuevo || ''} ${ev.esRegistro ? 'registro derivado' : ''}`.toLowerCase();
         return texto.includes(q);
       });
 
@@ -2017,6 +2111,12 @@ export class AnalyticsManager {
           }
 
           const docCat = mapaDocs.get((ev.codigo || '').trim().toUpperCase());
+          const { esDerivado: esDerivDetectado, codPadre: codPadreDetectado, codDisplay } = this.detectarRegistroDerivado(ev);
+          const esDerivado = esDerivDetectado || Boolean(docCat && docCat.esRegistro);
+          const codPadre = codPadreDetectado || docCat?.documentoPadreCodigo || '';
+          const badgeDerivado = esDerivado
+            ? `<span style="background:#fef3c7; color:#92400e; font-size:0.67rem; font-weight:700; padding:1px 5px; border-radius:4px; border:1px solid #fde68a; display:block; margin-top:2px; width:fit-content;">📂 REGISTRO DERIVADO</span>`
+            : '';
           const fDocReal = staffService.formatearFechaHora(
             ev.fechaHora || ev.timestamp || ev.fechaModificacionActual || docCat?.modificacion || '-'
           );
@@ -2133,10 +2233,12 @@ export class AnalyticsManager {
                 ${badgeEvento}
               </td>
               <td style="padding: 8px 10px; font-weight: 800; color: #0f172a; white-space: nowrap;">
-                ${ev.codigo || '-'}
+                ${codDisplay || ev.codigo || '-'}
+                ${badgeDerivado}
               </td>
               <td style="padding: 8px 10px;">
                 <div style="font-weight: 600; color: #1e293b; line-height: 1.3; font-size: 0.82rem;">${ev.titulo || docCat?.titulo || '-'}</div>
+                ${esDerivado && codPadre ? `<div style="font-size:0.71rem; color:#0369a1; font-weight:600; margin-top:2px;">Formato Base: ${codPadre}</div>` : ''}
               </td>
               <td style="padding: 8px 10px;">
                 ${detalleCambioHtml}

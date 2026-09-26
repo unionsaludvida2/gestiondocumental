@@ -415,6 +415,40 @@ export class StaffService {
     }
   }
 
+  sanitizarEventoAuditoria(ev) {
+    if (!ev || typeof ev !== 'object') return ev;
+    const codRaw = (ev.documentoCodigo || '').trim();
+    const mSec = codRaw.match(/^([A-Za-z0-9]+-[A-Za-z0-9]+-\d+)-(\d+)$/);
+    if (mSec) {
+      ev.esRegistro = true;
+      ev.documentoPadreCodigo = ev.documentoPadreCodigo || mSec[1];
+      return ev;
+    }
+
+    const tit = (ev.documentoTitulo || '').toLowerCase();
+    const det = (ev.detalle || '').toLowerCase();
+    if (codRaw === 'FMT-GIC-016' || det.includes('fmt-gic-016')) {
+      if (tit.includes('2026-1') || det.includes('2026-1')) {
+        ev.esRegistro = true;
+        ev.documentoPadreCodigo = 'FMT-GIC-016';
+        ev.documentoCodigo = 'FMT-GIC-016-1';
+      } else if (tit.includes('2026-2') || det.includes('2026-2')) {
+        ev.esRegistro = true;
+        ev.documentoPadreCodigo = 'FMT-GIC-016';
+        ev.documentoCodigo = 'FMT-GIC-016-2';
+      } else if (tit.includes('asma') || det.includes('asma')) {
+        ev.esRegistro = true;
+        ev.documentoPadreCodigo = 'FMT-GIC-016';
+        ev.documentoCodigo = 'FMT-GIC-016-3';
+      } else if (tit.includes('anticoagula') || det.includes('anticoagula')) {
+        ev.esRegistro = true;
+        ev.documentoPadreCodigo = 'FMT-GIC-016';
+        ev.documentoCodigo = 'FMT-GIC-016-4';
+      }
+    }
+    return ev;
+  }
+
   /**
    * Consolida y elimina eventos repetidos o con muy poco tiempo de diferencia (por ejemplo,
    * doble clic en botones de acción, reintentos rápidos de inicio de sesión o descargas consecutivas).
@@ -425,6 +459,7 @@ export class StaffService {
     // Ordenar de más reciente a más antiguo
     const ordenados = lista
       .filter((ev) => ev && typeof ev === 'object')
+      .map((ev) => this.sanitizarEventoAuditoria(ev))
       .sort((a, b) => {
         const tA = this.parsearFechaMilisegundos(a.fechaHora || a.timestamp);
         const tB = this.parsearFechaMilisegundos(b.fechaHora || b.timestamp);
@@ -2329,6 +2364,15 @@ export class StaffService {
       }
     }
 
+    const esReg = Boolean(
+      detalle.esRegistro || 
+      detalle.documentoPadreCodigo || 
+      /-[0-9]+$/.test(detalle.documentoCodigo || '') || 
+      (detalle.detalle || '').toLowerCase().includes('registro derivado') ||
+      (detalle.tipoDocumento || '').toUpperCase() === 'REGISTRO'
+    );
+    const docPadreCod = detalle.documentoPadreCodigo || (/-[0-9]+$/.test(detalle.documentoCodigo || '') ? (detalle.documentoCodigo || '').replace(/-[0-9]+$/, '') : '');
+
     const nuevoEvento = {
       id: `aud_${ahoraMs}_${Math.random().toString(36).substr(2, 5)}`,
       tipo: tipoNorm, // 'LOGIN', 'DESCARGA', 'EDICION', 'CARPETA', 'ELIMINACION', etc.
@@ -2339,6 +2383,8 @@ export class StaffService {
       documentoCodigo: detalle.documentoCodigo || '',
       documentoTitulo: detalle.documentoTitulo || '',
       documentoExtension: detalle.documentoExtension || '',
+      esRegistro: esReg,
+      documentoPadreCodigo: docPadreCod,
       detalle: detalle.detalle || '',
       fechaHora: fechaHora,
       timestamp: now.toISOString(),
@@ -2432,11 +2478,22 @@ export class StaffService {
     const vAntNorm = detalle.versionAnterior && detalle.versionAnterior !== 'N/A' ? this.normalizarVersion(detalle.versionAnterior) : 'N/A';
     const vNuevaNorm = detalle.versionNueva && detalle.versionNueva !== 'N/A' ? this.normalizarVersion(detalle.versionNueva) : 'N/A';
 
+    const esReg = Boolean(
+      detalle.esRegistro || 
+      detalle.documentoPadreCodigo || 
+      /-[0-9]+$/.test(detalle.codigo || '') || 
+      (detalle.detalle || '').toLowerCase().includes('registro derivado') || 
+      (detalle.tipoNuevo || '').toLowerCase().includes('registro')
+    );
+    const codPadre = detalle.documentoPadreCodigo || (/-[0-9]+$/.test(detalle.codigo || '') ? (detalle.codigo || '').replace(/-[0-9]+$/, '') : '');
+
     const nuevoCambio = {
       id: `hist_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
       tipoEvento: tipoEvento, // 'CREACION', 'ELIMINACION', 'CAMBIO_VERSION', 'CAMBIO_RUTA', 'CAMBIO_TIPO', 'EDICION_SHAREPOINT'
       codigo: (detalle.codigo || '').trim(),
       titulo: (detalle.titulo || '').trim(),
+      esRegistro: esReg,
+      documentoPadreCodigo: codPadre,
       versionAnterior: vAntNorm,
       versionNueva: vNuevaNorm,
       rutaAnterior: detalle.rutaAnterior || 'N/A',
@@ -2743,26 +2800,50 @@ export class StaffService {
   /**
    * Guarda una snapshot de los documentos para comparar cambios futuros (Diff Engine)
    */
+  /**
+   * Guarda una snapshot de los documentos para comparar cambios futuros (Diff Engine)
+   * Incluye tanto documentos base como todos sus registros derivados
+   */
   guardarSnapshotDocumentos(documentos) {
     if (!Array.isArray(documentos)) return;
     try {
       const mapaSnapshot = {};
+      const procesarItem = (d, esReg = false, codPadre = '') => {
+        if (!d || !d.codigo) return;
+        const codUpper = d.codigo.trim().toUpperCase();
+        mapaSnapshot[codUpper] = {
+          codigo: d.codigo,
+          titulo: d.titulo,
+          version: this.normalizarVersion(d.version),
+          tipoDocumento: esReg ? 'Registro Derivado' : (d.tipoDocumento || 'Formato'),
+          tipoProceso: d.tipoProceso,
+          area: d.area,
+          proceso: d.proceso,
+          carpeta: d.carpeta,
+          estadoDocumento: d.estadoDocumento,
+          disponible: d.disponible,
+          modificacion: d.modificacion,
+          sharepointUrl: d.sharepointUrl,
+          esRegistro: esReg,
+          documentoPadreCodigo: codPadre
+        };
+      };
+
       documentos.forEach((d) => {
         if (d && d.codigo) {
-          mapaSnapshot[d.codigo.trim().toUpperCase()] = {
-            codigo: d.codigo,
-            titulo: d.titulo,
-            version: this.normalizarVersion(d.version),
-            tipoDocumento: d.tipoDocumento,
-            tipoProceso: d.tipoProceso,
-            area: d.area,
-            proceso: d.proceso,
-            carpeta: d.carpeta,
-            estadoDocumento: d.estadoDocumento,
-            disponible: d.disponible,
-            modificacion: d.modificacion,
-            sharepointUrl: d.sharepointUrl
-          };
+          procesarItem(d, Boolean(d.esRegistro), d.documentoPadreCodigo || '');
+          if (Array.isArray(d.registrosDerivados)) {
+            d.registrosDerivados.forEach((reg) => {
+              if (reg && reg.codigo) {
+                procesarItem({
+                  ...reg,
+                  tipoProceso: reg.tipoProceso || d.tipoProceso,
+                  area: reg.area || d.area,
+                  proceso: reg.proceso || d.proceso
+                }, true, d.codigo);
+              }
+            });
+          }
         }
       });
       localStorage.setItem('agy_sgc_documents_snapshot', JSON.stringify(mapaSnapshot));
@@ -2782,9 +2863,9 @@ export class StaffService {
   }
 
   /**
-   * Analiza la lista actual de documentos contra la última snapshot conocida
+   * Analiza la lista actual de documentos (y sus registros derivados) contra la última snapshot conocida
    * Detecta y registra automáticamente en auditoría y control de cambios:
-   * - CREACION (nuevo documento)
+   * - CREACION (nuevo documento o nuevo registro derivado)
    * - CAMBIO_VERSION (actualización de versión)
    * - CAMBIO_RUTA (traslado de proceso/área)
    * - CAMBIO_TIPO (modificación de tipo de documento)
@@ -2803,39 +2884,74 @@ export class StaffService {
     const mapaActual = {};
     let cambiosDetectados = 0;
 
+    const listaCompleta = [];
     documentosActuales.forEach((doc) => {
+      if (!doc || !doc.codigo) return;
+      listaCompleta.push({
+        ...doc,
+        esRegistro: Boolean(doc.esRegistro),
+        documentoPadreCodigo: doc.documentoPadreCodigo || ''
+      });
+      if (Array.isArray(doc.registrosDerivados)) {
+        doc.registrosDerivados.forEach((reg) => {
+          if (reg && reg.codigo) {
+            listaCompleta.push({
+              ...reg,
+              esRegistro: true,
+              documentoPadreCodigo: doc.codigo,
+              tipoProceso: reg.tipoProceso || doc.tipoProceso,
+              area: reg.area || doc.area,
+              proceso: reg.proceso || doc.proceso,
+              tipoDocumento: 'Registro Derivado'
+            });
+          }
+        });
+      }
+    });
+
+    listaCompleta.forEach((doc) => {
       if (!doc || !doc.codigo) return;
       const codUpper = doc.codigo.trim().toUpperCase();
       mapaActual[codUpper] = doc;
 
       const anterior = snapshotAnterior[codUpper];
+      const esReg = Boolean(doc.esRegistro || doc.documentoPadreCodigo || /-[0-9]+$/.test(doc.codigo));
+      const codPadre = doc.documentoPadreCodigo || (/-[0-9]+$/.test(doc.codigo) ? doc.codigo.replace(/-[0-9]+$/, '') : '');
 
-      // 1. NUEVO DOCUMENTO (CREACION)
+      // 1. NUEVO DOCUMENTO O REGISTRO DERIVADO (CREACION)
       if (!anterior) {
         this.registrarAuditoria('CREACION', {
           documentoCodigo: doc.codigo,
           documentoTitulo: doc.titulo,
           documentoExtension: doc.extension || 'DOC',
+          esRegistro: esReg,
+          documentoPadreCodigo: codPadre,
           usuario: sesionUsuario?.nombre || 'Administrador SGC',
           identificacion: sesionUsuario?.identificacion || 'N/A',
           cargo: sesionUsuario?.cargo || 'Control Calidad',
           perfil: sesionUsuario?.perfil || 'total',
-          detalle: `Nuevo documento incorporado al catálogo (${doc.codigo} - ${doc.titulo})`
+          detalle: esReg
+            ? `Nuevo registro derivado incorporado al catálogo (${doc.codigo} - ${doc.titulo})`
+            : `Nuevo documento incorporado al catálogo (${doc.codigo} - ${doc.titulo})`
         });
         this.registrarCambioDocumental('CREACION', {
           codigo: doc.codigo,
           titulo: doc.titulo,
+          esRegistro: esReg,
+          documentoPadreCodigo: codPadre,
           versionAnterior: 'N/A',
           versionNueva: this.normalizarVersion(doc.version || '1'),
           rutaAnterior: 'N/A',
           rutaNueva: `${doc.tipoProceso || 'N/A'} / ${doc.area || 'N/A'} / ${doc.proceso || 'N/A'}`,
           tipoAnterior: 'N/A',
-          tipoNuevo: doc.tipoDocumento || 'Documento Anexo',
+          tipoNuevo: doc.tipoDocumento || (esReg ? 'Registro Derivado' : 'Documento Anexo'),
           usuario: sesionUsuario?.nombre || 'Administrador SGC',
           identificacion: sesionUsuario?.identificacion || 'N/A',
           cargo: sesionUsuario?.cargo || 'Control Calidad',
           perfil: sesionUsuario?.perfil || 'total',
-          detalle: `Nuevo documento incorporado al catálogo (${doc.codigo})`,
+          detalle: esReg
+            ? `Registro derivado incorporado al catálogo (${doc.codigo} - ${doc.titulo})`
+            : `Nuevo documento incorporado al catálogo (${doc.codigo})`,
           sharepointUrl: doc.sharepointUrl || ''
         });
         cambiosDetectados++;
@@ -2850,11 +2966,17 @@ export class StaffService {
           documentoCodigo: doc.codigo,
           documentoTitulo: doc.titulo,
           documentoExtension: doc.extension || 'DOC',
-          detalle: `Actualización de versión en catálogo (${doc.codigo}): ${vAnt} ➔ ${vAct}`
+          esRegistro: esReg,
+          documentoPadreCodigo: codPadre,
+          detalle: esReg
+            ? `Actualización de versión de registro derivado (${doc.codigo}): ${vAnt} ➔ ${vAct}`
+            : `Actualización de versión en catálogo (${doc.codigo}): ${vAnt} ➔ ${vAct}`
         });
         this.registrarCambioDocumental('CAMBIO_VERSION', {
           codigo: doc.codigo,
           titulo: doc.titulo,
+          esRegistro: esReg,
+          documentoPadreCodigo: codPadre,
           versionAnterior: vAnt,
           versionNueva: vAct,
           rutaAnterior: `${anterior.tipoProceso || 'N/A'} / ${anterior.area || 'N/A'} / ${anterior.proceso || 'N/A'}`,
@@ -2865,7 +2987,9 @@ export class StaffService {
           identificacion: sesionUsuario?.identificacion || 'N/A',
           cargo: sesionUsuario?.cargo || 'Calidad',
           perfil: sesionUsuario?.perfil || 'total',
-          detalle: `Actualización de versión en hoja de cálculo: ${vAnt} ➔ ${vAct}`,
+          detalle: esReg
+            ? `Actualización de versión de registro derivado: ${vAnt} ➔ ${vAct}`
+            : `Actualización de versión en hoja de cálculo: ${vAnt} ➔ ${vAct}`,
           sharepointUrl: doc.sharepointUrl || ''
         });
         cambiosDetectados++;
@@ -2895,11 +3019,17 @@ export class StaffService {
           documentoCodigo: doc.codigo,
           documentoTitulo: doc.titulo,
           documentoExtension: doc.extension || 'DOC',
-          detalle: `Modificación de metadatos en catálogo (${doc.codigo}): ${cambiosList.join(' • ')}`
+          esRegistro: esReg,
+          documentoPadreCodigo: codPadre,
+          detalle: esReg
+            ? `Modificación de metadatos de registro derivado (${doc.codigo}): ${cambiosList.join(' • ')}`
+            : `Modificación de metadatos en catálogo (${doc.codigo}): ${cambiosList.join(' • ')}`
         });
         this.registrarCambioDocumental('CAMBIO_METADATOS', {
           codigo: doc.codigo,
           titulo: doc.titulo,
+          esRegistro: esReg,
+          documentoPadreCodigo: codPadre,
           versionAnterior: vAct || vAnt || '01',
           versionNueva: vAct || vAnt || '01',
           rutaAnterior: `${anterior.tipoProceso || 'N/A'} / ${anterior.area || 'N/A'} / ${anterior.proceso || 'N/A'}`,
@@ -2910,7 +3040,9 @@ export class StaffService {
           identificacion: sesionUsuario?.identificacion || 'N/A',
           cargo: sesionUsuario?.cargo || 'Calidad',
           perfil: sesionUsuario?.perfil || 'total',
-          detalle: `Modificación de metadatos en hoja de cálculo: ${cambiosList.join(' • ')}`,
+          detalle: esReg
+            ? `Modificación de metadatos de registro derivado: ${cambiosList.join(' • ')}`
+            : `Modificación de metadatos en hoja de cálculo: ${cambiosList.join(' • ')}`,
           sharepointUrl: doc.sharepointUrl || ''
         });
         cambiosDetectados++;
@@ -2923,6 +3055,8 @@ export class StaffService {
         this.registrarCambioDocumental('EDICION_SHAREPOINT', {
           codigo: doc.codigo,
           titulo: doc.titulo,
+          esRegistro: esReg,
+          documentoPadreCodigo: codPadre,
           versionAnterior: doc.version || '01',
           versionNueva: doc.version || '01',
           rutaAnterior: `${doc.tipoProceso || 'N/A'} / ${doc.area || 'N/A'} / ${doc.proceso || 'N/A'}`,
@@ -2935,7 +3069,9 @@ export class StaffService {
           identificacion: sesionUsuario?.identificacion || 'N/A',
           cargo: sesionUsuario?.cargo || 'Control Calidad',
           perfil: sesionUsuario?.perfil || 'total',
-          detalle: `Edición de archivo físico en SharePoint. Previa: ${mAnt} ➔ Actual: ${mAct}`,
+          detalle: esReg
+            ? `Edición de archivo físico de registro derivado en SharePoint. Previa: ${mAnt} ➔ Actual: ${mAct}`
+            : `Edición de archivo físico en SharePoint. Previa: ${mAnt} ➔ Actual: ${mAct}`,
           fechaHora: mAct,
           sharepointUrl: doc.sharepointUrl || ''
         });
@@ -2955,15 +3091,24 @@ export class StaffService {
           return;
         }
 
+        const esReg = Boolean(docEliminado.esRegistro || docEliminado.documentoPadreCodigo || /-[0-9]+$/.test(docEliminado.codigo || ''));
+        const codPadre = docEliminado.documentoPadreCodigo || (/-[0-9]+$/.test(docEliminado.codigo || '') ? docEliminado.codigo.replace(/-[0-9]+$/, '') : '');
+
         this.registrarAuditoria('ELIMINACION', {
           documentoCodigo: docEliminado.codigo,
           documentoTitulo: docEliminado.titulo,
           documentoExtension: docEliminado.extension || 'DOC',
-          detalle: `Documento retirado o marcado como obsoleto (${docEliminado.codigo})`
+          esRegistro: esReg,
+          documentoPadreCodigo: codPadre,
+          detalle: esReg
+            ? `Registro derivado retirado o marcado como obsoleto (${docEliminado.codigo})`
+            : `Documento retirado o marcado como obsoleto (${docEliminado.codigo})`
         });
         this.registrarCambioDocumental('ELIMINACION', {
           codigo: docEliminado.codigo,
           titulo: docEliminado.titulo,
+          esRegistro: esReg,
+          documentoPadreCodigo: codPadre,
           versionAnterior: docEliminado.version || '01',
           versionNueva: 'Retirado / Obsoleto',
           rutaAnterior: `${docEliminado.tipoProceso || 'N/A'} / ${docEliminado.area || 'N/A'} / ${docEliminado.proceso || 'N/A'}`,
@@ -2974,7 +3119,9 @@ export class StaffService {
           identificacion: sesionUsuario?.identificacion || 'N/A',
           cargo: sesionUsuario?.cargo || 'Control Calidad',
           perfil: sesionUsuario?.perfil || 'total',
-          detalle: `Documento retirado o marcado como obsoleto (${docEliminado.codigo})`,
+          detalle: esReg
+            ? `Registro derivado retirado o marcado como obsoleto (${docEliminado.codigo})`
+            : `Documento retirado o marcado como obsoleto (${docEliminado.codigo})`,
           sharepointUrl: docEliminado.sharepointUrl || ''
         });
         cambiosDetectados++;
@@ -2999,6 +3146,14 @@ export class StaffService {
         eventos = eventos.filter((ev) => ['CAMBIO_METADATOS', 'CAMBIO_RUTA', 'CAMBIO_TIPO', 'METADATOS'].includes((ev.tipoEvento || '').toUpperCase()));
       } else if (fUpper === 'EDICION_SHAREPOINT') {
         eventos = eventos.filter((ev) => ['EDICION_SHAREPOINT', 'EDICION'].includes((ev.tipoEvento || '').toUpperCase()));
+      } else if (fUpper === 'REGISTROS') {
+        eventos = eventos.filter((ev) => Boolean(
+          ev.esRegistro || 
+          ev.documentoPadreCodigo || 
+          /-[0-9]+$/.test(ev.codigo || '') || 
+          (ev.detalle || '').toLowerCase().includes('registro derivado') || 
+          (ev.tipoNuevo || '').toLowerCase().includes('registro')
+        ));
       } else {
         eventos = eventos.filter((ev) => (ev.tipoEvento || '').toUpperCase() === fUpper);
       }

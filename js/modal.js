@@ -3,8 +3,8 @@
  * Unión para la salud y la vida S.A.S.
  */
 
-import { sharepointService, determinarEstrategiaDescarga, esDocumentoFMT } from './sharepoint-service.js?v=11.6.77';
-import { staffService } from './staff-service.js?v=11.6.77';
+import { sharepointService, determinarEstrategiaDescarga, esDocumentoFMT } from './sharepoint-service.js?v=11.6.79';
+import { staffService } from './staff-service.js?v=11.6.79';
 
 const STORAGE_KEY_USER_PROFILE = 'agy_user_profile';
 
@@ -4708,7 +4708,7 @@ export class ModalManager {
       errBox.style.display = 'none';
 
       const esRegistroDoc = Boolean(document.getElementById('nd-subclase-registro')?.checked);
-      const codigo = document.getElementById('nd-codigo').value.trim().toUpperCase();
+      let codigo = document.getElementById('nd-codigo').value.trim().toUpperCase();
       const titulo = document.getElementById('nd-titulo').value.trim();
       const version = staffService.formatearVersion(document.getElementById('nd-version').value.trim() || 'v01');
       const tipoProceso = document.getElementById('nd-tipo-proceso').value;
@@ -4728,6 +4728,22 @@ export class ModalManager {
       const permDir = document.getElementById('nd-perm-dir').checked;
       const descargable = document.getElementById('nd-descargable').checked;
 
+      const codPadre = esRegistroDoc
+        ? (document.getElementById('nd-select-padre')?.value || codigo.replace(/-(\d+)$/, ''))
+        : null;
+      const docPadreRef = esRegistroDoc
+        ? (sharepointService.documentosEnMemoria || []).find((d) => (d.codigo || '').toUpperCase() === (codPadre || '').toUpperCase() && !d.esRegistro)
+        : null;
+
+      // Garantizar que un registro derivado siempre tenga el sufijo consecutivo -N
+      if (esRegistroDoc && docPadreRef) {
+        if (!/-(\d+)$/.test(codigo) || codigo === (docPadreRef.codigo || '').toUpperCase()) {
+          codigo = sharepointService.calcularSiguienteCodigoRegistro 
+            ? sharepointService.calcularSiguienteCodigoRegistro(docPadreRef) 
+            : `${docPadreRef.codigo}-1`;
+        }
+      }
+
       const partesCod = codigo.split('-');
       const prefijoSigla = partesCod[0] || (esRegistroDoc ? 'FMT' : 'DA');
       const areaSigla = partesCod[1] || 'GMD';
@@ -4742,12 +4758,6 @@ export class ModalManager {
       btnSave.disabled = true;
       btnSave.innerHTML = `<span>⏳</span> ${esRegistroDoc ? 'Guardando registro...' : 'Guardando documento...'}`;
 
-      const codPadre = esRegistroDoc
-        ? (document.getElementById('nd-select-padre')?.value || codigo.replace(/-(\d+)$/, ''))
-        : null;
-      const docPadreRef = esRegistroDoc
-        ? (sharepointService.documentosEnMemoria || []).find((d) => (d.codigo || '').toUpperCase() === (codPadre || '').toUpperCase() && !d.esRegistro)
-        : null;
       const formatoHeredado = docPadreRef?.formato || (prefijoSigla === 'FMT' ? 'Word' : 'PDF');
       const extensionHeredada = docPadreRef?.extension || (formatoHeredado === 'Excel' ? 'XLS' : (formatoHeredado === 'Word' ? 'DOC' : 'PDF'));
 
@@ -4808,6 +4818,8 @@ export class ModalManager {
             documentoCodigo: codigo,
             documentoTitulo: titulo,
             documentoExtension: nuevoDocumentoObj.extension || extensionHeredada,
+            esRegistro: esRegistroDoc,
+            documentoPadreCodigo: esRegistroDoc ? (docPadreRef?.codigo || codPadre) : '',
             detalle: esRegistroDoc
               ? `Nuevo registro derivado creado (${codigo} - ${titulo})`
               : `Nuevo documento incorporado al catálogo (${codigo} - ${titulo})`
@@ -4817,6 +4829,8 @@ export class ModalManager {
           staffService.registrarCambioDocumental('CREACION', {
             codigo: codigo,
             titulo: titulo,
+            esRegistro: esRegistroDoc,
+            documentoPadreCodigo: esRegistroDoc ? (docPadreRef?.codigo || codPadre) : '',
             versionAnterior: 'N/A',
             versionNueva: version,
             rutaAnterior: 'N/A',
@@ -5135,6 +5149,8 @@ export class ModalManager {
             {
               codigo: doc.codigo,
               titulo: titulo,
+              esRegistro: esRegistro,
+              documentoPadreCodigo: doc.documentoPadreCodigo || '',
               versionAnterior: staffService.normalizarVersion(doc.version || '1'),
               versionNueva: staffService.normalizarVersion(version || '1'),
               rutaAnterior: `${doc.tipoProceso || ''} / ${doc.area || ''} / ${doc.proceso || ''}`,
@@ -5153,6 +5169,8 @@ export class ModalManager {
             documentoCodigo: doc.codigo,
             documentoTitulo: titulo,
             documentoExtension: doc.extension,
+            esRegistro: esRegistro,
+            documentoPadreCodigo: doc.documentoPadreCodigo || '',
             detalle: esRegistro
               ? `Modificación de metadatos de registro derivado (${doc.codigo} - ${titulo}): ${tipoCambio || 'Datos actualizados en catálogo'}`
               : `Modificación de metadatos (${doc.codigo}): ${tipoCambio || 'Datos actualizados en catálogo'}`
@@ -5523,25 +5541,36 @@ export class ModalManager {
 
       const res = await sharepointService.eliminarDocumento(doc.codigo, motivo, borradoFisico);
       if (res.exito) {
+        const esRegDoc = Boolean(doc.esRegistro || doc.documentoPadreCodigo || /-[0-9]+$/.test(doc.codigo || ''));
+        const codPadreDoc = doc.documentoPadreCodigo || (/-[0-9]+$/.test(doc.codigo || '') ? doc.codigo.replace(/-[0-9]+$/, '') : '');
+
         // 1. Registrar en Auditoría Institucional
         staffService.registrarAuditoria('ELIMINACION', {
           documentoCodigo: doc.codigo,
           documentoTitulo: doc.titulo,
           documentoExtension: doc.extension,
-          detalle: `Documento retirado del catálogo: ${motivo}`
+          esRegistro: esRegDoc,
+          documentoPadreCodigo: codPadreDoc,
+          detalle: esRegDoc
+            ? `Registro derivado retirado del catálogo: ${motivo}`
+            : `Documento retirado del catálogo: ${motivo}`
         });
 
         // 2. Registrar en Control de Cambios Documentales
         staffService.registrarCambioDocumental('ELIMINACION', {
           codigo: doc.codigo,
           titulo: doc.titulo,
+          esRegistro: esRegDoc,
+          documentoPadreCodigo: codPadreDoc,
           versionAnterior: staffService.normalizarVersion(doc.version || '1'),
           versionNueva: 'Retirado / Obsoleto',
           rutaAnterior: `${doc.tipoProceso || ''} / ${doc.area || ''} / ${doc.proceso || ''}`,
           rutaNueva: 'Archivo Inactivo / Fuera de Catálogo',
           tipoAnterior: doc.tipoDocumento || '',
           tipoNuevo: 'N/A',
-          detalle: `Documento retirado del catálogo: ${motivo}`
+          detalle: esRegDoc
+            ? `Registro derivado retirado del catálogo: ${motivo}`
+            : `Documento retirado del catálogo: ${motivo}`
         });
 
         this.cerrarModal();
