@@ -5,7 +5,7 @@
  */
 
 import { DOCUMENTOS_REALES, URL_ORIGEN_CSV } from './data.js?v=11.6.31';
-import { cacheService } from './cache-service.js?v=11.6.61';
+import { cacheService } from './cache-service.js?v=11.6.62';
 
 
 export const MAPA_NORMALIZACION_AREAS = {
@@ -628,7 +628,7 @@ export class DataService {
         tipoDoc = mapaTipos[prefijo] || 'Documento Anexo';
       }
 
-      mapa.set(codigo.toUpperCase(), {
+      const itemOD = {
         codigo: codigo,
         titulo: titulo,
         extension: extension,
@@ -641,10 +641,55 @@ export class DataService {
         modificacion: modificacion,
         sharepointUrl: vinculoEdicion || vinculoDescarga,
         downloadUrl: vinculoDescarga || vinculoEdicion
-      });
+      };
+
+      const codUpper = codigo.toUpperCase();
+      // Guardar el primero como referencia base por código
+      if (!mapa.has(codUpper)) {
+        mapa.set(codUpper, itemOD);
+      }
+      // Guardar por clave compuesta (código + título normalizado) para vincular archivos con nombre único
+      const tNorm = this.normalizarTexto(titulo);
+      if (tNorm) {
+        mapa.set(`${codUpper}::${tNorm}`, itemOD);
+      }
+      // Guardar en la lista acumulada de ese código
+      const claveLista = `_LISTA_${codUpper}`;
+      if (!mapa.has(claveLista)) {
+        mapa.set(claveLista, []);
+      }
+      mapa.get(claveLista).push(itemOD);
     }
 
     return mapa;
+  }
+
+  /**
+   * Busca de forma resiliente un archivo en el mapa de OneDrive considerando código y nombre único diferencial
+   */
+  buscarEnOneDriveMap(onedriveMap, codigo, titulo = '') {
+    if (!onedriveMap || !codigo) return null;
+    const codUpper = (codigo || '').trim().toUpperCase();
+    const tNorm = this.normalizarTexto(titulo);
+
+    if (tNorm) {
+      const claveCompuesta = `${codUpper}::${tNorm}`;
+      if (onedriveMap.has(claveCompuesta)) {
+        return onedriveMap.get(claveCompuesta);
+      }
+      const lista = onedriveMap.get(`_LISTA_${codUpper}`);
+      if (Array.isArray(lista) && lista.length > 0) {
+        const exacto = lista.find((it) => this.normalizarTexto(it.titulo) === tNorm);
+        if (exacto) return exacto;
+        const parcial = lista.find((it) => {
+          const itNorm = this.normalizarTexto(it.titulo);
+          return itNorm.includes(tNorm) || tNorm.includes(itNorm);
+        });
+        if (parcial) return parcial;
+      }
+    }
+
+    return onedriveMap.get(codUpper) || null;
   }
 
   /**
@@ -693,8 +738,11 @@ export class DataService {
     const idxFechaVencimiento = getColIndex(['fechadevencimiento', 'vencimiento'], 18);
     const idxEstado = getColIndex(['estadoactual', 'estado'], 19);
     const idxTipoDoc = getColIndex(['tipodedocumento', 'tipodocumento', 'tipo'], 1);
+    const idxSubclase = getColIndex(['subclase', 'nivel', 'niveldocumental', 'tiporegistro', 'jerarquia', 'clasedocumento'], -1);
 
     const filas = [];
+    const mapaDocsBase = new Map();
+    const registrosPendientes = [];
 
     for (let i = 1; i < lineas.length; i++) {
       const linea = lineas[i];
@@ -716,7 +764,7 @@ export class DataService {
       }
 
       const codUpper = codigo.toUpperCase();
-      const odData = onedriveMap?.get(codUpper) || null;
+      const odData = this.buscarEnOneDriveMap(onedriveMap, codUpper, tituloGS);
       const baseDoc = DOCUMENTOS_REALES.find((d) => d.codigo && d.codigo.toUpperCase() === codUpper) || null;
 
       // 1. Estado y exclusión de obsoletos, inactivos y retirados de la hoja
@@ -799,39 +847,107 @@ export class DataService {
       const rawTipoProceso = (rawTipoProcesoGS && rawTipoProcesoGS !== 'N/A' && rawTipoProcesoGS !== '') ? rawTipoProcesoGS : (odData?.tipoProceso || baseDoc?.tipoProceso || '');
       const tipoProceso = normalizarTipoProcesoDoc(rawTipoProceso, area, codigo);
 
-      filas.push({
-        id: `doc-${String(i).padStart(3, '0')}`,
-        codigo: codigo,
-        titulo: titulo,
-        formato: formato,
-        extension: extension,
-        estado: disponible ? 'DISPONIBLE' : 'NO DISPONIBLE',
-        disponible: disponible,
-        descargable: descargable,
-        permisoOperativo: permisoOperativo,
-        permisoAdministrativo: permisoAdministrativo,
-        permisoDirectivo: permisoDirectivo,
-        estadoDocumento: estadoRaw,
-        tipoProceso: tipoProceso,
-        area: area,
-        proceso: proceso,
-        carpeta: proceso,
-        tipoDocumento: normalizarTipoDocumentoDoc(tipoDoc, codigo),
-        modificacion: modificacion,
-        version: version,
-        vigencia: vigencia,
-        tiempoRetencion: tiempoRetencion,
-        tiempo: tiempoRetencion,
-        tiempoVigencia: tiempoRetencion,
-        lugar: lugar,
-        lugarArchivo: lugar,
-        fechaVencimiento: fechaVencimiento,
-        tipoCambio: tipoCambio,
-        descripcion: `${tipoDoc} para ${area} dentro del proceso ${proceso}.`,
-        sharepointUrl: sharepointUrl,
-        downloadUrl: downloadUrl
-      });
+      const subclaseRaw = idxSubclase !== -1 && valores[idxSubclase] ? valores[idxSubclase].trim().toLowerCase() : '';
+      const esRegistro = subclaseRaw.includes('registro') || subclaseRaw.includes('derivado');
+
+      if (!esRegistro) {
+        const docBase = {
+          id: `doc-${String(i).padStart(3, '0')}`,
+          codigo: codigo,
+          titulo: titulo,
+          formato: formato,
+          extension: extension,
+          estado: disponible ? 'DISPONIBLE' : 'NO DISPONIBLE',
+          disponible: disponible,
+          descargable: descargable,
+          permisoOperativo: permisoOperativo,
+          permisoAdministrativo: permisoAdministrativo,
+          permisoDirectivo: permisoDirectivo,
+          estadoDocumento: estadoRaw,
+          tipoProceso: tipoProceso,
+          area: area,
+          proceso: proceso,
+          carpeta: proceso,
+          tipoDocumento: normalizarTipoDocumentoDoc(tipoDoc, codigo),
+          subclase: 'Base',
+          esRegistro: false,
+          registrosDerivados: [],
+          modificacion: modificacion,
+          version: version,
+          vigencia: vigencia,
+          tiempoRetencion: tiempoRetencion,
+          tiempo: tiempoRetencion,
+          tiempoVigencia: tiempoRetencion,
+          lugar: lugar,
+          lugarArchivo: lugar,
+          fechaVencimiento: fechaVencimiento,
+          tipoCambio: tipoCambio,
+          descripcion: `${tipoDoc} para ${area} dentro del proceso ${proceso}.`,
+          sharepointUrl: sharepointUrl,
+          downloadUrl: downloadUrl
+        };
+        filas.push(docBase);
+        mapaDocsBase.set(codUpper, docBase);
+      } else {
+        const registroObj = {
+          id: `${codUpper}_REG_${String(i).padStart(3, '0')}`,
+          codigo: codigo,
+          titulo: titulo,
+          formato: formato,
+          extension: extension,
+          estado: disponible ? 'DISPONIBLE' : 'NO DISPONIBLE',
+          disponible: disponible,
+          descargable: descargable,
+          permisoOperativo: permisoOperativo,
+          permisoAdministrativo: permisoAdministrativo,
+          permisoDirectivo: permisoDirectivo,
+          estadoDocumento: estadoRaw,
+          tipoProceso: tipoProceso,
+          area: area,
+          proceso: proceso,
+          carpeta: proceso,
+          tipoDocumento: normalizarTipoDocumentoDoc(tipoDoc, codigo),
+          subclase: 'Registro',
+          esRegistro: true,
+          documentoPadreCodigo: codUpper,
+          modificacion: modificacion,
+          version: version,
+          vigencia: vigencia,
+          tiempoRetencion: tiempoRetencion,
+          tiempo: tiempoRetencion,
+          tiempoVigencia: tiempoRetencion,
+          lugar: lugar,
+          lugarArchivo: lugar,
+          fechaVencimiento: fechaVencimiento,
+          tipoCambio: tipoCambio,
+          descripcion: `${tipoDoc} (Registro Derivado) para ${area} dentro del proceso ${proceso}.`,
+          sharepointUrl: sharepointUrl,
+          downloadUrl: downloadUrl
+        };
+        if (mapaDocsBase.has(codUpper)) {
+          mapaDocsBase.get(codUpper).registrosDerivados.push(registroObj);
+        } else {
+          registrosPendientes.push({ codUpper, registroObj });
+        }
+      }
     }
+
+    // Vincular registros derivados pendientes con su documento base
+    registrosPendientes.forEach(({ codUpper, registroObj }) => {
+      if (mapaDocsBase.has(codUpper)) {
+        mapaDocsBase.get(codUpper).registrosDerivados.push(registroObj);
+      } else {
+        const docBaseSintetico = {
+          ...registroObj,
+          id: codUpper,
+          subclase: 'Base',
+          esRegistro: false,
+          registrosDerivados: [registroObj]
+        };
+        filas.push(docBaseSintetico);
+        mapaDocsBase.set(codUpper, docBaseSintetico);
+      }
+    });
 
     // 8. Incorporar cualquier documento de onedriveMap que tenga URLs activas pero no esté aún en filas de Google Sheets
     if (onedriveMap && onedriveMap.size > 0) {
@@ -839,6 +955,7 @@ export class DataService {
       let extraIdx = filas.length + 1;
       onedriveMap.forEach((od, cod) => {
         const codUpper = (cod || '').trim().toUpperCase();
+        if (codUpper.includes('::') || codUpper.startsWith('_LISTA_')) return;
         if (codUpper && !codigosEnFilas.has(codUpper)) {
           const tieneUrl = Boolean(
             (od.sharepointUrl && od.sharepointUrl.trim() !== '' && od.sharepointUrl !== '#') ||
@@ -913,6 +1030,9 @@ export class DataService {
       if (!od) return docBase;
       return {
         ...docBase,
+        subclase: docBase.subclase || 'Base',
+        esRegistro: Boolean(docBase.esRegistro),
+        registrosDerivados: Array.isArray(docBase.registrosDerivados) ? docBase.registrosDerivados : [],
         extension: od.extension || docBase.extension,
         formato: od.formato || docBase.formato,
         proceso: od.proceso || docBase.proceso,

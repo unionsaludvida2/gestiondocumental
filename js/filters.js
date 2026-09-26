@@ -309,8 +309,25 @@ export class FilterEngine {
       const busquedaNorm = this.removerTildes(this.estado.busqueda);
       const palabras = busquedaNorm.split(/\s+/).filter(Boolean);
       filtrados = filtrados.filter((doc) => {
+        doc.registroCoincidente = null;
         const textoDoc = this.removerTildes(`${doc.codigo || ''} ${doc.titulo || ''} ${doc.tipoProceso || ''} ${doc.area || ''} ${doc.proceso || ''} ${doc.tipoDocumento || ''} ${doc.formato || ''} ${doc.descripcion || ''} ${doc.extension || ''}`);
-        return palabras.every((p) => textoDoc.includes(p));
+        const coincideBase = palabras.every((p) => textoDoc.includes(p));
+        if (coincideBase) {
+          return true;
+        }
+
+        // Búsqueda recursiva en registros derivados
+        if (Array.isArray(doc.registrosDerivados) && doc.registrosDerivados.length > 0) {
+          for (const reg of doc.registrosDerivados) {
+            const textoReg = this.removerTildes(`${reg.codigo || ''} ${reg.titulo || ''} ${reg.descripcion || ''} ${reg.extension || ''}`);
+            if (palabras.every((p) => textoReg.includes(p))) {
+              doc.registroCoincidente = reg;
+              return true;
+            }
+          }
+        }
+
+        return false;
       });
     }
 

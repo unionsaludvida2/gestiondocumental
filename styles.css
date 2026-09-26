@@ -4722,3 +4722,95 @@ body:not(.auth-required) .main-layout {
   filter: brightness(0.92);
 }
 
+/* ==========================================================================
+   SUBCLASE DE DOCUMENTOS: REGISTROS DERIVADOS DE FORMATOS BASE
+   ========================================================================== */
+
+.badge-subclase-registros {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.card-match-registro {
+  background: #fffbeb;
+  border: 1px solid #fde047;
+  color: #854d0e;
+  padding: 5px 9px;
+  border-radius: 6px;
+  font-size: 0.74rem;
+  font-weight: 600;
+  margin-top: 6px;
+  line-height: 1.35;
+  box-shadow: 0 1px 2px rgba(234, 179, 8, 0.15);
+}
+
+.table-match-registro {
+  font-size: 0.72rem;
+  color: #b45309;
+  font-weight: 700;
+  margin-top: 2px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.table-subrow-registro {
+  transition: background-color 0.2s ease;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.table-subrow-registro:hover {
+  background-color: #f1f5f9 !important;
+}
+
+.table-subrow-registro.subrow-coincidente {
+  background-color: #fffbeb !important;
+}
+
+.btn-toggle-subrows {
+  transition: all 0.15s ease;
+}
+
+.btn-toggle-subrows:hover {
+  background-color: #dbeafe !important;
+  color: #1d4ed8 !important;
+}
+
+.drawer-registro-card {
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.drawer-registro-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+.drawer-registro-card.registro-coincidente-active {
+  animation: pulse-border 2s infinite ease-in-out;
+}
+
+@keyframes pulse-border {
+  0% { border-color: #f59e0b; box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.4); }
+  50% { border-color: #d97706; box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.15); }
+  100% { border-color: #f59e0b; box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
+}
+
+.suggestion-meta-reg {
+  background: #fef3c7 !important;
+  color: #92400e !important;
+  border: 1px solid #fde68a !important;
+  font-weight: 700 !important;
+  font-size: 0.70rem !important;
+  padding: 1px 6px !important;
+  border-radius: 8px !important;
+}
+

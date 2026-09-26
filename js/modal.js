@@ -3,8 +3,8 @@
  * Unión para la salud y la vida S.A.S.
  */
 
-import { sharepointService, determinarEstrategiaDescarga, esDocumentoFMT } from './sharepoint-service.js?v=11.6.61';
-import { staffService } from './staff-service.js?v=11.6.61';
+import { sharepointService, determinarEstrategiaDescarga, esDocumentoFMT } from './sharepoint-service.js?v=11.6.62';
+import { staffService } from './staff-service.js?v=11.6.62';
 
 const STORAGE_KEY_USER_PROFILE = 'agy_user_profile';
 
@@ -264,9 +264,9 @@ export class ModalManager {
   }
 
   /**
-   * Panel Lateral Deslizable (Drawer) con Ficha Técnica Completa, Historial y Acciones
+   * Panel Lateral Deslizable (Drawer) con Ficha Técnica Completa, Historial, Registros Derivados y Acciones
    */
-  abrirDrawerDocumento(doc, modoEdicion, onEditarSharePoint, onDescargar, onActualizarDoc = null, onEliminarDoc = null) {
+  abrirDrawerDocumento(doc, modoEdicion, onEditarSharePoint, onDescargar, onActualizarDoc = null, onEliminarDoc = null, pestanaInicial = null) {
     if (!this.drawerContainer) {
       this.crearContenedoresModal();
     }
@@ -351,6 +351,15 @@ export class ModalManager {
           <button type="button" class="doc-drawer-tab-btn active" data-tab="ficha">
             <span>📋</span> Ficha Técnica
           </button>
+          ${
+            Array.isArray(doc.registrosDerivados) && doc.registrosDerivados.length > 0
+              ? `
+              <button type="button" class="doc-drawer-tab-btn" data-tab="registros">
+                <span>📂</span> Registros Derivados (${doc.registrosDerivados.length})
+              </button>
+              `
+              : ''
+          }
           <button type="button" class="doc-drawer-tab-btn" data-tab="historial">
             <span>🕒</span> Historial & Versiones (${historialReal.length || 1})
           </button>
@@ -565,6 +574,58 @@ export class ModalManager {
             </div>
           </div>
 
+          <!-- PESTAÑA: REGISTROS DERIVADOS -->
+          ${
+            Array.isArray(doc.registrosDerivados) && doc.registrosDerivados.length > 0
+              ? `
+              <div class="drawer-tab-content" id="drawer-tab-registros" style="display: none; flex-direction: column; gap: 12px;">
+                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; font-size: 0.82rem; color: #475569; line-height: 1.4;">
+                  <strong>Registros asociados:</strong> Estos documentos derivan de este formato institucional y conservan la codificación <strong>${doc.codigo}</strong>, pero corresponden a implementaciones operativas específicas con títulos diferenciales.
+                </div>
+                <div class="drawer-registros-list" style="display: flex; flex-direction: column; gap: 10px;">
+                  ${doc.registrosDerivados.map((reg) => {
+                    const rExt = (reg.extension || 'DOC').toUpperCase();
+                    const rBadgeClass = rExt.includes('XLS') ? 'badge-xls' : (rExt.includes('PDF') ? 'badge-pdf' : 'badge-doc');
+                    const esCoincidente = doc.registroCoincidente && (doc.registroCoincidente.id === reg.id || doc.registroCoincidente.titulo === reg.titulo);
+                    return `
+                      <div class="drawer-registro-card ${esCoincidente ? 'registro-coincidente-active' : ''}" style="border: 1.5px solid ${esCoincidente ? '#f59e0b' : '#cbd5e1'}; border-radius: 8px; padding: 12px; background: ${esCoincidente ? '#fffbeb' : '#ffffff'}; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                        ${esCoincidente ? `<div style="font-size:0.72rem; color:#b45309; font-weight:700;">⭐ Coincidencia con tu búsqueda</div>` : ''}
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;">
+                          <div style="display: flex; align-items: center; gap: 6px;">
+                            <span class="badge ${rBadgeClass}" style="font-size: 0.70rem; padding: 2px 6px;">${rExt}</span>
+                            <span style="font-weight: 700; color: #1e293b; font-size: 0.85rem; line-height: 1.3;">${reg.titulo}</span>
+                          </div>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 4px;">
+                          <span style="font-size: 0.73rem; color: #64748b;">${staffService.formatearFechaHora(reg.modificacion)}</span>
+                          <div style="display: flex; gap: 6px;">
+                            ${reg.disponible
+                              ? `
+                              <button type="button" class="btn btn-secondary btn-reg-download" data-reg-id="${reg.id}" style="padding: 4px 10px; font-size: 0.75rem; font-weight: 600;" title="Descargar registro">
+                                📥 Descargar
+                              </button>
+                              ${modoEdicion
+                                ? `
+                                <button type="button" class="btn btn-primary btn-reg-edit" data-reg-id="${reg.id}" style="padding: 4px 10px; font-size: 0.75rem; font-weight: 600;" title="Editar registro en SharePoint">
+                                  ✏️ Editar
+                                </button>
+                                `
+                                : ''
+                              }
+                              `
+                              : `<span style="font-size: 0.74rem; color: #94a3b8;">No disponible</span>`
+                            }
+                          </div>
+                        </div>
+                      </div>
+                    `;
+                  }).join('')}
+                </div>
+              </div>
+              `
+              : ''
+          }
+
         </div>
 
         <!-- Pie de Acciones del Drawer -->
@@ -618,6 +679,43 @@ export class ModalManager {
         });
         const content = this.drawerContainer.querySelector(`#drawer-tab-${tab}`);
         if (content) content.style.display = 'flex';
+      });
+    });
+
+    // Activar pestaña inicial si se solicitó registros o si hubo coincidencia en un registro derivado
+    const debeAbrirRegistros = (pestanaInicial === 'registros' || (!pestanaInicial && Boolean(doc.registroCoincidente))) && Array.isArray(doc.registrosDerivados) && doc.registrosDerivados.length > 0;
+    if (debeAbrirRegistros) {
+      const btnReg = this.drawerContainer.querySelector('.doc-drawer-tab-btn[data-tab="registros"]');
+      if (btnReg) {
+        btnReg.click();
+      }
+    }
+
+    // Descarga y edición individual de Registros Derivados en el Drawer
+    this.drawerContainer.querySelectorAll('.btn-reg-download').forEach((btn) => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const regId = btn.getAttribute('data-reg-id');
+        const reg = (doc.registrosDerivados || []).find((r) => r.id === regId);
+        if (reg && onDescargar) {
+          btn.classList.add('btn-downloading');
+          try {
+            await onDescargar(reg);
+          } finally {
+            btn.classList.remove('btn-downloading');
+          }
+        }
+      });
+    });
+
+    this.drawerContainer.querySelectorAll('.btn-reg-edit').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const regId = btn.getAttribute('data-reg-id');
+        const reg = (doc.registrosDerivados || []).find((r) => r.id === regId);
+        if (reg && onEditarSharePoint) {
+          onEditarSharePoint(reg);
+        }
       });
     });
 

@@ -11,11 +11,11 @@
  * - Modo Edición: Desbloqueo Automático para Acceso Total y Contraseña Personal para Directivos y Administrativos
  */
 
-import { sharepointService, determinarEstrategiaDescarga, esDocumentoFMT } from './sharepoint-service.js?v=11.6.61';
-import { filterEngine } from './filters.js?v=11.6.61';
-import { modalManager } from './modal.js?v=11.6.61';
-import { analyticsManager } from './analytics.js?v=11.6.61';
-import { staffService } from './staff-service.js?v=11.6.61';
+import { sharepointService, determinarEstrategiaDescarga, esDocumentoFMT } from './sharepoint-service.js?v=11.6.62';
+import { filterEngine } from './filters.js?v=11.6.62';
+import { modalManager } from './modal.js?v=11.6.62';
+import { analyticsManager } from './analytics.js?v=11.6.62';
+import { staffService } from './staff-service.js?v=11.6.62';
 
 const STORAGE_KEY_EDIT_MODE = 'agy_sgc_edit_mode';
 const STORAGE_KEY_FAVORITES = 'agy_sgc_favorites';
@@ -1090,30 +1090,60 @@ class AppController {
       ? filterEngine.obtenerDocumentosFiltradosSinBusqueda(this.documentos, null, this.favoritos)
       : this.documentos;
 
-    const coincidencias = docsBase
-      .filter((d) => {
-        const texto = `${d.codigo || ''} ${d.titulo || ''}`
-          .toLowerCase()
-          .normalize('NFD')
-          .replace(/[\u0300-\u036f]/g, '');
-        return texto.includes(q);
-      })
-      .slice(0, 6);
+    const sugerencias = [];
+    for (const doc of docsBase) {
+      if (sugerencias.length >= 6) break;
+      const textoBase = `${doc.codigo || ''} ${doc.titulo || ''}`
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '');
 
-    if (coincidencias.length === 0) {
+      if (textoBase.includes(q)) {
+        sugerencias.push({
+          docId: doc.id,
+          codigo: doc.codigo,
+          titulo: doc.titulo,
+          meta: doc.area,
+          esRegistro: false
+        });
+      }
+
+      // Sugerencias en registros derivados
+      if (Array.isArray(doc.registrosDerivados)) {
+        for (const reg of doc.registrosDerivados) {
+          if (sugerencias.length >= 6) break;
+          const textoReg = `${reg.codigo || ''} ${reg.titulo || ''}`
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '');
+          if (textoReg.includes(q)) {
+            sugerencias.push({
+              docId: doc.id,
+              codigo: reg.codigo,
+              titulo: reg.titulo,
+              meta: `Registro de ${doc.codigo}`,
+              esRegistro: true,
+              registroTitulo: reg.titulo
+            });
+          }
+        }
+      }
+    }
+
+    if (sugerencias.length === 0) {
       this.el.searchSuggestions.style.display = 'none';
       return;
     }
 
-    this.el.searchSuggestions.innerHTML = coincidencias
+    this.el.searchSuggestions.innerHTML = sugerencias
       .map(
-        (doc) => `
-        <div class="suggestion-item" data-id="${doc.id}">
+        (item) => `
+        <div class="suggestion-item" data-id="${item.docId}" data-termino="${item.esRegistro ? item.registroTitulo : item.codigo}">
           <div class="suggestion-left">
-            <span class="suggestion-code">${doc.codigo}</span>
-            <span class="suggestion-title">${doc.titulo}</span>
+            <span class="suggestion-code">${item.codigo}</span>
+            <span class="suggestion-title">${item.titulo}</span>
           </div>
-          <span class="suggestion-meta">${doc.area}</span>
+          <span class="suggestion-meta ${item.esRegistro ? 'suggestion-meta-reg' : ''}">${item.meta}</span>
         </div>`
       )
       .join('');
@@ -1123,9 +1153,10 @@ class AppController {
     this.el.searchSuggestions.querySelectorAll('.suggestion-item').forEach((item) => {
       item.addEventListener('click', () => {
         const doc = this.documentos.find((d) => d.id === item.dataset.id);
-        if (doc) {
-          this.el.searchInput.value = doc.codigo;
-          filterEngine.setBusqueda(doc.codigo);
+        const term = item.dataset.termino || doc?.codigo;
+        if (doc && term) {
+          this.el.searchInput.value = term;
+          filterEngine.setBusqueda(term);
           this.el.searchSuggestions.style.display = 'none';
           this.aplicarFiltros();
         }
@@ -1580,6 +1611,29 @@ class AppController {
 
             <!-- Fila 3: Nombre del documento -->
             <h3 class="card-doc-title" title="${doc.titulo}">${doc.titulo}</h3>
+            ${
+              Array.isArray(doc.registrosDerivados) && doc.registrosDerivados.length > 0
+                ? `
+                <div style="display:flex; align-items:center; gap:6px; margin-top:4px; flex-wrap:wrap;">
+                  <span class="badge-subclase-registros" style="display:inline-flex; align-items:center; gap:4px; background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; padding:2px 8px; border-radius:12px; font-size:0.72rem; font-weight:700;" title="Este formato base posee ${doc.registrosDerivados.length} registros derivados">
+                    📂 ${doc.registrosDerivados.length} ${doc.registrosDerivados.length === 1 ? 'registro' : 'registros'}
+                  </span>
+                  <button type="button" class="btn-card-ver-registros" data-action="ver-registros" data-id="${doc.id}" style="background:transparent; border:none; color:#2563eb; font-size:0.74rem; font-weight:700; cursor:pointer; text-decoration:underline; padding:0;" title="Abrir pestaña de registros en la ficha técnica">
+                    Ver registros &rsaquo;
+                  </button>
+                </div>
+                `
+                : ''
+            }
+            ${
+              doc.registroCoincidente
+                ? `
+                <div class="card-match-registro" style="background:#fefce8; border:1px solid #fde047; color:#854d0e; padding:4px 8px; border-radius:6px; font-size:0.74rem; font-weight:600; margin-top:6px; line-height:1.3;">
+                  <span>🔍 Coincide con registro:</span> <strong>${doc.registroCoincidente.titulo}</strong>
+                </div>
+                `
+                : ''
+            }
 
             <!-- Resto de filas -->
             <div class="card-metadata-list" style="margin-top:6px;">
@@ -1702,10 +1756,30 @@ class AppController {
             <span class="badge ${extClass}" style="font-size: 0.70rem; padding: 1px 5px; font-weight: 700;">${doc.extension}</span>
           </td>
           <td class="col-codigo" style="width: 82px; font-family: var(--font-heading); font-weight: 700; color: #334155; font-size: 0.78rem; white-space: nowrap; padding: 6px 6px;">
-            ${doc.codigo}
+            <div style="display:flex; align-items:center; gap:4px;">
+              <span>${doc.codigo}</span>
+              ${
+                Array.isArray(doc.registrosDerivados) && doc.registrosDerivados.length > 0
+                  ? `
+                  <button type="button" class="btn-toggle-subrows" data-doc-id="${doc.id}" data-count="${doc.registrosDerivados.length}" title="Desplegar registros derivados (${doc.registrosDerivados.length})" style="background:#eff6ff; color:#2563eb; border:1px solid #bfdbfe; border-radius:10px; padding:1px 5px; font-size:0.68rem; font-weight:700; cursor:pointer;">
+                    +${doc.registrosDerivados.length}
+                  </button>
+                  `
+                  : ''
+              }
+            </div>
           </td>
           <td class="docs-table-title-cell" title="${doc.titulo}" style="padding: 6px 8px;">
             ${doc.titulo}
+            ${
+              doc.registroCoincidente
+                ? `
+                <div class="table-match-registro" style="font-size:0.72rem; color:#b45309; font-weight:700; margin-top:2px;">
+                  ↳ Coincide con registro: "${doc.registroCoincidente.titulo}"
+                </div>
+                `
+                : ''
+            }
           </td>
           <td class="col-proceso" style="font-size: 0.78rem; padding: 6px 8px;">${doc.proceso || 'N/A'}</td>
           <td class="col-area" style="font-size: 0.78rem; padding: 6px 8px;">${doc.area || 'N/A'}</td>
@@ -1795,6 +1869,60 @@ class AppController {
           }
           </td>
         </tr>`;
+
+        let subfilasHtml = '';
+        if (Array.isArray(doc.registrosDerivados) && doc.registrosDerivados.length > 0) {
+          subfilasHtml = doc.registrosDerivados.map((reg) => {
+            const rExt = (reg.extension || 'DOC').toUpperCase();
+            const rExtClass = rExt.includes('XLS') ? 'badge-xls' : (rExt.includes('PDF') ? 'badge-pdf' : 'badge-doc');
+            const esCoincidente = doc.registroCoincidente && (doc.registroCoincidente.id === reg.id || doc.registroCoincidente.titulo === reg.titulo);
+            const mostrarInicial = Boolean(doc.registroCoincidente);
+            return `
+              <tr class="table-subrow-registro subrow-${doc.id} ${esCoincidente ? 'subrow-coincidente' : ''}" style="display: ${mostrarInicial ? 'table-row' : 'none'}; background: ${esCoincidente ? '#fffbeb' : '#f8fafc'};" data-parent-id="${doc.id}" data-reg-id="${reg.id}">
+                <td class="col-fav" style="width: 26px; text-align: center; padding: 4px 2px;"></td>
+                ${esVistaTop10 ? `<td class="col-top-rank" style="width: 58px;"></td>` : ''}
+                <td class="col-tipo" style="width: 44px; text-align: center; padding: 4px 3px;">
+                  <span class="badge ${rExtClass}" style="font-size: 0.65rem; padding: 1px 4px;">${rExt}</span>
+                </td>
+                <td class="col-codigo" style="width: 82px; font-family: var(--font-heading); font-weight: 600; color: #64748b; font-size: 0.72rem; padding: 4px 6px;">
+                  ↳
+                </td>
+                <td class="docs-table-title-cell" title="${reg.titulo}" style="padding: 4px 8px; font-size: 0.76rem; color: #1e293b; font-weight: 600;">
+                  📄 ${reg.titulo} ${esCoincidente ? '<span style="font-size: 0.68rem; color: #b45309; font-weight: 700; margin-left: 4px;">(Coincidencia)</span>' : ''}
+                </td>
+                <td class="col-proceso" style="font-size: 0.72rem; color: #64748b; padding: 4px 8px;">Registro Derivado</td>
+                <td class="col-area" style="font-size: 0.72rem; color: #64748b; padding: 4px 8px;">${doc.area || ''}</td>
+                <td class="col-version" style="font-size: 0.72rem; color: #64748b; text-align: center; padding: 4px 3px;">-</td>
+                ${esVistaTop10 ? `<td class="col-descargas"></td>` : ''}
+                <td class="col-fecha" style="width: 118px; font-size: 0.70rem; color: #64748b; padding: 4px 6px;">
+                  ${staffService.formatearFechaHora(reg.modificacion)}
+                </td>
+                <td class="docs-table-actions-cell" style="width: ${this.modoEdicion ? '120px' : '115px'}; text-align: center; padding: 4px 4px;">
+                  <div style="display: flex; justify-content: center; gap: 4px;">
+                    ${reg.disponible
+                      ? `
+                      <button type="button" class="btn btn-secondary btn-subrow-download" data-parent-id="${doc.id}" data-reg-id="${reg.id}" style="padding: 2px 7px; font-size: 0.70rem; font-weight: 600;" title="Descargar registro">
+                        📥
+                      </button>
+                      ${this.modoEdicion
+                        ? `
+                        <button type="button" class="btn btn-primary btn-subrow-edit" data-parent-id="${doc.id}" data-reg-id="${reg.id}" style="padding: 2px 7px; font-size: 0.70rem; font-weight: 600;" title="Editar registro en SharePoint">
+                          ✏️
+                        </button>
+                        `
+                        : ''
+                      }
+                      `
+                      : `<span style="font-size: 0.68rem; color: #94a3b8;">No disp.</span>`
+                    }
+                  </div>
+                </td>
+              </tr>
+            `;
+          }).join('');
+        }
+
+        return filaPrincipalHtml + subfilasHtml;
       })
       .join('');
 
@@ -1876,6 +2004,21 @@ class AppController {
         const btnMenuDelete = e.target.closest('[data-action="menu-delete"]');
         const btnMenuDrawer = e.target.closest('[data-action="menu-drawer"]');
         const btnBlocked = e.target.closest('[data-action="blocked"]');
+        const btnVerReg = e.target.closest('[data-action="ver-registros"]');
+
+        if (btnVerReg) {
+          e.stopPropagation();
+          modalManager.abrirDrawerDocumento(
+            doc,
+            this.modoEdicion,
+            (d) => sharepointService.abrirEnEdicion(d),
+            (d) => sharepointService.descargarDocumento(d, this.modoEdicion),
+            (d) => this.actualizarDocumentoEnApp(d),
+            (cod) => this.eliminarDocumentoDeApp(cod),
+            'registros'
+          );
+          return;
+        }
         const btnDownload = e.target.closest('[data-action="download"]');
 
         // Manejo de Menú Contextual (3 Puntos ⋮)
@@ -2083,6 +2226,60 @@ class AppController {
             this.mostrarToast(`🗑️ Documento ${codEliminado} retirado del catálogo`, 'info');
           }
         );
+      });
+    });
+
+    // Botones de acordeón para sub-filas de registros en la tabla
+    this.el.grid.querySelectorAll('.btn-toggle-subrows').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const docId = btn.getAttribute('data-doc-id');
+        const count = btn.getAttribute('data-count') || '';
+        const subrows = this.el.grid.querySelectorAll(`.subrow-${docId}`);
+        let visible = false;
+        subrows.forEach((r) => {
+          if (r.style.display !== 'none') visible = true;
+        });
+        subrows.forEach((r) => {
+          r.style.display = visible ? 'none' : 'table-row';
+        });
+        btn.textContent = visible ? `+${count}` : `-${count}`;
+      });
+    });
+
+    // Descarga directa desde sub-fila de la tabla
+    this.el.grid.querySelectorAll('.btn-subrow-download').forEach((btn) => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const parentId = btn.getAttribute('data-parent-id');
+        const regId = btn.getAttribute('data-reg-id');
+        const doc = this.documentos.find((d) => d.id === parentId);
+        const reg = (doc?.registrosDerivados || []).find((r) => r.id === regId);
+        if (reg) {
+          const estrategia = determinarEstrategiaDescarga(reg);
+          staffService.registrarDescargaDocumento(reg, estrategia.formato);
+          await sharepointService.descargarDocumento(reg, this.modoEdicion);
+        }
+      });
+    });
+
+    // Edición directa desde sub-fila de la tabla
+    this.el.grid.querySelectorAll('.btn-subrow-edit').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const parentId = btn.getAttribute('data-parent-id');
+        const regId = btn.getAttribute('data-reg-id');
+        const doc = this.documentos.find((d) => d.id === parentId);
+        const reg = (doc?.registrosDerivados || []).find((r) => r.id === regId);
+        if (reg) {
+          sharepointService.abrirEnEdicion(reg);
+          staffService.registrarAuditoria('EDICION', {
+            documentoCodigo: reg.codigo,
+            documentoTitulo: reg.titulo,
+            documentoExtension: reg.extension,
+            detalle: `Edición de registro derivado en SharePoint (${reg.codigo})`
+          });
+        }
       });
     });
   }

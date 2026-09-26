@@ -6,9 +6,9 @@
  * registro seguro de contraseñas en usuarios.conf y persistencia de sesión.
  */
 
-import { EMPLEADOS_ACTIVOS_BASE } from './staff-data.js?v=11.6.61';
+import { EMPLEADOS_ACTIVOS_BASE } from './staff-data.js?v=11.6.62';
 import { DOCUMENTOS_REALES } from './data.js?v=11.6.46';
-import { cacheService } from './cache-service.js?v=11.6.61';
+import { cacheService } from './cache-service.js?v=11.6.62';
 
 const STORAGE_KEY_AUTH_SESSION = 'agy_sgc_authenticated_session';
 const STORAGE_KEY_REMEMBERED_USER = 'agy_sgc_remembered_user';
