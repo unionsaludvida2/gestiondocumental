@@ -475,26 +475,43 @@ export class AnalyticsManager {
       codDisplay = codRaw;
     }
 
-    // 2. Curación inteligente para registros creados históricamente bajo FMT-GIC-016
+    // 2. Curación inteligente para registros creados históricamente bajo FMT-GIC-016 o FMT-GIC-015
     const tit = (item.titulo || item.documentoTitulo || '').toLowerCase();
     const det = (item.detalle || '').toLowerCase();
-    if (!mSec && (codRaw === 'FMT-GIC-016' || det.includes('fmt-gic-016'))) {
-      if (tit.includes('2026-1') || det.includes('2026-1')) {
+    if (!mSec && (codRaw === 'FMT-GIC-016' || codRaw === 'FMT-GIC-015' || det.includes('fmt-gic-016') || det.includes('fmt-gic-015'))) {
+      const pCod = 'FMT-GIC-015';
+      if (tit.includes('anticoagula') && tit.includes('2026-1')) {
         esDerivado = true;
-        codPadre = 'FMT-GIC-016';
-        codDisplay = 'FMT-GIC-016-1';
-      } else if (tit.includes('2026-2') || det.includes('2026-2')) {
+        codPadre = pCod;
+        codDisplay = `${pCod}-1`;
+      } else if (tit.includes('anticoagula') && tit.includes('2026-2')) {
         esDerivado = true;
-        codPadre = 'FMT-GIC-016';
-        codDisplay = 'FMT-GIC-016-2';
-      } else if (tit.includes('asma') || det.includes('asma')) {
+        codPadre = pCod;
+        codDisplay = `${pCod}-2`;
+      } else if (tit.includes('asma') || tit.includes('epoc')) {
         esDerivado = true;
-        codPadre = 'FMT-GIC-016';
-        codDisplay = 'FMT-GIC-016-3';
-      } else if (tit.includes('anticoagula') || det.includes('anticoagula')) {
+        codPadre = pCod;
+        codDisplay = `${pCod}-3`;
+      } else if (tit.includes('cpr') && tit.includes('2026-1')) {
         esDerivado = true;
-        codPadre = 'FMT-GIC-016';
-        codDisplay = 'FMT-GIC-016-4';
+        codPadre = pCod;
+        codDisplay = `${pCod}-4`;
+      } else if (tit.includes('cpr') && tit.includes('2026-2')) {
+        esDerivado = true;
+        codPadre = pCod;
+        codDisplay = `${pCod}-5`;
+      } else if (tit.includes('especialista') && tit.includes('2026-1')) {
+        esDerivado = true;
+        codPadre = pCod;
+        codDisplay = `${pCod}-6`;
+      } else if (tit.includes('especialista') && tit.includes('2026-2')) {
+        esDerivado = true;
+        codPadre = pCod;
+        codDisplay = `${pCod}-7`;
+      } else if (tit.includes('infancia')) {
+        esDerivado = true;
+        codPadre = pCod;
+        codDisplay = `${pCod}-8`;
       }
     }
 

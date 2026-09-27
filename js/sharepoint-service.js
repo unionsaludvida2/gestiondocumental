@@ -898,7 +898,8 @@ export class DataService {
       'DA-GMD-032': 'DA-GMD-001',
       'DA-GMD-033': 'DA-GMD-002',
       'DA-GMD-034': 'DA-GMD-003',
-      'DA-GMD-035': 'DA-GMD-004'
+      'DA-GMD-035': 'DA-GMD-004',
+      'FMT-GIC-016': 'FMT-GIC-015'
     };
 
     const lineas = textoOD.split(/\r?\n/).filter((l) => l.trim().length > 0);
@@ -1201,7 +1202,8 @@ export class DataService {
         'DA-GMD-032': 'DA-GMD-001',
         'DA-GMD-033': 'DA-GMD-002',
         'DA-GMD-034': 'DA-GMD-003',
-        'DA-GMD-035': 'DA-GMD-004'
+        'DA-GMD-035': 'DA-GMD-004',
+        'FMT-GIC-016': 'FMT-GIC-015'
       };
       if (codigo && MAPA_RENOMBRES[codigo.toUpperCase()]) {
         codigo = MAPA_RENOMBRES[codigo.toUpperCase()];

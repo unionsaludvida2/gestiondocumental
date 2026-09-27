@@ -5,6 +5,7 @@
 
 import { sharepointService, determinarEstrategiaDescarga, esDocumentoFMT } from './sharepoint-service.js?v=11.6.85';
 import { staffService } from './staff-service.js?v=11.6.85';
+import { filterEngine } from './filters.js?v=11.6.85';
 
 const STORAGE_KEY_USER_PROFILE = 'agy_user_profile';
 
@@ -626,74 +627,102 @@ export class ModalManager {
               <div class="drawer-tab-content" id="drawer-tab-registros" style="display: none; flex-direction: column; gap: 10px;">
                 ${(Array.isArray(doc.registrosDerivados) && doc.registrosDerivados.length > 0) ? `
                   <div class="drawer-registros-list" style="display: flex; flex-direction: column; gap: 10px;">
-                    ${doc.registrosDerivados.map((reg) => {
-                      const esXls = (reg.extension && reg.extension.toUpperCase().includes('XLS')) || reg.formato === 'Excel';
-                      const rExt = esXls ? 'XLS' : 'PDF';
-                      const rBadgeClass = esXls ? 'badge-xls' : 'badge-pdf';
-                      const esCoincidente = doc.registroCoincidente && (doc.registroCoincidente.id === reg.id || doc.registroCoincidente.titulo === reg.titulo);
-                      return `
-                        <div class="drawer-registro-card ${esCoincidente ? 'registro-coincidente-active' : ''}" style="border: 1.5px solid ${esCoincidente ? '#f59e0b' : '#cbd5e1'}; border-radius: 8px; padding: 12px; background: ${esCoincidente ? '#fffbeb' : '#ffffff'}; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-                          ${esCoincidente ? `<div style="font-size:0.72rem; color:#b45309; font-weight:700;">⭐ Coincidencia con tu búsqueda</div>` : ''}
-                          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;">
-                            <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-                              <span class="badge ${rBadgeClass}" style="font-size: 0.70rem; padding: 2px 6px;">${rExt}</span>
-                              ${reg.codigo ? `<span class="badge badge-secondary" style="font-size: 0.70rem; padding: 2px 6px; font-weight: 700; background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd;">${reg.codigo}</span>` : ''}
-                              <span style="font-weight: 700; color: #1e293b; font-size: 0.85rem; line-height: 1.3;">${reg.titulo}</span>
-                            </div>
-                          </div>
-                          <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 4px; flex-wrap: wrap;">
-                            <span style="font-size: 0.73rem; color: #64748b;">${staffService.formatearFechaHora(reg.modificacion)}</span>
-                            <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
-                              ${modoEdicion
-                                ? `
-                                ${puedeGestionarCatalogo
-                                  ? `
-                                  <button type="button" class="btn btn-secondary btn-reg-meta" data-reg-id="${reg.id || reg.codigo}" style="width: 28px; height: 28px; padding: 0; font-size: 0.82rem; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; background: #e0f2fe; color: #0369a1; border: 1.5px solid #bae6fd; border-radius: 6px;" title="Modificar metadatos del registro">
-                                    <span>⚙️</span>
-                                  </button>
-                                  `
-                                  : ''
-                                }
-                                ${reg.disponible
-                                  ? `
-                                  ${reg.descargable === false
-                                    ? `<button type="button" class="btn btn-secondary" disabled style="width: 28px; height: 28px; padding: 0; font-size: 0.82rem; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; border-radius: 6px; color:#92400e; background:#fef3c7; cursor:not-allowed;" title="Descarga restringida"><span>🔒</span></button>`
-                                    : `
-                                    <button type="button" class="btn btn-secondary btn-reg-download" data-reg-id="${reg.id || reg.codigo}" style="width: 28px; height: 28px; padding: 0; font-size: 0.82rem; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; border-radius: 6px;" title="Descargar registro en PDF">
-                                      <span>📥</span>
-                                    </button>
-                                    `
-                                  }
-                                  <button type="button" class="btn btn-primary btn-reg-edit" data-reg-id="${reg.id || reg.codigo}" style="width: 28px; height: 28px; padding: 0; font-size: 0.82rem; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; border-radius: 6px;" title="Editar registro en SharePoint">
-                                    <span>✏️</span>
-                                  </button>
-                                  `
-                                  : `<span style="width: 28px; height: 28px; font-size: 0.80rem; color: #94a3b8; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center;" title="Sin archivo individual asociado en SharePoint">📄</span>`
-                                }
-                                ${puedeGestionarCatalogo
-                                  ? `
-                                  <button type="button" class="btn btn-secondary btn-reg-delete" data-reg-id="${reg.id || reg.codigo}" style="width: 28px; height: 28px; padding: 0; font-size: 0.80rem; font-weight: 600; color: #dc2626; border: 1px solid #fecaca; background: #fff5f5; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center;" title="Retirar este registro derivado">
-                                    <span>🗑️</span>
-                                  </button>
-                                  `
-                                  : ''
-                                }
-                                `
-                                : !reg.disponible
-                                  ? `<button class="btn btn-disabled" disabled style="padding: 4px 8px; font-size: 0.72rem;" title="Registro no disponible en SharePoint">No Disponible</button>`
-                                  : reg.descargable === false
-                                    ? `<button type="button" class="btn btn-secondary" disabled style="padding: 4px 8px; font-size: 0.72rem; color:#92400e; background:#fef3c7; border: 1px solid #fcd34d; cursor:not-allowed;" title="Descarga restringida">🔒 Bloqueado</button>`
-                                    : `
-                                    <button type="button" class="btn btn-primary btn-reg-download" data-reg-id="${reg.id || reg.codigo}" style="padding: 4px 10px; font-size: 0.74rem; font-weight: 700; display: inline-flex; align-items: center; gap: 4px; border-radius: 6px;" title="Descargar registro en PDF">
-                                      <span>📥</span> Descargar
-                                    </button>
-                                    `
-                              }
-                            </div>
-                          </div>
+                    ${(() => {
+                      const busqueda = filterEngine?.removerTildes ? filterEngine.removerTildes(filterEngine.estado.busqueda || '') : '';
+                      const palabras = busqueda ? busqueda.split(/\s+/).filter(Boolean) : [];
+                      let cantCoincidentes = 0;
+
+                      const evaluados = doc.registrosDerivados.map((reg) => {
+                        if (palabras.length === 0) return { reg, coincide: true };
+                        const textoReg = filterEngine.removerTildes(`${reg.codigo || ''} ${reg.titulo || ''} ${reg.documento || ''} ${reg.descripcion || ''} ${reg.extension || ''}`);
+                        const textoDoc = filterEngine.removerTildes(`${doc.codigo || ''} ${doc.titulo || ''}`);
+                        const textoCombinado = `${textoDoc} ${textoReg}`;
+                        const coincide = palabras.every(p => textoReg.includes(p)) || palabras.every(p => textoCombinado.includes(p));
+                        if (coincide) cantCoincidentes++;
+                        return { reg, coincide };
+                      });
+
+                      const hayFiltro = palabras.length > 0 && cantCoincidentes > 0 && cantCoincidentes < doc.registrosDerivados.length;
+                      const bannerHtml = hayFiltro ? `
+                        <div class="drawer-filtro-banner" style="display: flex; justify-content: space-between; align-items: center; background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; padding: 7px 12px; border-radius: 8px; font-size: 0.76rem; font-weight: 600; margin-bottom: 2px;">
+                          <span>🔍 Mostrando ${cantCoincidentes} de ${doc.registrosDerivados.length} registros coincidentes</span>
+                          <button type="button" class="btn-drawer-toggle-todos-reg" style="background: #2563eb; color: #ffffff; border: none; border-radius: 5px; padding: 3px 9px; font-size: 0.72rem; font-weight: 700; cursor: pointer;">
+                            Ver todos (${doc.registrosDerivados.length})
+                          </button>
                         </div>
-                      `;
-                    }).join('')}
+                      ` : '';
+
+                      const cardsHtml = evaluados.map(({ reg, coincide }) => {
+                        const esXls = (reg.extension && reg.extension.toUpperCase().includes('XLS')) || reg.formato === 'Excel';
+                        const rExt = esXls ? 'XLS' : 'PDF';
+                        const rBadgeClass = esXls ? 'badge-xls' : 'badge-pdf';
+                        const esCoincidente = (doc.registroCoincidente && (doc.registroCoincidente.id === reg.id || doc.registroCoincidente.titulo === reg.titulo)) || (palabras.length > 0 && coincide);
+                        const estaOculto = hayFiltro && !coincide;
+                        return `
+                          <div class="drawer-registro-card ${esCoincidente ? 'registro-coincidente-active' : ''} ${estaOculto ? 'drawer-reg-filtrado-oculto' : ''}" style="display: ${estaOculto ? 'none' : 'flex'}; border: 1.5px solid ${esCoincidente ? '#f59e0b' : '#cbd5e1'}; border-radius: 8px; padding: 12px; background: ${esCoincidente ? '#fffbeb' : '#ffffff'}; flex-direction: column; gap: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;">
+                              <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                                <span class="badge ${rBadgeClass}" style="font-size: 0.70rem; padding: 2px 6px;">${rExt}</span>
+                                ${reg.codigo ? `<span class="badge badge-secondary" style="font-size: 0.70rem; padding: 2px 6px; font-weight: 700; background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd;">${reg.codigo}</span>` : ''}
+                                <span style="font-weight: 700; color: #1e293b; font-size: 0.85rem; line-height: 1.3;">${reg.titulo}</span>
+                              </div>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 4px; flex-wrap: wrap;">
+                              <span style="font-size: 0.73rem; color: #64748b;">${staffService.formatearFechaHora(reg.modificacion)}</span>
+                              <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
+                                ${modoEdicion
+                                  ? `
+                                  ${puedeGestionarCatalogo
+                                    ? `
+                                    <button type="button" class="btn btn-secondary btn-reg-meta" data-reg-id="${reg.id || reg.codigo}" style="width: 28px; height: 28px; padding: 0; font-size: 0.82rem; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; background: #e0f2fe; color: #0369a1; border: 1.5px solid #bae6fd; border-radius: 6px;" title="Modificar metadatos del registro">
+                                      <span>⚙️</span>
+                                    </button>
+                                    `
+                                    : ''
+                                  }
+                                  ${reg.disponible
+                                    ? `
+                                    ${reg.descargable === false
+                                      ? `<button type="button" class="btn btn-secondary" disabled style="width: 28px; height: 28px; padding: 0; font-size: 0.82rem; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; border-radius: 6px; color:#92400e; background:#fef3c7; cursor:not-allowed;" title="Descarga restringida"><span>🔒</span></button>`
+                                      : `
+                                      <button type="button" class="btn btn-secondary btn-reg-download" data-reg-id="${reg.id || reg.codigo}" style="width: 28px; height: 28px; padding: 0; font-size: 0.82rem; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; border-radius: 6px;" title="Descargar registro en PDF">
+                                        <span>📥</span>
+                                      </button>
+                                      `
+                                    }
+                                    <button type="button" class="btn btn-primary btn-reg-edit" data-reg-id="${reg.id || reg.codigo}" style="width: 28px; height: 28px; padding: 0; font-size: 0.82rem; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; border-radius: 6px;" title="Editar registro en SharePoint">
+                                      <span>✏️</span>
+                                    </button>
+                                    `
+                                    : `<span style="width: 28px; height: 28px; font-size: 0.80rem; color: #94a3b8; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center;" title="Sin archivo individual asociado en SharePoint">📄</span>`
+                                  }
+                                  ${puedeGestionarCatalogo
+                                    ? `
+                                    <button type="button" class="btn btn-secondary btn-reg-delete" data-reg-id="${reg.id || reg.codigo}" style="width: 28px; height: 28px; padding: 0; font-size: 0.80rem; font-weight: 600; color: #dc2626; border: 1px solid #fecaca; background: #fff5f5; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center;" title="Retirar este registro derivado">
+                                      <span>🗑️</span>
+                                    </button>
+                                    `
+                                    : ''
+                                  }
+                                  `
+                                  : !reg.disponible
+                                    ? `<button class="btn btn-disabled" disabled style="padding: 4px 8px; font-size: 0.72rem;" title="Registro no disponible en SharePoint">No Disponible</button>`
+                                    : reg.descargable === false
+                                      ? `<button type="button" class="btn btn-secondary" disabled style="padding: 4px 8px; font-size: 0.72rem; color:#92400e; background:#fef3c7; border: 1px solid #fcd34d; cursor:not-allowed;" title="Descarga restringida">🔒 Bloqueado</button>`
+                                      : `
+                                      <button type="button" class="btn btn-primary btn-reg-download" data-reg-id="${reg.id || reg.codigo}" style="padding: 4px 10px; font-size: 0.74rem; font-weight: 700; display: inline-flex; align-items: center; gap: 4px; border-radius: 6px;" title="Descargar registro en PDF">
+                                        <span>📥</span> Descargar
+                                      </button>
+                                      `
+                                }
+                              </div>
+                            </div>
+                          </div>
+                        `;
+                      }).join('');
+
+                      return bannerHtml + cardsHtml;
+                    })()}
                   </div>
                 ` : `
                   <div style="text-align: center; padding: 28px 16px; background: #ffffff; border: 1.5px dashed #cbd5e1; border-radius: 8px; color: #64748b;">
@@ -782,6 +811,20 @@ export class ModalManager {
       if (btnReg) {
         btnReg.click();
       }
+    }
+
+    // Toggle para mostrar/ocultar todos los registros derivados en el Drawer
+    const btnToggleDrawerReg = this.drawerContainer.querySelector('.btn-drawer-toggle-todos-reg');
+    if (btnToggleDrawerReg) {
+      btnToggleDrawerReg.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const ocultos = this.drawerContainer.querySelectorAll('.drawer-reg-filtrado-oculto');
+        const estanOcultos = Array.from(ocultos).some((c) => c.style.display === 'none');
+        ocultos.forEach((c) => {
+          c.style.display = estanOcultos ? 'flex' : 'none';
+        });
+        btnToggleDrawerReg.textContent = estanOcultos ? 'Ver solo coincidentes' : `Ver todos (${(doc.registrosDerivados || []).length})`;
+      });
     }
 
     // Descarga y edición individual de Registros Derivados en el Drawer

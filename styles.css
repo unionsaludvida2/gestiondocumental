@@ -4812,16 +4812,21 @@ body:not(.auth-required) .main-layout {
 }
 
 .table-subrow-registro {
-  transition: background-color 0.2s ease;
+  transition: background-color 0.15s ease;
   border-bottom: 1px solid #f1f5f9;
+  cursor: pointer;
 }
 
 .table-subrow-registro:hover {
-  background-color: #f1f5f9 !important;
+  background-color: #f0f7fc !important;
 }
 
-.table-subrow-registro.subrow-coincidente {
-  background-color: #fffbeb !important;
+.docs-table-row-derivado {
+  background-color: #fcfdfe;
+}
+
+.docs-table-row-derivado:hover {
+  background-color: #f0f7fc !important;
 }
 
 .btn-toggle-subrows {

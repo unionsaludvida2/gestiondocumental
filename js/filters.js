@@ -308,27 +308,50 @@ export class FilterEngine {
     if (categoriaExcluida !== 'busqueda' && this.estado.busqueda) {
       const busquedaNorm = this.removerTildes(this.estado.busqueda);
       const palabras = busquedaNorm.split(/\s+/).filter(Boolean);
-      filtrados = filtrados.filter((doc) => {
-        doc.registroCoincidente = null;
-        const textoDoc = this.removerTildes(`${doc.codigo || ''} ${doc.titulo || ''} ${doc.tipoProceso || ''} ${doc.area || ''} ${doc.proceso || ''} ${doc.tipoDocumento || ''} ${doc.formato || ''} ${doc.descripcion || ''} ${doc.extension || ''}`);
-        const coincideBase = palabras.every((p) => textoDoc.includes(p));
-        if (coincideBase) {
-          return true;
+      const resultados = [];
+      for (const doc of filtrados) {
+        const textoDoc = this.removerTildes(
+          `${doc.codigo || ''} ${doc.titulo || ''} ${doc.tipoProceso || ''} ${doc.area || ''} ${doc.proceso || ''} ${doc.tipoDocumento || ''} ${doc.formato || ''} ${doc.descripcion || ''} ${doc.extension || ''}`
+        );
+        const coincidePadre = palabras.every((p) => textoDoc.includes(p));
+        if (coincidePadre) {
+          resultados.push(doc);
         }
-
-        // Búsqueda recursiva en registros derivados
         if (Array.isArray(doc.registrosDerivados) && doc.registrosDerivados.length > 0) {
           for (const reg of doc.registrosDerivados) {
-            const textoReg = this.removerTildes(`${reg.codigo || ''} ${reg.titulo || ''} ${reg.descripcion || ''} ${reg.extension || ''}`);
+            const textoReg = this.removerTildes(
+              `${reg.codigo || ''} ${reg.titulo || ''} ${reg.documento || ''} ${reg.descripcion || ''} ${reg.extension || ''} ${reg.formato || ''}`
+            );
             if (palabras.every((p) => textoReg.includes(p))) {
-              doc.registroCoincidente = reg;
-              return true;
+              resultados.push({
+                ...reg,
+                id: reg.id || `${reg.codigo}_REG`,
+                codigo: reg.codigo,
+                titulo: reg.titulo || reg.documento,
+                tipoProceso: reg.tipoProceso || doc.tipoProceso,
+                area: reg.area || doc.area,
+                proceso: reg.proceso || doc.proceso,
+                tipoDocumento: reg.tipoDocumento || 'Registro Derivado',
+                formato: reg.formato || 'PDF',
+                extension: reg.extension || 'PDF',
+                version: reg.version || '01',
+                modificacion: reg.modificacion || doc.modificacion,
+                disponible: reg.disponible !== false,
+                descargable: reg.descargable !== false,
+                estado: reg.estado || 'DISPONIBLE',
+                sharepointUrl: reg.sharepointUrl || doc.sharepointUrl,
+                downloadUrl: reg.downloadUrl || doc.downloadUrl,
+                carpetaSharepointUrl: reg.carpetaSharepointUrl || doc.carpetaSharepointUrl,
+                documentoPadreCodigo: doc.codigo,
+                documentoPadreTitulo: doc.titulo,
+                documentoPadreId: doc.id,
+                esRegistro: true
+              });
             }
           }
         }
-
-        return false;
-      });
+      }
+      filtrados = resultados;
     }
 
     return filtrados;
@@ -521,14 +544,59 @@ export class FilterEngine {
   filtrar(documentos, authService, favoritosSet = null, top10Set = null, top10RankingMap = null) {
     let filtrados = this.obtenerDocumentosFiltradosSinBusqueda(documentos, authService, favoritosSet, top10Set);
 
-    // Búsqueda inteligente multi-palabra insensible a mayúsculas y tildes
+    // Búsqueda inteligente multi-palabra: Si el padre no coincide pero sus registros derivados sí,
+    // se proyectan los registros derivados directamente como resultados individuales en la tabla (sin el padre no coincidente).
     if (this.estado.busqueda) {
       const busquedaNorm = this.removerTildes(this.estado.busqueda);
       const palabras = busquedaNorm.split(/\s+/).filter(Boolean);
-      filtrados = filtrados.filter((doc) => {
-        const textoDoc = this.removerTildes(`${doc.codigo || ''} ${doc.titulo || ''} ${doc.tipoProceso || ''} ${doc.area || ''} ${doc.proceso || ''} ${doc.tipoDocumento || ''} ${doc.formato || ''} ${doc.descripcion || ''} ${doc.extension || ''}`);
-        return palabras.every((p) => textoDoc.includes(p));
-      });
+      const resultadosBusqueda = [];
+
+      for (const doc of filtrados) {
+        const textoDoc = this.removerTildes(
+          `${doc.codigo || ''} ${doc.titulo || ''} ${doc.tipoProceso || ''} ${doc.area || ''} ${doc.proceso || ''} ${doc.tipoDocumento || ''} ${doc.formato || ''} ${doc.descripcion || ''} ${doc.extension || ''}`
+        );
+        const coincidePadre = palabras.every((p) => textoDoc.includes(p));
+
+        if (coincidePadre) {
+          doc.registroCoincidente = null;
+          resultadosBusqueda.push(doc);
+        }
+        if (Array.isArray(doc.registrosDerivados) && doc.registrosDerivados.length > 0) {
+          for (const reg of doc.registrosDerivados) {
+            const textoReg = this.removerTildes(
+              `${reg.codigo || ''} ${reg.titulo || ''} ${reg.documento || ''} ${reg.descripcion || ''} ${reg.extension || ''} ${reg.formato || ''}`
+            );
+            if (palabras.every((p) => textoReg.includes(p))) {
+              resultadosBusqueda.push({
+                ...reg,
+                id: reg.id || `${reg.codigo}_REG`,
+                codigo: reg.codigo,
+                titulo: reg.titulo || reg.documento,
+                tipoProceso: reg.tipoProceso || doc.tipoProceso,
+                area: reg.area || doc.area,
+                proceso: reg.proceso || doc.proceso,
+                tipoDocumento: reg.tipoDocumento || 'Registro Derivado',
+                formato: reg.formato || 'PDF',
+                extension: reg.extension || 'PDF',
+                version: reg.version || '01',
+                modificacion: reg.modificacion || doc.modificacion,
+                disponible: reg.disponible !== false,
+                descargable: reg.descargable !== false,
+                estado: reg.estado || 'DISPONIBLE',
+                sharepointUrl: reg.sharepointUrl || doc.sharepointUrl,
+                downloadUrl: reg.downloadUrl || doc.downloadUrl,
+                carpetaSharepointUrl: reg.carpetaSharepointUrl || doc.carpetaSharepointUrl,
+                documentoPadreCodigo: doc.codigo,
+                documentoPadreTitulo: doc.titulo,
+                documentoPadreId: doc.id,
+                esRegistro: true
+              });
+            }
+          }
+        }
+      }
+
+      filtrados = resultadosBusqueda;
     }
 
     // 9. Ordenamiento (Prioridad a Top 10 por número de descargas si está activo)
