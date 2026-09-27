@@ -7,7 +7,7 @@
  */
 
 const DB_NAME = 'SGC_GestionDocumental_DB';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 class CacheService {
   constructor() {
@@ -41,6 +41,10 @@ class CacheService {
           // 3. Cola de eventos de auditoría no bloqueantes (telemetría offline)
           if (!db.objectStoreNames.contains('colaAuditoria')) {
             db.createObjectStore('colaAuditoria', { keyPath: 'id', autoIncrement: true });
+          }
+          // 4. Cola de mutaciones documentales pendientes (Offline Outbox para creación/edición/eliminación)
+          if (!db.objectStoreNames.contains('colaMutaciones')) {
+            db.createObjectStore('colaMutaciones', { keyPath: 'id', autoIncrement: true });
           }
         };
 
@@ -252,6 +256,128 @@ class CacheService {
         resolve(false);
       }
     });
+  }
+
+  /**
+   * =========================================================
+   * GESTIÓN DE COLABORADORES ACTIVOS (IndexedDB Caché Rápida)
+   * =========================================================
+   */
+
+  /**
+   * Guarda la colección de colaboradores activos normalizada en IndexedDB
+   */
+  async guardarEmpleados(listaEmpleados) {
+    if (!Array.isArray(listaEmpleados)) return false;
+    return this.guardarColeccion('empleados', listaEmpleados, {
+      total: listaEmpleados.length,
+      actualizado: new Date().toISOString()
+    });
+  }
+
+  /**
+   * Obtiene la lista de colaboradores activos guardada en IndexedDB
+   */
+  async obtenerEmpleados() {
+    const res = await this.obtenerColeccion('empleados');
+    return Array.isArray(res) ? res : [];
+  }
+
+  /**
+   * =========================================================
+   * COLA DE MUTACIONES OFFLINE (Write-Through Outbox Pattern)
+   * =========================================================
+   */
+
+  /**
+   * Encola una mutación documental pendiente de enviar a Google Apps Script
+   */
+  async encolarMutacion(mutacion) {
+    if (!mutacion || !mutacion.accion) return false;
+    const idbListo = await this.init();
+    if (!idbListo || !this.db) {
+      // Fallback a localStorage
+      try {
+        const raw = localStorage.getItem('agy_pending_mutations') || '[]';
+        const lista = JSON.parse(raw);
+        lista.push({ ...mutacion, id: Date.now(), timestamp: Date.now() });
+        localStorage.setItem('agy_pending_mutations', JSON.stringify(lista));
+        return true;
+      } catch { return false; }
+    }
+
+    return new Promise((resolve) => {
+      try {
+        const tx = this.db.transaction(['colaMutaciones'], 'readwrite');
+        const store = tx.objectStore('colaMutaciones');
+        store.add({
+          mutacion,
+          timestamp: Date.now()
+        });
+        tx.oncomplete = () => resolve(true);
+        tx.onerror = () => resolve(false);
+      } catch (e) {
+        resolve(false);
+      }
+    });
+  }
+
+  /**
+   * Obtiene todas las mutaciones pendientes por sincronizar
+   */
+  async obtenerColaMutaciones() {
+    const idbListo = await this.init();
+    let listaIdb = [];
+    if (idbListo && this.db) {
+      listaIdb = await new Promise((resolve) => {
+        try {
+          const tx = this.db.transaction(['colaMutaciones'], 'readonly');
+          const store = tx.objectStore('colaMutaciones');
+          const req = store.getAll();
+          req.onsuccess = () => resolve(Array.isArray(req.result) ? req.result : []);
+          req.onerror = () => resolve([]);
+        } catch {
+          resolve([]);
+        }
+      });
+    }
+
+    // Unir con posible fallback en localStorage
+    let listaLocal = [];
+    try {
+      const raw = localStorage.getItem('agy_pending_mutations');
+      if (raw) listaLocal = JSON.parse(raw);
+    } catch {}
+
+    return [...listaIdb, ...listaLocal];
+  }
+
+  /**
+   * Limpia las mutaciones que ya fueron enviadas a Google Apps Script
+   */
+  async limpiarMutaciones(ids) {
+    if (!Array.isArray(ids) || ids.length === 0) return false;
+    const idbListo = await this.init();
+    if (idbListo && this.db) {
+      try {
+        const tx = this.db.transaction(['colaMutaciones'], 'readwrite');
+        const store = tx.objectStore('colaMutaciones');
+        for (const id of ids) {
+          store.delete(id);
+        }
+      } catch {}
+    }
+
+    try {
+      const raw = localStorage.getItem('agy_pending_mutations');
+      if (raw) {
+        const setIds = new Set(ids);
+        const lista = JSON.parse(raw).filter(item => !setIds.has(item.id));
+        localStorage.setItem('agy_pending_mutations', JSON.stringify(lista));
+      }
+    } catch {}
+
+    return true;
   }
 }
 

@@ -5,7 +5,7 @@
  */
 
 import { DOCUMENTOS_REALES, URL_ORIGEN_CSV } from './data.js?v=11.6.31';
-import { cacheService } from './cache-service.js?v=11.6.66';
+import { cacheService } from './cache-service.js?v=11.6.85';
 
 
 export const MAPA_NORMALIZACION_AREAS = {
@@ -283,11 +283,78 @@ export class DataService {
       localStorage.removeItem('agy_sgc_documentos_retirados');
       sessionStorage.removeItem('agy_sgc_universal_docs');
       this.sanitizarRegistrosLocales();
+      this.iniciarEscuchaConectividad();
     } catch {}
   }
 
   /**
-   * Limpia registros derivados huérfanos o con nombres obsoletos y asegura los 3 documentos canónicos de FMT-GIC-016
+   * Inicia escucha de eventos de conectividad para sincronizar mutaciones pendientes (Offline Outbox)
+   */
+  iniciarEscuchaConectividad() {
+    if (typeof window !== 'undefined') {
+      window.addEventListener('online', () => {
+        console.log('[DataService] 🌐 Conexión reestablecida. Vaciando cola de mutaciones documentales pendientes...');
+        this.procesarColaMutacionesPendientes();
+      });
+      setTimeout(() => this.procesarColaMutacionesPendientes(), 4000);
+    }
+  }
+
+  /**
+   * Procesa y despacha a Google Apps Script las mutaciones creadas sin conexión
+   */
+  async procesarColaMutacionesPendientes() {
+    if (!cacheService || !cacheService.obtenerColaMutaciones) return;
+    try {
+      const cola = await cacheService.obtenerColaMutaciones();
+      if (!Array.isArray(cola) || cola.length === 0) return;
+
+      console.log(`[DataService] 🔄 Procesando ${cola.length} mutaciones pendientes en segundo plano...`);
+      const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx4-82Ls3Zu5gdzXlAhezZ6ew9tnAece8xSDMQ8QmXcu7UCnMxwqB48ISG_LwNDUgMiQQ/exec';
+      const idsLimpiar = [];
+
+      for (const item of cola) {
+        const payload = item.mutacion || item;
+        try {
+          let enviado = false;
+          try {
+            const res = await fetch(GOOGLE_SCRIPT_URL, {
+              method: 'POST',
+              headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+              body: JSON.stringify(payload),
+              signal: AbortSignal.timeout ? AbortSignal.timeout(10000) : undefined
+            });
+            if (res.ok) enviado = true;
+          } catch (eGas) {
+            await fetch(GOOGLE_SCRIPT_URL, {
+              method: 'POST',
+              mode: 'no-cors',
+              headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+              body: JSON.stringify(payload)
+            });
+            enviado = true;
+          }
+
+          if (enviado && item.id) {
+            idsLimpiar.push(item.id);
+          }
+        } catch (errSync) {
+          console.warn('[DataService] Error sincronizando mutación pendiente:', errSync);
+          break;
+        }
+      }
+
+      if (idsLimpiar.length > 0 && cacheService.limpiarMutaciones) {
+        await cacheService.limpiarMutaciones(idsLimpiar);
+        console.log(`[DataService] ✅ ${idsLimpiar.length} mutaciones sincronizadas exitosamente en Google Sheets.`);
+      }
+    } catch (e) {
+      console.warn('[DataService] Error en procesarColaMutacionesPendientes:', e);
+    }
+  }
+
+  /**
+   * Limpia registros derivados huérfanos o con nombres obsoletos y asegura los documentos canónicos
    */
   sanitizarRegistrosLocales() {
     try {
@@ -595,27 +662,59 @@ export class DataService {
     const timestamp = Date.now();
     const queryOD = `?_t=${timestamp}${forzarRefresco ? '&forzar=true' : ''}`;
     const queryGS = `?_t=${timestamp}${forzarRefresco ? '&forzar=true' : ''}`;
+    const esLocal = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
     let textoOneDrive = null;
     let textoGoogleSheets = null;
 
     // 1. Descargar REPOSITORIO_DOCUMENTAL.csv (OneDrive / SharePoint)
-    try {
-      const responseOD = await fetch(`/api/repositorio${queryOD}`, {
-        method: 'GET',
-        cache: 'no-cache',
-        signal: AbortSignal.timeout ? AbortSignal.timeout(5000) : undefined
-      });
+    // En entorno local se consulta el proxy acelerador /api/repositorio; en GitHub Pages se omite para evitar latencia 404
+    if (esLocal) {
+      try {
+        const responseOD = await fetch(`/api/repositorio${queryOD}`, {
+          method: 'GET',
+          cache: 'no-cache',
+          signal: AbortSignal.timeout ? AbortSignal.timeout(5000) : undefined
+        });
 
-      if (responseOD.ok) {
-        const txt = await responseOD.text();
-        if (txt && (txt.includes(';') || txt.includes(',')) && !txt.includes('<!DOCTYPE html')) {
-          textoOneDrive = txt;
+        if (responseOD.ok) {
+          const txt = await responseOD.text();
+          if (txt && (txt.includes(';') || txt.includes(',')) && !txt.includes('<!DOCTYPE html')) {
+            textoOneDrive = txt;
+          }
         }
+      } catch (err) {
+        console.warn('[DataService] Error consultando /api/repositorio:', err.message);
       }
-    } catch (err) {
-      console.warn('[DataService] Error consultando /api/repositorio:', err.message);
     }
 
+    // Consulta directa a la ruta oficial de OneDrive en la nube si no se obtuvo por proxy local
+    if (!textoOneDrive) {
+      let rutaCloud = 'https://unionsaludvida-my.sharepoint.com/:x:/p/plantillas/IQCctVunBodCQq97XWMPrue7AaIRpd-pVgSUuZrMBWBcA2A?e=revQbX&download=1';
+      try {
+        const savedRoutes = localStorage.getItem('agy_sgc_custom_routes');
+        if (savedRoutes) {
+          const parsed = JSON.parse(savedRoutes);
+          if (parsed.repositorioCsv && parsed.repositorioCsv.startsWith('http')) {
+            rutaCloud = parsed.repositorioCsv;
+          }
+        }
+      } catch {}
+
+      try {
+        const respCloud = await fetch(`${rutaCloud}${rutaCloud.includes('?') ? '&' : '?'}_t=${timestamp}`, {
+          cache: 'no-cache',
+          signal: AbortSignal.timeout ? AbortSignal.timeout(6000) : undefined
+        });
+        if (respCloud.ok) {
+          const txtCloud = await respCloud.text();
+          if (txtCloud && (txtCloud.includes(';') || txtCloud.includes(',')) && !txtCloud.includes('<!DOCTYPE html')) {
+            textoOneDrive = txtCloud;
+          }
+        }
+      } catch (eCloud) {}
+    }
+
+    // Fallback estático en caso de red aislada
     if (!textoOneDrive) {
       try {
         const respLocal = await fetch(`REPOSITORIO_DOCUMENTAL.csv${queryOD}`, {
@@ -631,21 +730,25 @@ export class DataService {
       } catch (e) {}
     }
 
-    // 2. Descargar Biblioteca (Google Sheets)
-    try {
-      const responseGS = await fetch(`/api/biblioteca${queryGS}`, {
-        method: 'GET',
-        cache: 'no-cache',
-        signal: AbortSignal.timeout ? AbortSignal.timeout(6000) : undefined
-      });
-      if (responseGS.ok) {
-        const txtGS = await responseGS.text();
-        if (txtGS && (txtGS.includes(',') || txtGS.includes(';')) && !txtGS.includes('<!DOCTYPE html')) {
-          textoGoogleSheets = txtGS;
+    // 2. Descargar Biblioteca (Google Sheets - SSOT Maestra)
+    // En entorno local se consulta el proxy /api/biblioteca; en GitHub Pages se conecta directo a la nube
+    if (esLocal) {
+      try {
+        const responseGS = await fetch(`/api/biblioteca${queryGS}`, {
+          method: 'GET',
+          cache: 'no-cache',
+          signal: AbortSignal.timeout ? AbortSignal.timeout(6000) : undefined
+        });
+        if (responseGS.ok) {
+          const txtGS = await responseGS.text();
+          if (txtGS && (txtGS.includes(',') || txtGS.includes(';')) && !txtGS.includes('<!DOCTYPE html')) {
+            textoGoogleSheets = txtGS;
+          }
         }
-      }
-    } catch (errGS) {}
+      } catch (errGS) {}
+    }
 
+    // Consulta directa a Google Sheets Cloud (exportación CSV oficial)
     if (!textoGoogleSheets) {
       try {
         const urlDirectaGS = `https://docs.google.com/spreadsheets/d/1EOcucjQV4byUOp_AAfd1ySHk4tVdFmMeOoOQsSBbEa4/export?format=csv&_t=${timestamp}`;
@@ -662,6 +765,32 @@ export class DataService {
       } catch (e) {}
     }
 
+    // Fallback secundario a Google Apps Script API en caso de restricción CORS en exportación directa
+    if (!textoGoogleSheets) {
+      try {
+        const urlGasDocs = `https://script.google.com/macros/s/AKfycbx4-82Ls3Zu5gdzXlAhezZ6ew9tnAece8xSDMQ8QmXcu7UCnMxwqB48ISG_LwNDUgMiQQ/exec?action=documentos&_t=${timestamp}`;
+        const respGas = await fetch(urlGasDocs, {
+          cache: 'no-cache',
+          signal: AbortSignal.timeout ? AbortSignal.timeout(8000) : undefined
+        });
+        if (respGas.ok) {
+          const jsonGas = await respGas.json();
+          if (jsonGas && Array.isArray(jsonGas.documentos) && jsonGas.documentos.length > 0) {
+            const headers = Object.keys(jsonGas.documentos[0]);
+            const filasCsv = [headers.join(',')];
+            jsonGas.documentos.forEach((d) => {
+              const fila = headers.map((h) => {
+                const val = String(d[h] !== undefined && d[h] !== null ? d[h] : '').replace(/"/g, '""');
+                return `"${val}"`;
+              });
+              filasCsv.push(fila.join(','));
+            });
+            textoGoogleSheets = filasCsv.join('\n');
+          }
+        }
+      } catch (eGas) {}
+    }
+
     // 3. Parsear mapa técnico de OneDrive (9 columnas)
     const onedriveMap = textoOneDrive ? this.parsearOneDriveMap(textoOneDrive) : new Map();
     this._ultimoOnedriveMap = onedriveMap;
@@ -672,6 +801,9 @@ export class DataService {
       if (docsHibridos && docsHibridos.length > 0) {
         docsHibridos = this.incorporarDocumentosCreados(docsHibridos, onedriveMap);
         this.documentosEnMemoria = docsHibridos;
+        if (cacheService && cacheService.guardarDocumentos) {
+          cacheService.guardarDocumentos(docsHibridos);
+        }
         console.log(`[DataService] ✅ ${docsHibridos.length} documentos sincronizados desde Biblioteca (Google Sheets) y OneDrive.`);
         return docsHibridos;
       }
@@ -2123,30 +2255,58 @@ export class DataService {
       documento: docNormalizado
     };
 
-    // 2. Enviar a endpoint local / servidor y Google Apps Script en segundo plano
+    // 2. Persistencia en la nube: Google Sheets ("Biblioteca") es la fuente única de verdad (SSOT)
     const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx4-82Ls3Zu5gdzXlAhezZ6ew9tnAece8xSDMQ8QmXcu7UCnMxwqB48ISG_LwNDUgMiQQ/exec';
+    let guardadoEnNube = false;
+
+    // A. Si existe proxy local activo (/api/documento), intentar primero
     try {
-      fetch('/api/documento', {
+      const resLocal = await fetch('/api/documento', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      }).catch(() => {
-        fetch(GOOGLE_SCRIPT_URL, {
-          method: 'POST',
-          mode: 'no-cors',
-          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify(payload)
-        }).catch(() => {});
+        body: JSON.stringify(payload),
+        signal: AbortSignal.timeout ? AbortSignal.timeout(3000) : undefined
       });
-    } catch (e) {
+      if (resLocal.ok) {
+        const jsonLocal = await resLocal.json();
+        if (jsonLocal && jsonLocal.status === 'ok') {
+          guardadoEnNube = true;
+        }
+      }
+    } catch (eLocal) {}
+
+    // B. Enviar DIRECTAMENTE a Google Apps Script (Google Sheets) para asegurar persistencia en la nube
+    if (!guardadoEnNube) {
       try {
-        fetch(GOOGLE_SCRIPT_URL, {
+        const resGAS = await fetch(GOOGLE_SCRIPT_URL, {
           method: 'POST',
-          mode: 'no-cors',
           headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify(payload)
-        }).catch(() => {});
-      } catch (e2) {}
+          body: JSON.stringify(payload),
+          signal: AbortSignal.timeout ? AbortSignal.timeout(12000) : undefined
+        });
+        if (resGAS.ok) {
+          guardadoEnNube = true;
+        }
+      } catch (errGAS) {
+        // En navegadores con restricción de redirección CORS, mode: 'no-cors' garantiza entrega al endpoint
+        try {
+          await fetch(GOOGLE_SCRIPT_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify(payload)
+          });
+          guardadoEnNube = true;
+        } catch (errNoCors) {
+          console.error('[sharepointService] Error enviando documento a Google Sheets:', errNoCors);
+        }
+      }
+    }
+
+    // C. Si no se pudo confirmar la escritura cloud (modo offline), encolar en Outbox para reintento automático
+    if (!guardadoEnNube && cacheService && cacheService.encolarMutacion) {
+      await cacheService.encolarMutacion(payload);
+      console.log('[sharepointService] 📦 Documento encolado en Outbox para sincronización automática al reconectar.');
     }
 
     // 3. Actualizar catálogo en memoria
@@ -2169,6 +2329,11 @@ export class DataService {
       } else {
         this.documentosEnMemoria.unshift(docNormalizado);
       }
+    }
+
+    // Persistir catálogo en caché IndexedDB inmediatamente (Optimistic Cache Update)
+    if (cacheService && cacheService.guardarDocumentos) {
+      cacheService.guardarDocumentos(this.documentosEnMemoria);
     }
 
     return { exito: true, documento: docNormalizado };
@@ -2252,10 +2417,16 @@ export class DataService {
       const idxExistente = resultado.findIndex(existente => {
         if (reg.codigo && existente.codigo && reg.codigo === existente.codigo && reg.codigo.includes('-')) return true;
         if (reg.id && existente.id && reg.id === existente.id) return true;
+
+        // Si ambos registros tienen códigos distintos con sufijo numérico -N (ej: -4 vs -5), NUNCA son duplicados
+        const mReg = (reg.codigo || '').match(/-(\d+)$/);
+        const mExt = (existente.codigo || '').match(/-(\d+)$/);
+        if (mReg && mExt && mReg[1] !== mExt[1]) return false;
+
         const nExistente = normalizar(existente.titulo);
         if (nExistente === nReg) return true;
         if (nReg.length >= 8 && nExistente.length >= 8) {
-          if (nReg.includes(nExistente) || nExistente.includes(nReg)) return true;
+          if (!mReg && !mExt && (nReg.includes(nExistente) || nExistente.includes(nReg))) return true;
         }
         return false;
       });
@@ -2366,6 +2537,11 @@ export class DataService {
       }
     }
 
+    if (!syncOk && cacheService && cacheService.encolarMutacion) {
+      await cacheService.encolarMutacion(payload);
+      console.log('[sharepointService] 📦 Modificación encolada en Outbox para sincronización automática al reconectar.');
+    }
+
     // 3. Si es un registro derivado, actualizarlo ÚNICAMENTE dentro de registrosDerivados de su documento padre
     if (esRegistro || (id && String(id).includes('_REG_'))) {
       if (docBase) {
@@ -2442,6 +2618,10 @@ export class DataService {
           }
         } catch (e) {}
 
+        if (cacheService && cacheService.guardarDocumentos) {
+          cacheService.guardarDocumentos(this.documentosEnMemoria);
+        }
+
         return { exito: true, documento: registroFinal, docPadre: docBase };
       }
       return { exito: true, documento: nuevosDatos };
@@ -2457,6 +2637,11 @@ export class DataService {
         codigo: codUpper,
         registrosDerivados: nuevosDatos.registrosDerivados || regsExistentes
       };
+
+      if (cacheService && cacheService.guardarDocumentos) {
+        cacheService.guardarDocumentos(this.documentosEnMemoria);
+      }
+
       return { exito: true, documento: this.documentosEnMemoria[idx] };
     }
 
@@ -2479,30 +2664,47 @@ export class DataService {
       documento: { ...nuevosDatos, codigo: nuevoCodUpper, codigoAnterior: codAntUpper }
     };
 
-    // 1. Enviar vía proxy local / Google Apps Script
+    // 1. Enviar vía proxy local / Google Apps Script (Google Sheets)
     const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx4-82Ls3Zu5gdzXlAhezZ6ew9tnAece8xSDMQ8QmXcu7UCnMxwqB48ISG_LwNDUgMiQQ/exec';
+    let syncRecodOk = false;
     try {
-      fetch('/api/documento', {
+      const resLocal = await fetch('/api/documento', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      }).catch(() => {
-        fetch(GOOGLE_SCRIPT_URL, {
-          method: 'POST',
-          mode: 'no-cors',
-          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify(payload)
-        }).catch(() => {});
+        body: JSON.stringify(payload),
+        signal: AbortSignal.timeout ? AbortSignal.timeout(3000) : undefined
       });
-    } catch (e) {
+      if (resLocal.ok) {
+        const jsonRes = await resLocal.json();
+        if (jsonRes && jsonRes.status === 'ok') syncRecodOk = true;
+      }
+    } catch (e) {}
+
+    if (!syncRecodOk) {
       try {
-        fetch(GOOGLE_SCRIPT_URL, {
+        const resGAS = await fetch(GOOGLE_SCRIPT_URL, {
           method: 'POST',
-          mode: 'no-cors',
           headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify(payload)
-        }).catch(() => {});
-      } catch (e2) {}
+          body: JSON.stringify(payload),
+          signal: AbortSignal.timeout ? AbortSignal.timeout(12000) : undefined
+        });
+        if (resGAS.ok) syncRecodOk = true;
+      } catch (errGAS) {
+        try {
+          await fetch(GOOGLE_SCRIPT_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify(payload)
+          });
+          syncRecodOk = true;
+        } catch (e2) {}
+      }
+    }
+
+    if (!syncRecodOk && cacheService && cacheService.encolarMutacion) {
+      await cacheService.encolarMutacion(payload);
+      console.log('[sharepointService] 📦 Recodificación encolada en Outbox para sincronización automática al reconectar.');
     }
 
     // 2. Actualizar permanentemente en localStorage
@@ -2519,7 +2721,7 @@ export class DataService {
       }
     } catch (e) {}
 
-    // 3. Actualizar en memoria
+    // 3. Actualizar en memoria y en IndexedDB
     const idx = this.documentosEnMemoria.findIndex((d) => (d.codigo || '').toUpperCase() === codAntUpper);
     let docActualizado = { ...nuevosDatos, codigo: nuevoCodUpper, codigoAnterior: codAntUpper };
     if (idx >= 0) {
@@ -2531,6 +2733,10 @@ export class DataService {
         codigoAnterior: codAntUpper
       };
       this.documentosEnMemoria[idx] = docActualizado;
+    }
+
+    if (cacheService && cacheService.guardarDocumentos) {
+      cacheService.guardarDocumentos(this.documentosEnMemoria);
     }
 
     return { exito: true, documento: docActualizado, codigoAnterior: codAntUpper, nuevoCodigo: nuevoCodUpper };
@@ -2585,6 +2791,11 @@ export class DataService {
       }
     }
 
+    if (!syncOk && cacheService && cacheService.encolarMutacion) {
+      await cacheService.encolarMutacion(payload);
+      console.log('[sharepointService] 📦 Retiro encolado en Outbox para sincronización automática al reconectar.');
+    }
+
     // Si es un registro derivado, retirarlo únicamente de su documento padre
     const mSecDel = codUpper.match(/^([A-Z]{3,4}-[A-Z]{2,4}-\d{3,4})-(\d+)$/i);
     if (esRegistro || (id && String(id).includes('_REG_')) || mSecDel) {
@@ -2609,6 +2820,10 @@ export class DataService {
         }
       } catch {}
 
+      if (cacheService && cacheService.guardarDocumentos) {
+        cacheService.guardarDocumentos(this.documentosEnMemoria);
+      }
+
       return { exito: true, codigo: codUpper, esRegistro: true, id };
     }
 
@@ -2625,6 +2840,10 @@ export class DataService {
     } catch {}
 
     this.documentosEnMemoria = this.documentosEnMemoria.filter(d => (d.codigo || '').toUpperCase() !== codUpper);
+
+    if (cacheService && cacheService.guardarDocumentos) {
+      cacheService.guardarDocumentos(this.documentosEnMemoria);
+    }
 
     return { exito: true, codigo: codUpper };
   }

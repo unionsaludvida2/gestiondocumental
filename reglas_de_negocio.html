@@ -687,6 +687,16 @@
                 <td>Prohibido el borrado físico de registros maestros. Todo retiro documental es lógico y trazable.</td>
                 <td><span class="pill-badge pill-purple">Auditoría Perpetua</span></td>
               </tr>
+              <tr>
+                <td><strong>6. Supremacía de Google Sheets (Biblioteca SSOT)</strong></td>
+                <td>La Hoja de Cálculo de Google (Biblioteca) es el documento principal y repositorio maestro oficial. Todo documento o registro derivado se almacena obligatoria e inmediatamente en la nube; los archivos locales son estrictamente caché de lectura acelerada y jamás sustituyen el flujo real de datos.</td>
+                <td><span class="pill-badge pill-green">Biblioteca Central SSOT</span></td>
+              </tr>
+              <tr>
+                <td><strong>7. Supremacía de OneDrive, IndexedDB y Habeas Data</strong></td>
+                <td>OneDrive es la fuente primaria de personal (<code>EMPLEADOS_ACTIVOS.csv</code>) y rutas padre. Se excluye de GitHub por Habeas Data (Ley 1581) y se almacena en el cliente en <code>IndexedDB</code> como objetos JSON indexados ($O(1) &lt; 1\text{ ms}$). Usuario retirado o inexistente tiene acceso denegado. Mutaciones offline protegidas con cola Outbox.</td>
+                <td><span class="pill-badge pill-blue">Gobernanza Cloud &amp; Outbox</span></td>
+              </tr>
             </tbody>
           </table>
         </div>

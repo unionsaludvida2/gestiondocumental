@@ -450,13 +450,9 @@ def _trigger_background_empleados_sync():
             if len(d) > 100:
                 CACHE['empleados']['data'] = d
                 CACHE['empleados']['ts'] = time.time()
-                try:
-                    with open("EMPLEADOS_ACTIVOS.csv", "wb") as f:
-                        f.write(d)
-                except Exception:
-                    pass
-        except Exception:
-            pass
+                print(f"[Server.py] ⚡ Matriz de colaboradores sincronizada desde OneDrive en RAM ({len(d)} bytes).")
+        except Exception as e:
+            print("[Server.py] Error sincronizando colaboradores desde OneDrive:", e)
         finally:
             CACHE['empleados']['fetching'] = False
 
@@ -838,14 +834,6 @@ class LiveOneDriveHandler(http.server.SimpleHTTPRequestHandler):
         # 2. Endpoint empleados activos (Respuesta instantánea a <1ms desde caché)
         if self.path.startswith('/api/empleados'):
             data = CACHE['empleados']['data']
-            if data is None and os.path.exists("EMPLEADOS_ACTIVOS.csv"):
-                try:
-                    with open("EMPLEADOS_ACTIVOS.csv", "rb") as f:
-                        data = f.read()
-                        CACHE['empleados']['data'] = data
-                        CACHE['empleados']['ts'] = time.time()
-                except Exception:
-                    pass
 
             if CACHE['empleados']['data'] is None or (time.time() - CACHE['empleados']['ts'] > 180) or 'forzar=true' in self.path:
                 _trigger_background_empleados_sync()

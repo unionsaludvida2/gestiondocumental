@@ -1,8 +1,144 @@
 {
   "version": "1.0",
   "empresa": "Unión para la salud y la vida S.A.S.",
-  "ultimaActualizacion": "2026-09-27T01:14:19.947Z",
+  "ultimaActualizacion": "2026-09-27T02:45:25.658Z",
   "registroAuditoria": [
+    {
+      "id": "aud_1790477113938_bi65t",
+      "tipo": "CREACION",
+      "usuario": "John Fredy Ramirez Rios",
+      "identificacion": "8160602",
+      "cargo": "Medico General",
+      "perfil": "total",
+      "documentoCodigo": "FMT-GIC-016-8",
+      "documentoTitulo": "Definición de criterios de formación infancia 2026-1",
+      "documentoExtension": "PDF",
+      "esRegistro": true,
+      "documentoPadreCodigo": "FMT-GIC-016",
+      "detalle": "Nuevo registro derivado incorporado al catálogo (FMT-GIC-016-8 - Definición de criterios de formación infancia 2026-1)",
+      "fechaHora": "26/09/2026 21:45:13",
+      "timestamp": "2026-09-27T02:45:13.938Z",
+      "dispositivo": "Windows"
+    },
+    {
+      "id": "aud_1790477113177_fmhn5",
+      "tipo": "CREACION",
+      "usuario": "John Fredy Ramirez Rios",
+      "identificacion": "8160602",
+      "cargo": "Medico General",
+      "perfil": "total",
+      "documentoCodigo": "FMT-GIC-016-7",
+      "documentoTitulo": "Definición de criterios de formación especialistas 2026-2",
+      "documentoExtension": "PDF",
+      "esRegistro": true,
+      "documentoPadreCodigo": "FMT-GIC-016",
+      "detalle": "Nuevo registro derivado incorporado al catálogo (FMT-GIC-016-7 - Definición de criterios de formación especialistas 2026-2)",
+      "fechaHora": "26/09/2026 21:45:13",
+      "timestamp": "2026-09-27T02:45:13.177Z",
+      "dispositivo": "Windows"
+    },
+    {
+      "id": "aud_1790477112505_7wfdk",
+      "tipo": "CREACION",
+      "usuario": "John Fredy Ramirez Rios",
+      "identificacion": "8160602",
+      "cargo": "Medico General",
+      "perfil": "total",
+      "documentoCodigo": "FMT-GIC-016-6",
+      "documentoTitulo": "Definición de criterios de formación especialistas 2026-1",
+      "documentoExtension": "PDF",
+      "esRegistro": true,
+      "documentoPadreCodigo": "FMT-GIC-016",
+      "detalle": "Nuevo registro derivado incorporado al catálogo (FMT-GIC-016-6 - Definición de criterios de formación especialistas 2026-1)",
+      "fechaHora": "26/09/2026 21:45:12",
+      "timestamp": "2026-09-27T02:45:12.505Z",
+      "dispositivo": "Windows"
+    },
+    {
+      "id": "aud_1790477111792_6xd36",
+      "tipo": "CREACION",
+      "usuario": "John Fredy Ramirez Rios",
+      "identificacion": "8160602",
+      "cargo": "Medico General",
+      "perfil": "total",
+      "documentoCodigo": "FMT-GIC-016-5",
+      "documentoTitulo": "Definición de criterios de formación CPR 2026-2",
+      "documentoExtension": "PDF",
+      "esRegistro": true,
+      "documentoPadreCodigo": "FMT-GIC-016",
+      "detalle": "Nuevo registro derivado incorporado al catálogo (FMT-GIC-016-5 - Definición de criterios de formación CPR 2026-2)",
+      "fechaHora": "26/09/2026 21:45:11",
+      "timestamp": "2026-09-27T02:45:11.792Z",
+      "dispositivo": "Windows"
+    },
+    {
+      "id": "aud_1790477111115_t21ei",
+      "tipo": "CREACION",
+      "usuario": "John Fredy Ramirez Rios",
+      "identificacion": "8160602",
+      "cargo": "Medico General",
+      "perfil": "total",
+      "documentoCodigo": "FMT-GIC-016-4",
+      "documentoTitulo": "Definición de criterios de formación CPR 2026-1",
+      "documentoExtension": "PDF",
+      "esRegistro": true,
+      "documentoPadreCodigo": "FMT-GIC-016",
+      "detalle": "Nuevo registro derivado incorporado al catálogo (FMT-GIC-016-4 - Definición de criterios de formación CPR 2026-1)",
+      "fechaHora": "26/09/2026 21:45:11",
+      "timestamp": "2026-09-27T02:45:11.115Z",
+      "dispositivo": "Windows"
+    },
+    {
+      "id": "aud_1790477110454_dui1e",
+      "tipo": "CREACION",
+      "usuario": "John Fredy Ramirez Rios",
+      "identificacion": "8160602",
+      "cargo": "Medico General",
+      "perfil": "total",
+      "documentoCodigo": "FMT-GIC-016-3",
+      "documentoTitulo": "Definición de criterios de formación Asma y EPOC 2026",
+      "documentoExtension": "PDF",
+      "esRegistro": true,
+      "documentoPadreCodigo": "FMT-GIC-016",
+      "detalle": "Nuevo registro derivado incorporado al catálogo (FMT-GIC-016-3 - Definición de criterios de formación Asma y EPOC 2026)",
+      "fechaHora": "26/09/2026 21:45:10",
+      "timestamp": "2026-09-27T02:45:10.454Z",
+      "dispositivo": "Windows"
+    },
+    {
+      "id": "aud_1790477109770_oj8d9",
+      "tipo": "CREACION",
+      "usuario": "John Fredy Ramirez Rios",
+      "identificacion": "8160602",
+      "cargo": "Medico General",
+      "perfil": "total",
+      "documentoCodigo": "FMT-GIC-016-2",
+      "documentoTitulo": "Definición de criterios de formación anticoagulados 2026-2",
+      "documentoExtension": "PDF",
+      "esRegistro": true,
+      "documentoPadreCodigo": "FMT-GIC-016",
+      "detalle": "Nuevo registro derivado incorporado al catálogo (FMT-GIC-016-2 - Definición de criterios de formación anticoagulados 2026-2)",
+      "fechaHora": "26/09/2026 21:45:09",
+      "timestamp": "2026-09-27T02:45:09.770Z",
+      "dispositivo": "Windows"
+    },
+    {
+      "id": "aud_1790477109115_97jta",
+      "tipo": "CREACION",
+      "usuario": "John Fredy Ramirez Rios",
+      "identificacion": "8160602",
+      "cargo": "Medico General",
+      "perfil": "total",
+      "documentoCodigo": "FMT-GIC-016-1",
+      "documentoTitulo": "Definición de criterios de formación anticoagulados 2026-1",
+      "documentoExtension": "PDF",
+      "esRegistro": true,
+      "documentoPadreCodigo": "FMT-GIC-016",
+      "detalle": "Nuevo registro derivado incorporado al catálogo (FMT-GIC-016-1 - Definición de criterios de formación anticoagulados 2026-1)",
+      "fechaHora": "26/09/2026 21:45:09",
+      "timestamp": "2026-09-27T02:45:09.115Z",
+      "dispositivo": "Windows"
+    },
     {
       "id": "aud_1790463772184_ghu00",
       "tipo": "LOGIN",
@@ -33,7 +169,9 @@
       "detalle": "Nuevo documento incorporado al catálogo (FMT-GIC-016-4 - Definición de criterios de formación CPR 2026-1)",
       "fechaHora": "26/09/2026 17:57:39",
       "timestamp": "2026-09-26T22:57:39.517Z",
-      "dispositivo": "Windows"
+      "dispositivo": "Windows",
+      "esRegistro": true,
+      "documentoPadreCodigo": "FMT-GIC-016"
     },
     {
       "id": "aud_1790457730215_nqoq7",
@@ -48,7 +186,9 @@
       "detalle": "Descarga de documento oficial en PDF (FMT-GIC-016-4)",
       "fechaHora": "26/09/2026 16:22:10",
       "timestamp": "2026-09-26T21:22:10.215Z",
-      "dispositivo": "Windows"
+      "dispositivo": "Windows",
+      "esRegistro": true,
+      "documentoPadreCodigo": "FMT-GIC-016"
     },
     {
       "id": "aud_1790457703518_4ex3o",
@@ -63,7 +203,9 @@
       "detalle": "Modificación de metadatos de registro derivado (FMT-GIC-016-4 - Definición de criterios de formación CPR 2026-1): Actualización de metadatos",
       "fechaHora": "26/09/2026 16:21:43",
       "timestamp": "2026-09-26T21:21:43.518Z",
-      "dispositivo": "Windows"
+      "dispositivo": "Windows",
+      "esRegistro": true,
+      "documentoPadreCodigo": "FMT-GIC-016"
     },
     {
       "id": "aud_1790457673211_6qofk",
@@ -78,7 +220,9 @@
       "detalle": "Nuevo registro derivado creado (FMT-GIC-016-4 - FMT-GIC-016-4 Definición de criterios de formación CPR 2026-1)",
       "fechaHora": "26/09/2026 16:21:13",
       "timestamp": "2026-09-26T21:21:13.211Z",
-      "dispositivo": "Windows"
+      "dispositivo": "Windows",
+      "esRegistro": true,
+      "documentoPadreCodigo": "FMT-GIC-016"
     },
     {
       "id": "aud_1790457491026_w295v",
@@ -108,7 +252,9 @@
       "detalle": "Descarga de documento oficial en PDF (FMT-GIC-016-3)",
       "fechaHora": "26/09/2026 16:17:54",
       "timestamp": "2026-09-26T21:17:54.389Z",
-      "dispositivo": "Windows"
+      "dispositivo": "Windows",
+      "esRegistro": true,
+      "documentoPadreCodigo": "FMT-GIC-016"
     },
     {
       "id": "aud_1790457461869_cro2g",
@@ -123,7 +269,9 @@
       "detalle": "Descarga de documento oficial en PDF (FMT-GIC-016-2)",
       "fechaHora": "26/09/2026 16:17:41",
       "timestamp": "2026-09-26T21:17:41.869Z",
-      "dispositivo": "Windows"
+      "dispositivo": "Windows",
+      "esRegistro": true,
+      "documentoPadreCodigo": "FMT-GIC-016"
     },
     {
       "id": "aud_1790457449282_jis3c",
@@ -138,7 +286,9 @@
       "detalle": "Descarga de documento oficial en PDF (FMT-GIC-016-2)",
       "fechaHora": "26/09/2026 16:17:29",
       "timestamp": "2026-09-26T21:17:29.282Z",
-      "dispositivo": "Windows"
+      "dispositivo": "Windows",
+      "esRegistro": true,
+      "documentoPadreCodigo": "FMT-GIC-016"
     },
     {
       "id": "aud_1790453022980_srx4j",
@@ -153,7 +303,9 @@
       "detalle": "Descarga de documento oficial en PDF (FMT-GIC-016-2)",
       "fechaHora": "26/09/2026 15:03:42",
       "timestamp": "2026-09-26T20:03:42.980Z",
-      "dispositivo": "Windows"
+      "dispositivo": "Windows",
+      "esRegistro": true,
+      "documentoPadreCodigo": "FMT-GIC-016"
     },
     {
       "id": "aud_1790446077004_i91fy",
@@ -183,7 +335,9 @@
       "detalle": "Descarga de documento oficial en PDF (FMT-GIC-016-1)",
       "fechaHora": "26/09/2026 13:07:33",
       "timestamp": "2026-09-26T18:07:33.689Z",
-      "dispositivo": "Windows"
+      "dispositivo": "Windows",
+      "esRegistro": true,
+      "documentoPadreCodigo": "FMT-GIC-016"
     },
     {
       "id": "aud_1790446047349_mzdfh",
@@ -198,7 +352,9 @@
       "detalle": "Descarga de documento oficial en PDF (FMT-GIC-016-3)",
       "fechaHora": "26/09/2026 13:07:27",
       "timestamp": "2026-09-26T18:07:27.349Z",
-      "dispositivo": "Windows"
+      "dispositivo": "Windows",
+      "esRegistro": true,
+      "documentoPadreCodigo": "FMT-GIC-016"
     },
     {
       "id": "aud_1790445987018_z6yib",
@@ -213,7 +369,9 @@
       "detalle": "Descarga de documento oficial en PDF (FMT-GIC-016-1)",
       "fechaHora": "26/09/2026 13:06:27",
       "timestamp": "2026-09-26T18:06:27.018Z",
-      "dispositivo": "Windows"
+      "dispositivo": "Windows",
+      "esRegistro": true,
+      "documentoPadreCodigo": "FMT-GIC-016"
     },
     {
       "id": "aud_1790445975058_accva",
@@ -228,7 +386,9 @@
       "detalle": "Descarga de documento oficial en PDF (FMT-GIC-016-3)",
       "fechaHora": "26/09/2026 13:06:15",
       "timestamp": "2026-09-26T18:06:15.058Z",
-      "dispositivo": "Windows"
+      "dispositivo": "Windows",
+      "esRegistro": true,
+      "documentoPadreCodigo": "FMT-GIC-016"
     },
     {
       "id": "aud_1790445947742_1nm8i",
@@ -243,7 +403,9 @@
       "detalle": "Descarga de documento oficial en PDF (FMT-GIC-016-3)",
       "fechaHora": "26/09/2026 13:05:47",
       "timestamp": "2026-09-26T18:05:47.742Z",
-      "dispositivo": "Windows"
+      "dispositivo": "Windows",
+      "esRegistro": true,
+      "documentoPadreCodigo": "FMT-GIC-016"
     },
     {
       "id": "aud_1790445939840_dorub",
@@ -258,7 +420,9 @@
       "detalle": "Descarga de documento oficial en PDF (FMT-GIC-016-1)",
       "fechaHora": "26/09/2026 13:05:39",
       "timestamp": "2026-09-26T18:05:39.840Z",
-      "dispositivo": "Windows"
+      "dispositivo": "Windows",
+      "esRegistro": true,
+      "documentoPadreCodigo": "FMT-GIC-016"
     },
     {
       "id": "aud_1790445936559_mopvk",
@@ -348,7 +512,9 @@
       "detalle": "Edición de registro derivado en SharePoint (FMT-GIC-016-1)",
       "fechaHora": "26/09/2026 11:05:40",
       "timestamp": "2026-09-26T16:05:40.588Z",
-      "dispositivo": "Windows"
+      "dispositivo": "Windows",
+      "esRegistro": true,
+      "documentoPadreCodigo": "FMT-GIC-016"
     },
     {
       "id": "aud_1790438699426_sifz0",
@@ -363,7 +529,9 @@
       "detalle": "Descarga de documento oficial en PDF (FMT-GIC-016-3)",
       "fechaHora": "26/09/2026 11:04:59",
       "timestamp": "2026-09-26T16:04:59.426Z",
-      "dispositivo": "Windows"
+      "dispositivo": "Windows",
+      "esRegistro": true,
+      "documentoPadreCodigo": "FMT-GIC-016"
     },
     {
       "id": "aud_1790436735604_s8fkd",
@@ -378,7 +546,9 @@
       "detalle": "Descarga de documento oficial en PDF (FMT-GIC-016-1)",
       "fechaHora": "26/09/2026 10:32:15",
       "timestamp": "2026-09-26T15:32:15.604Z",
-      "dispositivo": "Windows"
+      "dispositivo": "Windows",
+      "esRegistro": true,
+      "documentoPadreCodigo": "FMT-GIC-016"
     },
     {
       "id": "aud_1790436720217_2nsag",
@@ -408,7 +578,9 @@
       "detalle": "Descarga de documento oficial en PDF (FMT-GIC-016-1)",
       "fechaHora": "26/09/2026 10:26:17",
       "timestamp": "2026-09-26T15:26:17.299Z",
-      "dispositivo": "Windows"
+      "dispositivo": "Windows",
+      "esRegistro": true,
+      "documentoPadreCodigo": "FMT-GIC-016"
     },
     {
       "id": "aud_1790436201137_7qg8b",
@@ -552,13 +724,15 @@
       "identificacion": "8160602",
       "cargo": "Medico General",
       "perfil": "total",
-      "documentoCodigo": "FMT-GIC-016",
+      "documentoCodigo": "FMT-GIC-016-4",
       "documentoTitulo": "Criterios de FormaciCriterios de Formacion para Anticoagulados",
       "documentoExtension": "DOC",
       "detalle": "Edición de registro derivado en SharePoint (FMT-GIC-016)",
       "fechaHora": "26/09/2026 00:18:27",
       "timestamp": "2026-09-26T05:18:27.381Z",
-      "dispositivo": "Windows"
+      "dispositivo": "Windows",
+      "esRegistro": true,
+      "documentoPadreCodigo": "FMT-GIC-016"
     },
     {
       "id": "aud_1790399890003_cygwo",
@@ -582,13 +756,15 @@
       "identificacion": "8160602",
       "cargo": "Medico General",
       "perfil": "total",
-      "documentoCodigo": "FMT-GIC-016",
+      "documentoCodigo": "FMT-GIC-016-3",
       "documentoTitulo": "Criterios de Formacion para Asma y EPOC",
       "documentoExtension": "DOC",
       "detalle": "Descarga de formato institucional editable (FMT-GIC-016)",
       "fechaHora": "26/09/2026 00:17:25",
       "timestamp": "2026-09-26T05:17:25.370Z",
-      "dispositivo": "Windows"
+      "dispositivo": "Windows",
+      "esRegistro": true,
+      "documentoPadreCodigo": "FMT-GIC-016"
     },
     {
       "id": "aud_1790399823157_1fyxe",
@@ -597,13 +773,15 @@
       "identificacion": "8160602",
       "cargo": "Medico General",
       "perfil": "total",
-      "documentoCodigo": "FMT-GIC-016",
+      "documentoCodigo": "FMT-GIC-016-3",
       "documentoTitulo": "Criterios de Formacion para Asma y EPOC",
       "documentoExtension": "DOC",
       "detalle": "Edición de registro derivado en SharePoint (FMT-GIC-016)",
       "fechaHora": "26/09/2026 00:17:03",
       "timestamp": "2026-09-26T05:17:03.157Z",
-      "dispositivo": "Windows"
+      "dispositivo": "Windows",
+      "esRegistro": true,
+      "documentoPadreCodigo": "FMT-GIC-016"
     },
     {
       "id": "aud_1790399548496_nzoe4",
@@ -612,13 +790,15 @@
       "identificacion": "8160602",
       "cargo": "Medico General",
       "perfil": "total",
-      "documentoCodigo": "FMT-GIC-016",
+      "documentoCodigo": "FMT-GIC-016-3",
       "documentoTitulo": "Definición de criterios de formación Asma y EPOC",
       "documentoExtension": "DOC",
       "detalle": "Modificación de metadatos de registro derivado (FMT-GIC-016 - Definición de criterios de formación Asma y EPOC): Creación del documento",
       "fechaHora": "26/09/2026 00:12:28",
       "timestamp": "2026-09-26T05:12:28.496Z",
-      "dispositivo": "Windows"
+      "dispositivo": "Windows",
+      "esRegistro": true,
+      "documentoPadreCodigo": "FMT-GIC-016"
     },
     {
       "id": "aud_1790399517279_e7ily",
@@ -627,13 +807,15 @@
       "identificacion": "8160602",
       "cargo": "Medico General",
       "perfil": "total",
-      "documentoCodigo": "FMT-GIC-016",
+      "documentoCodigo": "FMT-GIC-016-1",
       "documentoTitulo": "Definición de criterios de formación Anticoagulados 2026-1",
       "documentoExtension": "DOC",
       "detalle": "Modificación de metadatos de registro derivado (FMT-GIC-016 - Definición de criterios de formación Anticoagulados 2026-1): Creación del documento",
       "fechaHora": "26/09/2026 00:11:57",
       "timestamp": "2026-09-26T05:11:57.279Z",
-      "dispositivo": "Windows"
+      "dispositivo": "Windows",
+      "esRegistro": true,
+      "documentoPadreCodigo": "FMT-GIC-016"
     },
     {
       "id": "aud_1790395328247_2oi6m",
@@ -657,13 +839,15 @@
       "identificacion": "8160602",
       "cargo": "Medico General",
       "perfil": "total",
-      "documentoCodigo": "FMT-GIC-016",
+      "documentoCodigo": "FMT-GIC-016-4",
       "documentoTitulo": "Definición de criterios de formación",
       "documentoExtension": "DOC",
       "detalle": "Modificación de metadatos en catálogo (FMT-GIC-016): Título: \"Criterios de Formación para Anticoagulados\" ➔ \"Definición de criterios de formación\"",
       "fechaHora": "25/09/2026 22:52:08",
       "timestamp": "2026-09-26T03:52:08.812Z",
-      "dispositivo": "Windows"
+      "dispositivo": "Windows",
+      "esRegistro": true,
+      "documentoPadreCodigo": "FMT-GIC-016"
     },
     {
       "id": "aud_1790394369407_ce62z",
@@ -702,13 +886,15 @@
       "identificacion": "8160602",
       "cargo": "Medico General",
       "perfil": "total",
-      "documentoCodigo": "FMT-GIC-016",
+      "documentoCodigo": "FMT-GIC-016-4",
       "documentoTitulo": "Criterios de Formación para Anticoagulados",
       "documentoExtension": "DOC",
       "detalle": "",
       "fechaHora": "25/09/2026 22:44:46",
       "timestamp": "2026-09-26T03:44:46.459Z",
-      "dispositivo": "Windows"
+      "dispositivo": "Windows",
+      "esRegistro": true,
+      "documentoPadreCodigo": "FMT-GIC-016"
     },
     {
       "id": "aud_1790394257194_wpgmq",
@@ -717,13 +903,15 @@
       "identificacion": "8160602",
       "cargo": "Medico General",
       "perfil": "total",
-      "documentoCodigo": "FMT-GIC-016",
+      "documentoCodigo": "FMT-GIC-016-1",
       "documentoTitulo": "Criterios de Formacion para Anticoagulados 2026-1",
       "documentoExtension": "DOC",
       "detalle": "Modificación de metadatos de registro derivado (FMT-GIC-016 - Criterios de Formacion para Anticoagulados 2026-1): Creación del documento",
       "fechaHora": "25/09/2026 22:44:17",
       "timestamp": "2026-09-26T03:44:17.194Z",
-      "dispositivo": "Windows"
+      "dispositivo": "Windows",
+      "esRegistro": true,
+      "documentoPadreCodigo": "FMT-GIC-016"
     },
     {
       "id": "aud_1790394207727_f20wv",
@@ -732,13 +920,15 @@
       "identificacion": "8160602",
       "cargo": "Medico General",
       "perfil": "total",
-      "documentoCodigo": "FMT-GIC-016",
+      "documentoCodigo": "FMT-GIC-016-4",
       "documentoTitulo": "Criterios de Formacion para Anticoagulados",
       "documentoExtension": "DOC",
       "detalle": "Modificación de metadatos de registro derivado (FMT-GIC-016 - Criterios de Formacion para Anticoagulados): Creación del documento",
       "fechaHora": "25/09/2026 22:43:27",
       "timestamp": "2026-09-26T03:43:27.727Z",
-      "dispositivo": "Windows"
+      "dispositivo": "Windows",
+      "esRegistro": true,
+      "documentoPadreCodigo": "FMT-GIC-016"
     },
     {
       "id": "aud_1790394195814_lb4oy",
@@ -747,13 +937,15 @@
       "identificacion": "8160602",
       "cargo": "Medico General",
       "perfil": "total",
-      "documentoCodigo": "FMT-GIC-016",
+      "documentoCodigo": "FMT-GIC-016-4",
       "documentoTitulo": "Criterios de Formación para Anticoagulados",
       "documentoExtension": "DOC",
       "detalle": "Modificación de metadatos en catálogo (FMT-GIC-016): Título: \"Definición de criterios de formación\" ➔ \"Criterios de Formación para Anticoagulados\" • Ubicación: Gestión Integral Calidad/Gestión Integral de Calidad ➔ Gestión Integral Calidad/Planeación Estratégica y Dirección",
       "fechaHora": "25/09/2026 22:43:15",
       "timestamp": "2026-09-26T03:43:15.814Z",
-      "dispositivo": "Windows"
+      "dispositivo": "Windows",
+      "esRegistro": true,
+      "documentoPadreCodigo": "FMT-GIC-016"
     },
     {
       "id": "aud_1790393981434_4ggga",
@@ -762,13 +954,15 @@
       "identificacion": "8160602",
       "cargo": "Medico General",
       "perfil": "total",
-      "documentoCodigo": "FMT-GIC-016",
+      "documentoCodigo": "FMT-GIC-016-4",
       "documentoTitulo": "Criterios de Formación para Anticoagulados",
       "documentoExtension": "DOC",
       "detalle": "Modificación de metadatos de registro derivado (FMT-GIC-016 - Criterios de Formación para Anticoagulados): Creación del documento",
       "fechaHora": "25/09/2026 22:39:41",
       "timestamp": "2026-09-26T03:39:41.434Z",
-      "dispositivo": "Windows"
+      "dispositivo": "Windows",
+      "esRegistro": true,
+      "documentoPadreCodigo": "FMT-GIC-016"
     },
     {
       "id": "aud_1790390505946_u93je",
@@ -777,13 +971,15 @@
       "identificacion": "8160602",
       "cargo": "Medico General",
       "perfil": "total",
-      "documentoCodigo": "FMT-GIC-016",
+      "documentoCodigo": "FMT-GIC-016-3",
       "documentoTitulo": "Criterios de Formacion para Asma y EPOC",
       "documentoExtension": "XLSX",
       "detalle": "Nuevo registro derivado creado (FMT-GIC-016 - Criterios de Formacion para Asma y EPOC)",
       "fechaHora": "25/09/2026 21:41:45",
       "timestamp": "2026-09-26T02:41:45.946Z",
-      "dispositivo": "Windows"
+      "dispositivo": "Windows",
+      "esRegistro": true,
+      "documentoPadreCodigo": "FMT-GIC-016"
     },
     {
       "id": "aud_1790390426668_3joua",
@@ -792,13 +988,15 @@
       "identificacion": "8160602",
       "cargo": "Medico General",
       "perfil": "total",
-      "documentoCodigo": "FMT-GIC-016",
+      "documentoCodigo": "FMT-GIC-016-4",
       "documentoTitulo": "Criterios de FormaciCriterios de Formacion para Anticoagulados",
       "documentoExtension": "XLSX",
       "detalle": "Nuevo registro derivado creado (FMT-GIC-016 - Criterios de FormaciCriterios de Formacion para Anticoagulados)",
       "fechaHora": "25/09/2026 21:40:26",
       "timestamp": "2026-09-26T02:40:26.668Z",
-      "dispositivo": "Windows"
+      "dispositivo": "Windows",
+      "esRegistro": true,
+      "documentoPadreCodigo": "FMT-GIC-016"
     },
     {
       "id": "aud_1790389038423_sqqho",
@@ -807,13 +1005,15 @@
       "identificacion": "8160602",
       "cargo": "Medico General",
       "perfil": "total",
-      "documentoCodigo": "FMT-GIC-016",
+      "documentoCodigo": "FMT-GIC-016-2",
       "documentoTitulo": "FMT-GIC-016 Definición de criterios de formación anticoagulados 2026-2",
       "documentoExtension": "XLSX",
       "detalle": "Nuevo registro derivado creado (FMT-GIC-016 - FMT-GIC-016 Definición de criterios de formación anticoagulados 2026-2)",
       "fechaHora": "25/09/2026 21:17:18",
       "timestamp": "2026-09-26T02:17:18.423Z",
-      "dispositivo": "Windows"
+      "dispositivo": "Windows",
+      "esRegistro": true,
+      "documentoPadreCodigo": "FMT-GIC-016"
     },
     {
       "id": "aud_1790388553847_hnuk8",
@@ -837,13 +1037,15 @@
       "identificacion": "8160602",
       "cargo": "Medico General",
       "perfil": "total",
-      "documentoCodigo": "FMT-GIC-016",
+      "documentoCodigo": "FMT-GIC-016-1",
       "documentoTitulo": "Definición de criterios de formación anticoagulados 2026-1",
       "documentoExtension": "XLSX",
       "detalle": "Nuevo registro derivado creado (FMT-GIC-016 - Definición de criterios de formación anticoagulados 2026-1)",
       "fechaHora": "25/09/2026 21:07:28",
       "timestamp": "2026-09-26T02:07:28.771Z",
-      "dispositivo": "Windows"
+      "dispositivo": "Windows",
+      "esRegistro": true,
+      "documentoPadreCodigo": "FMT-GIC-016"
     },
     {
       "id": "aud_1790387618865_15ohz",

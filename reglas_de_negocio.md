@@ -97,14 +97,20 @@ El presente documento constituye la **Fuente Única de Verdad (Single Source of 
 │ 4. Mínimo Privilegio y Denegación por Defecto (Default Deny)           │
 │ 5. Protección de Datos Personales y Habeas Data                        │
 │ 6. Inmutabilidad y Trazabilidad sin Borrado Físico (Soft-Delete)       │
+│ 7. Supremacía Cloud (Google Sheets / OneDrive) y Rol de Caché Local      │
 └────────────────────────────────────────────────────────────────────────┘
 ```
 
 1. **Prioridad Absoluta de la Integridad Documental:** Los documentos institucionales son activos regulados en el marco del Sistema de Garantía de Calidad en Salud. Ninguna rutina informática puede sobrescribir, desvincular o corromper el histórico documental.
 2. **Arquitectura Serverless Híbrida:** Despliegue cliente estático de alta disponibilidad en **GitHub Pages**, respaldado por sincronización en la nube con **Google Workspace** (Google Sheets, Drive y Apps Script) y enlaces federados a **Microsoft 365** (SharePoint Online / OneDrive).
 3. **Resiliencia y Carga Instantánea (*Stale-While-Revalidate*):** La aplicación debe responder inmediatamente al usuario en menos de 50 ms sirviendo datos desde la caché persistente local (`IndexedDB` y `localStorage`), reconciliando las actualizaciones remotas en segundo plano sin bloqueos visuales.
-4. **Protección de Datos Personales (Habeas Data):** En cumplimiento de la normativa legal de privacidad, el inicio de sesión cotidiano se efectúa mediante **Correo Corporativo y Contraseña**. El documento de identidad no se expone ni solicita en accesos de rutina, reservándose exclusivamente para registro primario y validación de desbloqueo.
+4. **Protección de Datos Personales (Habeas Data) y Exclusión de Repositorios Públicos:** En cumplimiento estricto de la Ley 1581 de 2012, el inicio de sesión cotidiano se efectúa mediante **Correo Corporativo y Contraseña**. El archivo `EMPLEADOS_ACTIVOS.csv` está excluido del repositorio de código (GitHub) mediante `.gitignore` para salvaguardar la privacidad de los colaboradores y prevenir desactualización estática (*stale data*).
 5. **Inmutabilidad y No-Repudio (*Append-Only*):** La auditoría y el control de cambios documentales operan bajo un modelo estrictamente incremental. El retiro de documentos se efectúa mediante *Soft-Delete* trazable; el borrado físico de registros maestros está estrictamente prohibido.
+6. **Supremacía de Google Sheets como Fuente Única de Verdad (SSOT) del Catálogo:** La Hoja de Cálculo de Google («Biblioteca», ID: `1EOcucjQV4byUOp_AAfd1ySHk4tVdFmMeOoOQsSBbEa4`) es el repositorio maestro oficial del catálogo documental. Toda creación, edición o retiro se escribe inmediatamente en Google Sheets vía Apps Script; los archivos locales operan como caché de lectura acelerada y jamás sustituyen el flujo real de datos ni sobrescriben destructivamente la base cloud.
+7. **Supremacía de OneDrive para Personal y Enlaces, Caché Estructurada en IndexedDB y Cola Outbox:**
+   - **`EMPLEADOS_ACTIVOS.csv` (OneDrive):** Es la fuente primaria de RRHH/Nómina para habilitación de usuarios. Cualquier colaborador no registrado o marcado como inactivo/retirado tiene **acceso estrictamente denegado**. En el cliente se almacena en `IndexedDB` como colección de objetos JSON indexados, garantizando validación instantánea $O(1) < 1\text{ ms}$ sin re-parseo de texto.
+   - **`REPOSITORIO_DOCUMENTAL.csv` (OneDrive):** Fuente primaria de metadatos físicos de SharePoint para documentos base.
+   - **Cola de Mutaciones Offline (*Outbox Pattern*):** Si se crea o modifica un documento sin conectividad a internet, el payload se almacena de forma duradera en la cola `colaMutaciones` de `IndexedDB` y se despacha automáticamente a Google Sheets al detectar el evento de reconexión `online`.
 
 ---
 

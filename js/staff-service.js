@@ -8,7 +8,7 @@
 
 import { EMPLEADOS_ACTIVOS_BASE } from './staff-data.js?v=11.6.66';
 import { DOCUMENTOS_REALES } from './data.js?v=11.6.46';
-import { cacheService } from './cache-service.js?v=11.6.66';
+import { cacheService } from './cache-service.js?v=11.6.85';
 
 const STORAGE_KEY_AUTH_SESSION = 'agy_sgc_authenticated_session';
 const STORAGE_KEY_REMEMBERED_USER = 'agy_sgc_remembered_user';
@@ -594,30 +594,33 @@ export class StaffService {
   async sincronizarConfiguracion(forzar = false) {
     const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx4-82Ls3Zu5gdzXlAhezZ6ew9tnAece8xSDMQ8QmXcu7UCnMxwqB48ISG_LwNDUgMiQQ/exec';
     const query = forzar ? `?_t=${Date.now()}&forzar=true` : '';
+    const esLocal = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
 
-    // 1. Sincronizar usuarios.conf vía /api/configuracion
+    // 1. Sincronizar usuarios.conf vía /api/configuracion (solo en local) o directamente Google Drive Cloud
     const pConfig = (async () => {
-      try {
-        const res = await fetch(`/api/configuracion${query}`, {
-          cache: forzar ? 'no-store' : 'default',
-          signal: AbortSignal.timeout ? AbortSignal.timeout(3000) : undefined
-        });
-        if (res.ok) {
-          const json = await res.json();
-          if (json && typeof json === 'object') {
-            this.aplicarConfiguracion(json);
-            console.log('[StaffService] ✅ Configuración base sincronizada desde /api/configuracion.');
-            return;
+      if (esLocal) {
+        try {
+          const res = await fetch(`/api/configuracion${query}`, {
+            cache: forzar ? 'no-store' : 'default',
+            signal: AbortSignal.timeout ? AbortSignal.timeout(3000) : undefined
+          });
+          if (res.ok) {
+            const json = await res.json();
+            if (json && typeof json === 'object') {
+              this.aplicarConfiguracion(json);
+              console.log('[StaffService] ✅ Configuración base sincronizada desde /api/configuracion.');
+              return;
+            }
           }
-        }
-      } catch (e) { }
+        } catch (e) { }
+      }
 
-      // Fallback a Google Script
+      // Conexión Cloud a Google Script
       try {
         const resG = await fetch(GOOGLE_SCRIPT_URL, {
           method: 'GET',
           cache: 'no-store',
-          signal: AbortSignal.timeout ? AbortSignal.timeout(3000) : undefined
+          signal: AbortSignal.timeout ? AbortSignal.timeout(4000) : undefined
         });
         if (resG.ok) {
           const jsonG = await resG.json();
@@ -648,29 +651,31 @@ export class StaffService {
     // 2. Sincronizar auditoria.dat vía /api/auditoria o Google Drive
     const pAudit = this.sincronizarAuditoria(forzar);
 
-    // 3. Sincronizar maestro.dat vía /api/maestras o Google Drive
+    // 3. Sincronizar maestro.dat vía /api/maestras (solo en local) o directamente Google Drive Cloud
     const pMaestras = (async () => {
-      try {
-        const res = await fetch(`/api/maestras${query}`, {
-          cache: forzar ? 'no-store' : 'default',
-          signal: AbortSignal.timeout ? AbortSignal.timeout(3000) : undefined
-        });
-        if (res.ok) {
-          const json = await res.json();
-          if (json && typeof json === 'object') {
-            this.aplicarMaestras(json);
-            console.log('[StaffService] ✅ Tablas maestras sincronizadas desde /api/maestras.');
-            return;
+      if (esLocal) {
+        try {
+          const res = await fetch(`/api/maestras${query}`, {
+            cache: forzar ? 'no-store' : 'default',
+            signal: AbortSignal.timeout ? AbortSignal.timeout(3000) : undefined
+          });
+          if (res.ok) {
+            const json = await res.json();
+            if (json && typeof json === 'object') {
+              this.aplicarMaestras(json);
+              console.log('[StaffService] ✅ Tablas maestras sincronizadas desde /api/maestras.');
+              return;
+            }
           }
-        }
-      } catch (e) { }
+        } catch (e) { }
+      }
 
-      // Fallback a Google Script (?action=maestras)
+      // Conexión Cloud a Google Script (?action=maestras)
       try {
         const resG = await fetch(`${GOOGLE_SCRIPT_URL}?action=maestras&_t=${Date.now()}`, {
           method: 'GET',
           cache: 'no-store',
-          signal: AbortSignal.timeout ? AbortSignal.timeout(3000) : undefined
+          signal: AbortSignal.timeout ? AbortSignal.timeout(4000) : undefined
         });
         if (resG.ok) {
           const jsonG = await resG.json();
@@ -698,24 +703,26 @@ export class StaffService {
       } catch (e) { }
     })();
 
-    // 4. Sincronizar Historico_Documentos_USV.csv vía /api/historico o Google Drive
+    // 4. Sincronizar Historico_Documentos_USV.csv vía /api/historico (solo en local) o Google Drive Cloud
     const pHistorico = (async () => {
-      try {
-        const res = await fetch(`/api/historico${query}`, {
-          cache: forzar ? 'no-store' : 'default',
-          signal: AbortSignal.timeout ? AbortSignal.timeout(4000) : undefined
-        });
-        if (res.ok) {
-          const json = await res.json();
-          if (json && Array.isArray(json.historicoDocumental)) {
-            this.aplicarHistorico(json.historicoDocumental);
-            console.log('[StaffService] ✅ Control de cambios sincronizado desde /api/historico.');
-            return;
+      if (esLocal) {
+        try {
+          const res = await fetch(`/api/historico${query}`, {
+            cache: forzar ? 'no-store' : 'default',
+            signal: AbortSignal.timeout ? AbortSignal.timeout(4000) : undefined
+          });
+          if (res.ok) {
+            const json = await res.json();
+            if (json && Array.isArray(json.historicoDocumental)) {
+              this.aplicarHistorico(json.historicoDocumental);
+              console.log('[StaffService] ✅ Control de cambios sincronizado desde /api/historico.');
+              return;
+            }
           }
-        }
-      } catch (e) { }
+        } catch (e) { }
+      }
 
-      // Fallback a Google Script (?action=historico)
+      // Conexión Cloud a Google Script (?action=historico)
       try {
         const resG = await fetch(`${GOOGLE_SCRIPT_URL}?action=historico`, {
           cache: 'no-store',
@@ -970,56 +977,81 @@ export class StaffService {
   }
 
   /**
-   * Descarga y parsea en vivo EMPLEADOS_ACTIVOS.csv
+   * Sincroniza en vivo la matriz de colaboradores activos desde la nube (OneDrive / Web)
+   * y la persiste estructuradamente en IndexedDB para acceso instantáneo a 0 ms.
+   * Si no hay conexión, opera estrictamente con la última copia almacenada en la caché local.
    */
   async sincronizarEmpleados(forzar = false) {
     const timestamp = Date.now();
     const query = forzar ? `?_t=${timestamp}&forzar=true` : '';
+    const rutas = this.obtenerRutasConfiguradas();
+    const esLocal = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
 
-    // 1. Probar endpoint /api/empleados
-    try {
-      const res = await fetch(`/api/empleados${query}`, {
-        cache: forzar ? 'no-store' : 'default',
-        signal: AbortSignal.timeout ? AbortSignal.timeout(3000) : undefined
-      });
-      if (res.ok) {
-        const csvTexto = await res.text();
-        if (csvTexto && csvTexto.includes(',') && !csvTexto.includes('<!DOCTYPE html')) {
-          const lista = this.parsearCsvEmpleados(csvTexto);
-          if (lista.length > 0) {
-            this.empleados = lista;
-            try {
-              localStorage.setItem(STORAGE_KEY_STAFF_CACHE, JSON.stringify(lista));
-              cacheService.guardarColeccion('empleados', lista);
-            } catch { }
-            console.log(`[StaffService] ✅ ${lista.length} colaboradores activos sincronizados desde /api/empleados.`);
-            return lista;
+    let textoCsv = null;
+
+    // 1. Probar ruta oficial de OneDrive / Cloud si está configurada
+    if (rutas?.empleadosCsv && rutas.empleadosCsv.startsWith('http')) {
+      try {
+        const resCloud = await fetch(`${rutas.empleadosCsv}${query}`, {
+          cache: forzar ? 'no-store' : 'default',
+          signal: AbortSignal.timeout ? AbortSignal.timeout(5000) : undefined
+        });
+        if (resCloud.ok) {
+          const txt = await resCloud.text();
+          if (txt && (txt.includes(',') || txt.includes(';')) && !txt.includes('<!DOCTYPE html')) {
+            textoCsv = txt;
           }
         }
+      } catch (eCloud) {
+        // Red corporativa o sesión requerida
       }
-    } catch (e) { }
+    }
 
-    // 2. Fallback: Archivo estático EMPLEADOS_ACTIVOS.csv
-    try {
-      const resLocal = await fetch(`EMPLEADOS_ACTIVOS.csv${query}`, {
-        cache: forzar ? 'no-store' : 'default',
-        signal: AbortSignal.timeout ? AbortSignal.timeout(3000) : undefined
-      });
-      if (resLocal.ok) {
-        const csvTextoLocal = await resLocal.text();
-        if (csvTextoLocal && csvTextoLocal.includes(',') && !csvTextoLocal.includes('<!DOCTYPE html')) {
-          const lista = this.parsearCsvEmpleados(csvTextoLocal);
-          if (lista.length > 0) {
-            this.empleados = lista;
-            try {
-              localStorage.setItem(STORAGE_KEY_STAFF_CACHE, JSON.stringify(lista));
-              cacheService.guardarColeccion('empleados', lista);
-            } catch { }
-            return lista;
+    // 2. Si estamos en local, probar endpoint proxy local /api/empleados
+    if (!textoCsv && esLocal) {
+      try {
+        const res = await fetch(`/api/empleados${query}`, {
+          cache: forzar ? 'no-store' : 'default',
+          signal: AbortSignal.timeout ? AbortSignal.timeout(3000) : undefined
+        });
+        if (res.ok) {
+          const txt = await res.text();
+          if (txt && (txt.includes(',') || txt.includes(';')) && !txt.includes('<!DOCTYPE html')) {
+            textoCsv = txt;
           }
         }
+      } catch (e) { }
+    }
+
+
+
+    // 4. Si se obtuvo el texto fresco desde la nube o archivo, parsear y persistir en IndexedDB
+    if (textoCsv) {
+      const lista = this.parsearCsvEmpleados(textoCsv);
+      if (Array.isArray(lista) && lista.length > 0) {
+        this.empleados = lista;
+        try {
+          localStorage.setItem(STORAGE_KEY_STAFF_CACHE, JSON.stringify(lista));
+          localStorage.setItem('agy_last_staff_sync', Date.now().toString());
+          await cacheService.guardarColeccion('empleados', lista);
+          if (cacheService.guardarEmpleados) {
+            await cacheService.guardarEmpleados(lista);
+          }
+        } catch { }
+        console.log(`[StaffService] ⚡ ${lista.length} colaboradores activos sincronizados y cacheados en IndexedDB.`);
+        return lista;
       }
-    } catch (e) { }
+    }
+
+    // 5. Contingencia Offline: Si no hubo conexión o falló la descarga web, recurrir a la copia en IndexedDB
+    try {
+      const cachedEmp = await cacheService.obtenerColeccion('empleados');
+      if (Array.isArray(cachedEmp) && cachedEmp.length > 0) {
+        this.empleados = cachedEmp;
+        console.log(`[StaffService] 📂 Operando con caché local IndexedDB (${cachedEmp.length} colaboradores vigentes).`);
+        return cachedEmp;
+      }
+    } catch (eCache) { }
 
     return this.empleados;
   }
@@ -2043,12 +2075,29 @@ export class StaffService {
       ? this.empleados
       : (Array.isArray(EMPLEADOS_ACTIVOS_BASE) ? EMPLEADOS_ACTIVOS_BASE : []);
 
-    // 1. Buscar en lista de colaboradores activos
+    // 1. Validar existencia estricta en la matriz de colaboradores activos
     let emp = listaEmpleados.find((e) => (e.email || '').trim().toLowerCase() === emailClean);
 
-    // 2. Buscar en usuarios registrados
-    let reg = null;
-    if (this.configuracion?.usuariosRegistrados) {
+    if (!emp) {
+      return {
+        ok: false,
+        error: 'El colaborador no figura en la matriz de personal activo institucional o ha sido retirado. Acceso denegado.'
+      };
+    }
+
+    const estadoNorm = (emp.estado || 'Activo').toLowerCase();
+    if (estadoNorm.includes('inactiv') || estadoNorm.includes('retirad') || estadoNorm.includes('baja')) {
+      return {
+        ok: false,
+        error: 'El usuario figura como inactivo o retirado en la matriz institucional. Acceso restringido.'
+      };
+    }
+
+    // 2. Buscar credenciales registradas del colaborador
+    const docClean = this.limpiarNumeros(emp.identificacion);
+    let reg = this.configuracion?.usuariosRegistrados?.[docClean];
+
+    if (!reg && this.configuracion?.usuariosRegistrados) {
       for (const k of Object.keys(this.configuracion.usuariosRegistrados)) {
         const u = this.configuracion.usuariosRegistrados[k];
         if (u && (u.email || '').trim().toLowerCase() === emailClean) {
@@ -2058,35 +2107,12 @@ export class StaffService {
       }
     }
 
-    if (!emp && reg) {
-      emp = reg;
-    }
-
-    if (emp && !reg) {
-      const docClean = this.limpiarNumeros(emp.identificacion);
-      reg = this.configuracion?.usuariosRegistrados?.[docClean];
-    }
-
     if (emp && emp.identificacion) {
       // Regla 9.4: Validar bloqueo temporal o permanente por cédula
       const lockCheckDoc = this.obtenerEstadoBloqueo(emp.identificacion);
       if (lockCheckDoc.bloqueado) {
         return { ok: false, error: lockCheckDoc.error, bloqueado: true, tipoBloqueo: lockCheckDoc.tipo };
       }
-    }
-
-    if (!emp && !reg) {
-      return {
-        ok: false,
-        error: 'No se encontró un colaborador registrado con este correo corporativo. Si eres un nuevo colaborador, haz clic en "Realizar Nuevo Registro".'
-      };
-    }
-
-    if (emp.estado && emp.estado.toLowerCase().includes('inactiv')) {
-      return {
-        ok: false,
-        error: 'El usuario no figura como empleado activo en la matriz institucional. Acceso restringido.'
-      };
     }
 
     if (!reg || !reg.passwordHash) {
@@ -2108,7 +2134,6 @@ export class StaffService {
     this.registrarExitoAutenticacion(emp.identificacion || emailClean);
 
     const perfil = this.determinarPerfil(emp.cargo, emp.identificacion) || reg.perfil || 'operativo';
-    const docClean = this.limpiarNumeros(emp.identificacion);
 
     const usuarioObj = {
       ...reg,
@@ -2158,15 +2183,19 @@ export class StaffService {
       reg = this.usuarioRecordado;
     }
 
-    if (!emp && reg) {
-      emp = reg;
-    }
-
-    // REGLA: Validar existencia activa en EMPLEADOS_ACTIVOS.csv
-    if (!emp || (emp.estado && emp.estado.toLowerCase().includes('inactiv'))) {
+    // REGLA INSTITUCIONAL: Validar existencia activa obligatoria en la matriz de colaboradores
+    if (!emp) {
       return {
         ok: false,
-        error: 'El usuario no figura como empleado activo en la matriz institucional. Acceso restringido.'
+        error: 'El documento no figura en la matriz de personal activo institucional o ha sido retirado. Acceso denegado.'
+      };
+    }
+
+    const estadoNorm = (emp.estado || 'Activo').toLowerCase();
+    if (estadoNorm.includes('inactiv') || estadoNorm.includes('retirad') || estadoNorm.includes('baja')) {
+      return {
+        ok: false,
+        error: 'El usuario figura como inactivo o retirado en la matriz de personal institucional. Acceso restringido.'
       };
     }
 
