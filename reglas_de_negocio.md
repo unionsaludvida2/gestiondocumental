@@ -68,6 +68,12 @@
 11. [Decálogo de Gobernanza para Desarrolladores](#11-decálogo-de-gobernanza-para-desarrolladores)
     - 11.1. Tabla Maestra de Mandamientos Técnicos y Sanción por Violación
     - 11.2. Resumen Nemotécnico para el Desarrollador
+12. [Reglas de Negocio del Dashboard y Analítica Institucional](#12-reglas-de-negocio-del-dashboard-y-analítica-institucional)
+    - 12.1. Arquitectura de Módulos del Dashboard y Matriz de Acceso RBAC
+    - 12.2. Políticas de Gestión de Calidad y Semáforo Quinquenal de Vigencias
+    - 12.3. Políticas de Auditoría Institucional y Trazabilidad Transaccional
+    - 12.4. Políticas de Control de Cambios Documentales (Histórico Oficial)
+    - 12.5. Políticas de Exportaciones Oficiales e Interoperabilidad (CSV / Excel)
 
 ---
 
@@ -226,36 +232,42 @@ flowchart TD
 
 ## 4. Jerarquía Documental: Documentos Base vs. Registros Derivados
 
-### 4.1. Diagrama de Relación Jerárquica Padre-Hijo
+> **Principio de Universalidad de la Jerarquía Documental:**
+> **Cualquier documento del catálogo institucional** (Formatos `FMT`, Procedimientos `PRC`, Instructivos `INS`, Manuales `MN`, Políticas `PT`, Documentos de Apoyo `DA`, etc.) que no sea a su vez un subregistro **puede operar como Documento Base (Padre)** y originar uno o múltiples **Documentos Secundarios o Registros Derivados (Hijos)**.
+>
+> *(Nota terminológica: El código `FMT-GIC-016` se utiliza en los diagramas de este manual exclusivamente como un **ejemplo ilustrativo de referencia** por ser el primer formato con múltiples registros creados en el sistema. La arquitectura, codificación y reglas de integridad aplican de forma idéntica y universal para cualquier código del catálogo institucional).*
+
+### 4.1. Diagrama de Relación Jerárquica Padre-Hijo (Caso Ilustrativo con FMT-GIC-016)
 
 ```mermaid
 graph TD
-    subgraph DOC_BASE["Documento Base (Padre)"]
-        BASE["Código Canónico: FMT-GIC-016
-        Título: Definición de criterios de formación
-        Formato Físico: Word (.docx) Editable
-        Insignia Visual: DOC (Azul)
-        Naturaleza: Plantilla Maestra en Blanco"]
+    subgraph DOC_BASE["Documento Base Cualquiera (Padre)"]
+        BASE["Código Base: [PREFIJO]-[AREA]-[CONSECUTIVO]
+        (Ejemplo Ilustrativo: FMT-GIC-016)
+        Título: Formato / Procedimiento / Instructivo Maestro
+        Formato Físico: Word (.docx) o PDF según tipo
+        Insignia Visual: DOC (Azul) / PDF (Roja) / XLS (Verde)
+        Naturaleza: Plantilla Maestra o Directriz Normativa"]
     end
 
     subgraph DERIVADOS["Registros Derivados (Subregistros / Hijos)"]
-        REG1["Código: FMT-GIC-016-1
-        ID Canónico: FMT-GIC-016_REG_001
+        REG1["Código Único Consecutivo: FMT-GIC-016-1
+        Identificador Estándar: FMT-GIC-016_REG_001
         Título: Formación anticoagulados 2026-1
-        Formato Salida: PDF Protegido
-        Insignia Visual: PDF (Roja)"]
+        Formato Salida: PDF Protegido / XLS
+        Insignia Visual: PDF (Roja) / XLS"]
 
-        REG2["Código: FMT-GIC-016-2
-        ID Canónico: FMT-GIC-016_REG_002
+        REG2["Código Único Consecutivo: FMT-GIC-016-2
+        Identificador Estándar: FMT-GIC-016_REG_002
         Título: Formación anticoagulados 2026-2
-        Formato Salida: PDF Protegido
-        Insignia Visual: PDF (Roja)"]
+        Formato Salida: PDF Protegido / XLS
+        Insignia Visual: PDF (Roja) / XLS"]
 
-        REG3["Código: FMT-GIC-016-3
-        ID Canónico: FMT-GIC-016_REG_003
+        REG3["Código Único Consecutivo: FMT-GIC-016-3
+        Identificador Estándar: FMT-GIC-016_REG_003
         Título: Formación Asma y EPOC 2026
-        Formato Salida: PDF Protegido
-        Insignia Visual: PDF (Roja)"]
+        Formato Salida: PDF Protegido / XLS
+        Insignia Visual: PDF (Roja) / XLS"]
     end
 
     BASE -->|"Contiene arreglo registrosDerivados[]"| REG1
@@ -267,19 +279,20 @@ graph TD
 
 | Criterio | Documento Base (Padre) | Registro Derivado (Hijo) |
 | :--- | :--- | :--- |
-| **Código** | Sin sufijos secuenciales (`FMT-GIC-016`, `PRC-GMD-001`). | Con sufijo numérico (`-1`, `-2`) o `esRegistro === true`. |
-| **Propósito** | Plantilla en blanco o directriz normativa institucional. | Registro diligenciado con información asistencial o clínica. |
-| **Descarga (`📥`)** | **Word (.docx)** en formatos FMT; **PDF** en PRC/INS/MN. | **OBLIGATORIAMENTE PDF PROTEGIDO** (salvo `.xlsx`). |
-| **Insignia UI** | `DOC` (Azul) en Word; `PDF` (Roja) en normativos; `XLS`. | **Siempre `PDF` (Roja)** o `XLS` si es hoja de cálculo. |
+| **Código** | Sin sufijos secuenciales (`FMT-GIC-016`, `PRC-GMD-001`, `INS-GTH-013`). | Con sufijo numérico consecutivo (`-1`, `-2`, `-3`) o propiedad `esRegistro === true`. |
+| **Aplicabilidad** | **Cualquier documento** de cualquier macroproceso o área puede ser base. | Derivado de un documento base seleccionado en el modal mediante `nd-select-padre`. |
+| **Propósito** | Plantilla en blanco, procedimiento, instructivo o norma general. | Registro operativo diligenciado con información asistencial, técnica o clínica. |
+| **Descarga (`📥`)** | **Word (.docx)** en formatos FMT; **PDF** en PRC/INS/MN/PT; **Excel** en XLS. | **OBLIGATORIAMENTE PDF PROTEGIDO** (salvo que el registro sea hoja de cálculo `.xlsx`). |
+| **Insignia UI** | `DOC` (Azul) en Word; `PDF` (Roja) en normativos; `XLS` (Verde). | **Siempre `PDF` (Roja)** o `XLS` si es hoja de cálculo; distintivo `📂 REGISTRO DERIVADO`. |
 | **Clic en Fila** | Despliega / Oculta el acordeón de subregistros hijos. | Abre Drawer lateral con ficha técnica detallada. |
-| **URL de Archivo** | Apunta al archivo maestro en SharePoint Online. | **JAMÁS** hereda URL del padre; requiere archivo propio. |
+| **URL de Archivo** | Apunta al archivo maestro en SharePoint Online. | **JAMÁS** hereda URL del padre; requiere archivo propio publicado. |
 | **Búsqueda DOM** | Localizado por `doc.codigo`. | Búsqueda dual: `r.id === regId || r.codigo === regId`. |
 
 ### 4.3. Reglas de Integridad Estricta y Desvinculación de URLs
-- **Vinculación Jerárquica:** Todo subregistro **DEBE** residir dentro del arreglo `base.registrosDerivados[]` de su documento padre.
+- **Vinculación Jerárquica Universal:** Todo subregistro **DEBE** residir dentro del arreglo `base.registrosDerivados[]` de su respectivo documento padre (sin importar el tipo o área del documento padre).
 - **Herencia de Metadatos:** Los registros derivados heredan automáticamente Área, Proceso, Tipo de Proceso y Carpeta de su padre.
 - **Desvinculación Estricta de Archivos:** Un subregistro **JAMÁS** debe apuntar a la URL del archivo de su padre. Si no cuenta con archivo propio publicado en OneDrive/SharePoint, se marca como `NO DISPONIBLE`.
-- **Identificador Único y Resolución Dual:** Todo subregistro posee una propiedad `id` inmutable (ej. `FMT-GIC-016_REG_002`). Los botones del DOM emiten `data-reg-id="${reg.id || reg.codigo}"` y los controladores resuelven el elemento mediante búsqueda dual: `r.id === regId || r.codigo === regId`.
+- **Identificador Único y Resolución Dual:** Todo subregistro posee una propiedad `id` inmutable (ej. `CODIGOPADRE_REG_001` o `FMT-GIC-016_REG_002`) y un código consecutivo único (ej. `FMT-GIC-016-1`). Los botones del DOM emiten `data-reg-id="${reg.id || reg.codigo}"` y los controladores resuelven el elemento mediante búsqueda dual: `r.id === regId || r.codigo === regId`.
 
 ---
 
@@ -930,3 +943,264 @@ flowchart TD
     dual (r.id === regId || r.codigo === regId) para garantizar funcionalidad en el DOM.
 ================================================================================
 ```
+
+---
+
+## 12. Reglas de Negocio del Dashboard y Analítica Institucional
+
+### 12.1. Arquitectura de Módulos del Dashboard y Matriz de Acceso RBAC
+
+El subsistema de Dashboard y Analítica Institucional está estructurado como una estación de mando integral en la barra lateral (`sidebar-dashboard-nav-content`) compuesta por **cuatro módulos operacionales especializados** y un **grupo centralizado de exportaciones corporativas**.
+
+```mermaid
+flowchart TD
+    USER_REQ(["Usuario solicita vista Dashboard (📊)"]) --> CHECK_PERFIL{"Perfil del Colaborador"}
+    
+    CHECK_PERFIL -- Operativo --> BLOCK_OPERATIVO["🚫 ACCESO DENEGADO
+    El perfil Operativo tiene bloqueado el Dashboard.
+    Redirige forzosamente a vista Catálogo."]
+    
+    CHECK_PERFIL -- Administrativo --> PERM_ADM["📊 RESUMEN DOCUMENTAL (Solo Lectura)
+    Visualiza métricas generales de su área asignada.
+    Restricción: Módulos Calidad/Auditoría/Cambios OCULTOS.
+    Restricción: Grupo Exportaciones estrictamente OCULTO."]
+    
+    CHECK_PERFIL -- Directivo --> PERM_DIR["🎯 CALIDAD + RESUMEN
+    Acceso a Resumen Documental y Gestión de Calidad.
+    Exportaciones Habilitadas: Listado Maestro, Vencidos y Matriz de Calidad.
+    Restricción: Auditoría y Control de Cambios OCULTOS."]
+    
+    CHECK_PERFIL -- Acceso Total / Administrador --> PERM_TOTAL["👑 ACCESO COMPLETO IRRESTRICTO
+    1. Resumen Documental
+    2. Gestión de Calidad y Semáforo de Vigencias
+    3. Auditoría Institucional y Telemetría
+    4. Control de Cambios Documentales (Histórico)
+    Exportaciones Habilitadas: Todas (Maestro, Vencidos, Calidad, Auditoría, Cambios)."]
+```
+
+#### Matriz de Capacidades y Visibilidad en los Módulos del Dashboard
+
+| Módulo del Dashboard | Perfil Operativo | Perfil Administrativo | Perfil Directivo | Perfil Acceso Total (`total`) |
+| :--- | :---: | :---: | :---: | :---: |
+| **Resumen Documental (`resumen`)** | 🚫 Bloqueado | 👁️ Solo Lectura (Filtrado) | 👁️ Completo | 👁️ Completo (SSOT) |
+| **Gestión de Calidad (`calidad`)** | 🚫 Bloqueado | 🚫 Bloqueado | 👁️ Completo | 👁️ Completo (SSOT) |
+| **Auditoría Institucional (`auditoria`)** | 🚫 Bloqueado | 🚫 Bloqueado | 🚫 Bloqueado | 👁️ Completo (SSOT) |
+| **Control de Cambios (`cambios`)** | 🚫 Bloqueado | 🚫 Bloqueado | 🚫 Bloqueado | 👁️ Completo (SSOT) |
+| **Exportar Listado Maestro (`.csv`)** | 🚫 Bloqueado | 🚫 Bloqueado | ✅ Permitido | ✅ Permitido |
+| **Exportar Documentos Vencidos (`.csv`)** | 🚫 Bloqueado | 🚫 Bloqueado | ✅ Permitido | ✅ Permitido |
+| **Exportar Matriz de Calidad (`.csv`)** | 🚫 Bloqueado | 🚫 Bloqueado | ✅ Permitido | ✅ Permitido |
+| **Exportar Auditoría de Accesos (`.csv`)** | 🚫 Bloqueado | 🚫 Bloqueado | 🚫 Bloqueado | ✅ Permitido |
+| **Exportar Control de Cambios (`.csv`)** | 🚫 Bloqueado | 🚫 Bloqueado | 🚫 Bloqueado | ✅ Permitido |
+
+---
+
+### 12.2. Políticas de Gestión de Calidad y Semáforo Quinquenal de Vigencias
+
+#### 12.2.1. Modelo Matemático y Algoritmo de Evaluación de Vigencia (`evaluarVigenciaDoc`)
+
+La vigencia de cada documento institucional se rige por un motor de cálculo determinístico que evalúa fechas normativas en milisegundos bajo la hora cero local:
+
+```mermaid
+flowchart TD
+    DOC_IN(["Documento a Evaluar"]) --> CHECK_ESTADO{"¿doc.estado === 'En Revisión'?"}
+    
+    CHECK_ESTADO -- SÍ --> RES_REV["🔵 ESTADO: EN REVISIÓN (Azul)
+    Badge: semaforo-badge-revision
+    Días restantes: 9999 (Indeterminado)
+    Prioridad: Trámite activo en Comité SGC"]
+    
+    CHECK_ESTADO -- NO --> PARSE_VENC{"¿Existe doc.fechaVencimiento válida?"}
+    
+    PARSE_VENC -- SÍ --> CALC_DIFF["Calcular diffDias = (fVenc - hoy) / 86400000"]
+    PARSE_VENC -- NO --> PARSE_APROB{"¿Existe doc.fechaAprobacion o modificación?"}
+    
+    PARSE_APROB -- SÍ --> CALC_5A["Aplicar Regla Quinquenal Institucional:
+    fVenc = Date(fAprob.año + 5, fAprob.mes, fAprob.día)"]
+    PARSE_APROB -- NO --> FALLBACK_BASE["Fallback Institucional de Calidad:
+    fAprob = 01/08/2026 | fVenc = 01/08/2031"]
+    
+    CALC_5A --> CALC_DIFF
+    FALLBACK_BASE --> CALC_DIFF
+    
+    CALC_DIFF --> EVAL_DIAS{"Evaluación de diffDias"}
+    EVAL_DIAS -- diffDias < 0 --> RES_VENC["🔴 ESTADO: VENCIDO (Rojo)
+    Badge: semaforo-badge-vencido
+    Texto: 'Vencido hace X días'
+    Acción: Riesgo No Conformidad. Actualización Inmediata."]
+    
+    EVAL_DIAS -- 0 <= diffDias <= 365 --> RES_PROX["🟡 ESTADO: PRÓXIMO A VENCER (Amarillo)
+    Badge: semaforo-badge-proximo
+    Texto: 'Vence en M meses'
+    Acción: Programar revisión en Plan Anual de Calidad."]
+    
+    EVAL_DIAS -- diffDias > 365 --> RES_VIG["🟢 ESTADO: VIGENTE (Verde)
+    Badge: semaforo-badge-vigente
+    Texto: 'Vigente (A.A años)'
+    Acción: Documento en plena vigencia operativa."]
+```
+
+#### 12.2.2. Semáforo Normativo Quinquenal Institucional
+
+| Estado del Semáforo | Código Hex / Color | Umbral Cronológico | Etiqueta UI | Impacto SGC y Conducta Requerida |
+| :--- | :---: | :---: | :---: | :--- |
+| **`REVISION`** | `#0284c7` (Azul) | Estado = `En Revisión` | `En Revisión` | Documento en mesa técnica de modificación; se permite consulta de la versión anterior vigente. |
+| **`VENCIDO`** | `#dc2626` (Rojo) | $\Delta_{\text{días}} < 0$ | `Vencido (X d)` | **Alerta Crítica:** Documento expirado. Requiere aprobación o ratificación urgente por la Dirección de Calidad. |
+| **`PROXIMO`** | `#b45309` (Ámbar) | $0 \le \Delta_{\text{días}} \le 365$ | `Vence en M m` | **Alerta Preventiva:** Vence dentro de los próximos 12 meses. Se incluye en el cronograma de revisión SGC. |
+| **`VIGENTE`** | `#15803d` (Verde) | $\Delta_{\text{días}} > 365$ | `Vigente (A a)` | **Conforme:** Documento con más de un año de vigencia normativa restante. |
+
+#### 12.2.3. Disponibilidad Técnica y Salud Global Documental
+
+1. **Condición de Disponibilidad Técnica:** Un documento se clasifica como técnicamente disponible en la matriz de calidad si y solo si:
+   $$\text{esDisponible} \iff (d.\text{disponible} === \text{true}) \land (d.\text{sharepointUrl} \ne '') \land (d.\text{sharepointUrl} \ne \text{'#'})$$
+   Cualquier documento con URL rota, vacía o con bandera `disponible === false` se contabiliza como **No Disponible** y alimenta el reporte de alertas de calidad.
+2. **Fórmula del Índice de Salud Global Documental:**
+   $$\text{Salud Global SGC (\%)} = \text{round}\left( \frac{\text{Documentos Vigentes} + \text{Documentos en Revisión}}{\text{Total Documentos en Catálogo}} \times 100 \right)$$
+   Un índice inferior al **90%** dispara advertencia de gobernanza en la ficha ejecutiva del Dashboard.
+
+#### 12.2.4. Cascada de Filtros Multidimensional Normalizada NFD
+
+Para garantizar que los auditores encuentren documentos sin discrepancias ortográficas, el módulo de calidad implementa una cascada reactiva de 4 niveles gobernada por normalización NFD (descomposición canónica sin diacríticos):
+1. **Nivel 1 (Macroproceso / Tipo de Proceso):** Extraído de `tipoProceso` o `macroproceso` (`Misional`, `Estratégico`, `Apoyo`, `Evaluación`).
+2. **Nivel 2 (Área Institucional):** Filtrado dinámicamente según el Macroproceso seleccionado. Mapea siglas oficiales:
+   - `GTH` $\rightarrow$ Talento Humano / Seguridad y Salud en el Trabajo.
+   - `GTI` $\rightarrow$ Tecnología e Información / TIC.
+   - `GAD` $\rightarrow$ Administrativa / Servicios Generales.
+   - `GFI` $\rightarrow$ Financiera / Facturación / Cartera.
+   - `GIC` $\rightarrow$ Gestión Integral de Calidad.
+   - `GMD` $\rightarrow$ Dirección Médica / Asistencial / Farmacéutica.
+3. **Nivel 3 (Proceso Específico):** Filtrado dependiente del Área seleccionada.
+4. **Nivel 4 (Tipo de Documento):** Catálogo de tipos disponibles según el subconjunto filtrado.
+
+---
+
+### 12.3. Políticas de Auditoría Institucional y Trazabilidad Transaccional
+
+#### 12.3.1. Principio de No-Repudio y Registro Inmutable
+
+Toda interacción de usuario que modifique datos, descargue archivos, acceda a directorios estructurados o altere la seguridad queda registrada con sello de tiempo inmutable en el archivo de Google Drive `auditoria.dat` y en la caché del navegador cliente.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant CLIENTE as Cliente SPA (Navegador)
+    participant ENGINE as staffService.registrarAuditoria()
+    participant MEM as Throttle Buffer (5-10s)
+    participant STORAGE as IndexedDB / Cache Local
+    participant CLOUD as auditoria.dat (Google Apps Script)
+
+    CLIENTE->>ENGINE: Disparo de Acción (Login, Descarga, Carpeta, Edición, etc.)
+    
+    alt Es Consulta Pasiva o Búsqueda
+        ENGINE-->>CLIENTE: Descartado inmediatamente (No almacena ruido analítico)
+    else Acción Transaccional Válida
+        ENGINE->>MEM: Evaluar firma: (Identificación + Tipo + Código + Detalle)
+        alt Duplicado dentro de ventana Anti-Flood (5s / 10s)
+            MEM-->>ENGINE: Descarte silencioso por debounce
+        else Evento Válido e Inédito
+            MEM->>STORAGE: Persistir en registroAuditoria[] (IndexedDB)
+            STORAGE->>CLOUD: POST ?action=guardar_auditoria (Append atómico)
+            CLOUD-->>STORAGE: Confirmación de sincronización cloud
+            ENGINE->>CLIENTE: window.dispatchEvent('agy_audit_event_logged')
+            Note over CLIENTE: Dashboard de Auditoría se actualiza en vivo
+        end
+    end
+```
+
+#### 12.3.2. Catálogo Oficial de Eventos de Auditoría Transaccional
+
+| Evento | Origen del Disparo | Ventana Anti-Flood | Atributos Registrados Obligatorios | Regla de Negocio / Propósito |
+| :---: | :--- | :---: | :--- | :--- |
+| **`LOGIN`** | Autenticación exitosa en `staff-service.js`. | 10 segundos | Cédula, Nombre, Cargo, Perfil, Dispositivo, Timestamp. | Control de acceso no-repudiable. |
+| **`DESCARGA`** | Clic en botón `📥` de tabla o drawer. | 5 segundos | Código, Título, Extensión, Subclase, Formato Servido. | Auditoría de consumo documental y fuga. |
+| **`CARPETA`** | Clic en botón `📁 Carpeta SharePoint`. | 5 segundos | Código, Carpeta Destino, Usuario, Perfil. | Trazabilidad de navegación en SharePoint. |
+| **`EDICION`** | Clic en botón `✏️ SharePoint`. | 5 segundos | Código, Título, Colaborador, URL SharePoint. | Trazabilidad de edición física. **Bloqueado para operativos.** |
+| **`CREACION`** | Alta de documento en modal o sincro. | Inmediato | Código, Título, Subclase, Código Padre, Autor. | Integridad en la creación de versiones iniciales. |
+| **`METADATOS`**| Edición en modal o sincronización. | Inmediato | Código, Campos Modificados, Autor, Cédula. | Trazabilidad del cambio de fichas técnicas. |
+| **`ELIMINACION`**| Retiro lógico o exclusión del catálogo. | Inmediato | Código, Motivo Obligatorio, Gestor de Calidad. | Justificación legal de obsolescencia. |
+| **`SEGURIDAD`** | Alta de usuario, clave o desbloqueo. | Inmediato | Cédula afectada, Acción de seguridad, Autor. | Auditoría de administración de identidades. |
+
+#### 12.3.3. Monitoreo en Vivo y Sincronización Automática
+- **Polling de Fondo Activo:** Cuando el administrador se encuentra dentro de la pestaña `auditoria`, el cliente ejecuta una sincronización automática en vivo cada **15 segundos** (`_intervaloAuditoriaAutoSync`) para capturar eventos de otros usuarios en la institución.
+- **Sincronización por Foco:** Al regresar a la pestaña del navegador (`window.focus` o `visibilitychange`), se ejecuta inmediatamente `sincronizarAuditoria(true)`.
+- **Botón Manual:** La interfaz dispone del botón `🔄 Sincronizar ahora` con animación de giro para comprobación inmediata bajo demanda.
+
+---
+
+### 12.4. Políticas de Control de Cambios Documentales (Histórico Oficial)
+
+#### 12.4.1. Repositorio Oficial `Historico_Documentos_USV.csv`
+
+El archivo de Google Drive `Historico_Documentos_USV.csv` constituye la **Fuente Única de Verdad Histórica** del ciclo de vida de los documentos de Unión para la salud y la vida S.A.S. No puede ser purgado ni reescrito de forma destructiva; opera exclusivamente bajo el modelo de incorporación secuencial (*append-only*).
+
+#### 12.4.2. Algoritmo de Detección de Cambios por Snapshot Diferencial
+
+En cada ciclo de inicio o actualización del catálogo maestro, el motor `detectarCambiosDocumentales()` compara el estado actual contra la instantánea persistida (`snapshotAnterior`):
+
+```mermaid
+flowchart TD
+    SYNC_TRIGGER(["Sincronización o Carga de Catálogo"]) --> LOAD_SNAPSHOT["Cargar snapshotAnterior vs. CatalogoActual"]
+    
+    LOAD_SNAPSHOT --> LOOP_DOCS{"Iterar documentos del Catálogo Actual"}
+    
+    LOOP_DOCS -- Código No Estaba en Snapshot --> EVT_CREA["🆕 EVENTO: CREACION
+    Registra alta de documento base o registro derivado"]
+    
+    LOOP_DOCS -- Código Ya Existía --> CHECK_VER{"¿doc.version !== anterior.version?"}
+    
+    CHECK_VER -- SÍ y Versiones Distintas --> EVT_VER["🔄 EVENTO: CAMBIO_VERSION
+    Formatea a 'v01', 'v02'... Descarta versiones iguales o espurias."]
+    
+    CHECK_VER -- NO --> CHECK_META{"¿Cambio en Título, Proceso, Área, Ruta o Tipo?"}
+    
+    CHECK_META -- SÍ --> EVT_META["📋 EVENTO: CAMBIO_METADATOS
+    Registra lista de variaciones en la ficha técnica."]
+    
+    CHECK_META -- NO --> CHECK_SP{"¿mAnt !== mAct en SharePoint?"}
+    
+    CHECK_SP -- SÍ --> EVT_SP["✏️ EVENTO: EDICION_SHAREPOINT
+    Registra edición física del archivo en Microsoft 365."]
+    
+    LOOP_DOCS -- Fin de Documentos Actuales --> CHECK_DELETED{"¿Códigos en Snapshot que no están en Catálogo Actual?"}
+    
+    CHECK_DELETED -- SÍ --> EVT_ELIM["❌ EVENTO: ELIMINACION
+    Registra retiro lógico, motivo y fecha de baja."]
+    
+    EVT_CREA --> APPEND_HIST["Incorporar a Historico_Documentos_USV.csv
+    Notificar a interfaz: window.dispatchEvent('agy_doc_history_logged')"]
+    EVT_VER --> APPEND_HIST
+    EVT_META --> APPEND_HIST
+    EVT_SP --> APPEND_HIST
+    EVT_ELIM --> APPEND_HIST
+```
+
+#### 12.4.3. Reglas de Validación y Saneamiento Estricto de Versiones
+1. **Formato Canónico Tripartito:** Toda versión se normaliza estrictamente al patrón `v` + 2 dígitos (`v01`, `v02`, ..., `v10`).
+2. **Descarte de Falsos Cambios:** Si al normalizar la versión anterior y la nueva resultan idénticas (`staffService.sonVersionesIguales(vA, vN)`), el evento se descarta por redundante.
+3. **Filtro de Contenido Espurio:** Se descartan eventos históricos que contengan versiones mayores a 8 caracteres o que contengan texto arbitrario proveniente de columnas desplazadas en hojas de cálculo.
+
+#### 12.4.4. Detección y Trazabilidad de Registros Derivados (Subregistros)
+- Todo registro que cumpla la expresión regular `^([A-Za-z0-9]+-[A-Za-z0-9]+-\d+)-(\d+)$` o posea la propiedad `esRegistro: true` se etiqueta automáticamente con la insignia `📂 Registro Derivado`.
+- Se asocia obligatoriamente a su documento padre en el histórico mediante `documentoPadreCodigo`.
+- La interfaz de Control de Cambios cuenta con el botón de filtrado exclusivo `📂 Registros Derivados` para fiscalizar auditorías asistenciales independientes de las directrices maestras.
+
+---
+
+### 12.5. Políticas de Exportaciones Oficiales e Interoperabilidad (CSV / Excel)
+
+#### 12.5.1. Catálogo Oficial de Reportes Exportables del Dashboard
+
+| Reporte Exportable | Módulo Origen | Archivo Generado | Columnas | Cobertura y Utilidad SGC |
+| :--- | :--- | :--- | :---: | :--- |
+| **Listado Maestro de Documentos** | Resumen Documental | `Listado_Maestro_Documentos_USV_YYYY-MM-DD.csv` | 18 | Inventario total del SGC con metadatos, versiones, permisos RBAC y rutas SharePoint. |
+| **Documentos Vencidos o No Disponibles** | Resumen Documental | `DOCUMENTOS_VENCIDOS_USV_YYYY-MM-DD.csv` | 13 | Documentos vencidos normativamente, $> 2$ años sin actualización o sin URL funcional. |
+| **Matriz de Calidad y Vigencias** | Gestión de Calidad | `Matriz_Calidad_y_Vigencias_USV_YYYY-MM-DD.csv` | 16 | Diagnóstico semafórico, días restantes de vigencia, tiempos de retención y custodia. |
+| **Auditoría de Actividad y Accesos** | Auditoría Institucional | `Auditoria_Actividad_USV_YYYY-MM-DD.csv` | 13 | Log forense de ingresos, descargas de documentos, accesos a carpetas y seguridad. |
+| **Control de Cambios Documentales** | Control de Cambios | `CONTROL_CAMBIOS_DOCUMENTALES_USV_YYYY-MM-DD.csv` | 16 | Trazabilidad del ciclo de vida: creaciones, versiones, traslados y eliminaciones. |
+
+#### 12.5.2. Estándar Técnico de Exportación Universal
+Para asegurar total compatibilidad con Microsoft Excel en entornos hispanohablantes (configuración regional de Colombia y Latinoamérica) sin provocar alteraciones de codificación:
+1. **Preámbulo UTF-8 con BOM (`\uFEFF`):** Es de inclusión obligatoria al inicio del contenido exportado para evitar la distorsión de caracteres con tildes, diéresis o eñes en Excel.
+2. **Delimitador Estándar:** Punto y coma (`;`). Está prohibido utilizar coma (`,`) debido a colisiones con nombres de procesos y decimales en el estándar regional.
+3. **Encapsulación de Texto:** Todo campo alfanumérico se encierra entre comillas dobles (`"valor"`), y cualquier comilla interna se escapa duplicándola (`""`).
+4. **Final de Línea:** Retorno de carro y salto de línea (`\r\n` - CRLF estándar Windows).
+

@@ -365,6 +365,26 @@ export class ModalManager {
           </button>
         </div>
 
+        <!-- Encabezado Fijo de Registros Derivados (Excluido de la barra de desplazamiento) -->
+        ${
+          !doc.esRegistro && (esDocumentoFMT(doc.codigo) || (Array.isArray(doc.registrosDerivados) && doc.registrosDerivados.length > 0))
+            ? `
+            <div class="doc-drawer-registros-fixed-header" id="drawer-registros-fixed-header" style="display: none;">
+              <div class="drawer-registros-header-box">
+                <div style="flex: 1; min-width: 200px;">
+                  <strong>Registros asociados:</strong> Estos documentos derivan de este formato institucional y conservan la codificación <strong>${doc.codigo}</strong>, pero corresponden a implementaciones operativas específicas con títulos diferenciales.
+                </div>
+                ${(modoEdicion && puedeGestionarCatalogo) ? `
+                  <button type="button" class="btn btn-primary btn-drawer-crear-reg-fixed" id="btn-drawer-crear-registro" title="Añadir un nuevo registro derivado para este documento base">
+                    <span>➕</span> Añadir Registro
+                  </button>
+                ` : ''}
+              </div>
+            </div>
+            `
+            : ''
+        }
+
         <!-- Contenido Desplazable -->
         <div class="doc-drawer-body">
           
@@ -603,17 +623,7 @@ export class ModalManager {
           ${
             !doc.esRegistro && (esDocumentoFMT(doc.codigo) || (Array.isArray(doc.registrosDerivados) && doc.registrosDerivados.length > 0))
               ? `
-              <div class="drawer-tab-content" id="drawer-tab-registros" style="display: none; flex-direction: column; gap: 12px;">
-                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; font-size: 0.82rem; color: #475569; line-height: 1.4; display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap;">
-                  <div style="flex: 1; min-width: 200px;">
-                    <strong>Registros asociados:</strong> Estos documentos derivan de este formato institucional y conservan la codificación <strong>${doc.codigo}</strong>, pero corresponden a implementaciones operativas específicas con títulos diferenciales.
-                  </div>
-                  ${(modoEdicion && puedeGestionarCatalogo) ? `
-                    <button type="button" class="btn btn-primary" id="btn-drawer-crear-registro" style="background-color: #1f4260; border-color: #16334c; font-size: 0.76rem; font-weight: 700; padding: 7px 12px; display: inline-flex; align-items: center; gap: 6px; border-radius: 6px; white-space: nowrap; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                      <span>➕</span> Añadir Registro
-                    </button>
-                  ` : ''}
-                </div>
+              <div class="drawer-tab-content" id="drawer-tab-registros" style="display: none; flex-direction: column; gap: 10px;">
                 ${(Array.isArray(doc.registrosDerivados) && doc.registrosDerivados.length > 0) ? `
                   <div class="drawer-registros-list" style="display: flex; flex-direction: column; gap: 10px;">
                     ${doc.registrosDerivados.map((reg) => {
@@ -757,11 +767,16 @@ export class ModalManager {
         });
         const content = this.drawerContainer.querySelector(`#drawer-tab-${tab}`);
         if (content) content.style.display = 'flex';
+
+        const fixedRegHeader = this.drawerContainer.querySelector('#drawer-registros-fixed-header');
+        if (fixedRegHeader) {
+          fixedRegHeader.style.display = (tab === 'registros') ? 'block' : 'none';
+        }
       });
     });
 
     // Activar pestaña inicial si se solicitó registros o si hubo coincidencia en un registro derivado
-    const debeAbrirRegistros = (pestanaInicial === 'registros' || (!pestanaInicial && Boolean(doc.registroCoincidente))) && Array.isArray(doc.registrosDerivados) && doc.registrosDerivados.length > 0;
+    const debeAbrirRegistros = (pestanaInicial === 'registros' || (!pestanaInicial && Boolean(doc.registroCoincidente))) && (esDocumentoFMT(doc.codigo) || (Array.isArray(doc.registrosDerivados) && doc.registrosDerivados.length > 0));
     if (debeAbrirRegistros) {
       const btnReg = this.drawerContainer.querySelector('.doc-drawer-tab-btn[data-tab="registros"]');
       if (btnReg) {

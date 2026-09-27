@@ -631,6 +631,7 @@
         <li><a href="#sec-procesos"><span class="nav-num">09</span> Automatización y Respaldo</a></li>
         <li><a href="#sec-seguridad"><span class="nav-num">10</span> Políticas de Seguridad</a></li>
         <li><a href="#sec-decalogo"><span class="nav-num">11</span> Decálogo de Gobernanza</a></li>
+        <li><a href="#sec-dashboard"><span class="nav-num">12</span> Dashboard y Analítica</a></li>
       </ul>
     </aside>
 
@@ -959,36 +960,49 @@ flowchart TD
           Diferenciación conceptual y operativa estricta entre un <strong>Documento Base (Padre)</strong> y un <strong>Registro Derivado (Subregistro / Hijo)</strong>.
         </p>
 
+        <div class="alert-box">
+          <div style="font-weight: 700; margin-bottom: 6px; color: var(--primary-dark); display: flex; align-items: center; gap: 8px;">
+            <span>🌐</span> Principio de Universalidad de la Jerarquía Documental
+          </div>
+          <p style="margin-bottom: 8px; line-height: 1.5;">
+            <strong>Cualquier documento existente en el catálogo institucional</strong> (Formatos <code>FMT</code>, Procedimientos <code>PRC</code>, Instructivos <code>INS</code>, Manuales <code>MN</code>, Políticas <code>PT</code>, Documentos de Apoyo <code>DA</code>, etc.) que no sea a su vez un subregistro <strong>puede operar como Documento Base (Padre)</strong> y originar uno o múltiples <strong>Documentos Secundarios o Registros Derivados (Hijos)</strong>.
+          </p>
+          <p style="margin: 0; font-size: 0.84rem; color: var(--text-muted); line-height: 1.4;">
+            <em>*Nota terminológica: El código <code>FMT-GIC-016</code> se utiliza en este diagrama y manual exclusivamente como un <strong>ejemplo ilustrativo de referencia</strong> por haber sido el primer caso real con subregistros creado en el sistema. Las reglas de negocio, derivación e integridad aplican de forma universal a cualquier código del SGC.</em>
+          </p>
+        </div>
+
         <div class="mermaid-card">
-          <div class="mermaid-title"><span>📊</span> Diagrama 4.1: Caso Canónico FMT-GIC-016 y Registros Hijos</div>
+          <div class="mermaid-title"><span>📊</span> Diagrama 4.1: Modelo Jerárquico Padre-Hijo (Caso Ilustrativo con FMT-GIC-016)</div>
           <pre class="mermaid">
 graph TD
-    subgraph DOC_BASE["Documento Base (Padre)"]
-        BASE["Código Canónico: FMT-GIC-016
-        Título: Definición de criterios de formación
-        Formato Físico: Word (.docx) Editable
-        Insignia Visual: DOC (Azul)
-        Naturaleza: Plantilla Maestra en Blanco"]
+    subgraph DOC_BASE["Documento Base Cualquiera (Padre)"]
+        BASE["Código Base: [PREFIJO]-[AREA]-[CONSECUTIVO]
+        (Ejemplo Ilustrativo: FMT-GIC-016)
+        Título: Plantilla o Documento Maestro Institucional
+        Formato Físico: Word (.docx) o PDF según tipo
+        Insignia Visual: DOC (Azul) / PDF (Roja) / XLS (Verde)
+        Naturaleza: Plantilla Maestra o Directriz"]
     end
 
     subgraph DERIVADOS["Registros Derivados (Subregistros / Hijos)"]
-        REG1["Código: FMT-GIC-016-1
-        ID Canónico: FMT-GIC-016_REG_001
+        REG1["Código Único Consecutivo: FMT-GIC-016-1
+        Identificador Estándar: FMT-GIC-016_REG_001
         Título: Formación anticoagulados 2026-1
-        Formato Salida: PDF Protegido
-        Insignia Visual: PDF (Roja)"]
+        Formato Salida: PDF Protegido / XLS
+        Insignia Visual: PDF (Roja) / XLS"]
 
-        REG2["Código: FMT-GIC-016-2
-        ID Canónico: FMT-GIC-016_REG_002
+        REG2["Código Único Consecutivo: FMT-GIC-016-2
+        Identificador Estándar: FMT-GIC-016_REG_002
         Título: Formación anticoagulados 2026-2
-        Formato Salida: PDF Protegido
-        Insignia Visual: PDF (Roja)"]
+        Formato Salida: PDF Protegido / XLS
+        Insignia Visual: PDF (Roja) / XLS"]
 
-        REG3["Código: FMT-GIC-016-3
-        ID Canónico: FMT-GIC-016_REG_003
+        REG3["Código Único Consecutivo: FMT-GIC-016-3
+        Identificador Estándar: FMT-GIC-016_REG_003
         Título: Formación Asma y EPOC 2026
-        Formato Salida: PDF Protegido
-        Insignia Visual: PDF (Roja)"]
+        Formato Salida: PDF Protegido / XLS
+        Insignia Visual: PDF (Roja) / XLS"]
     end
 
     BASE -->|"Contiene arreglo registrosDerivados[]"| REG1
@@ -1543,6 +1557,510 @@ stateDiagram-v2
             <h4><span>🔟</span> Resolución Dual de IDs</h4>
             <p>Todo registro derivado se resuelve por búsqueda dual: <code>r.id === id || r.codigo === id</code> para consistencia en el DOM.</p>
           </div>
+        </div>
+      </section>
+
+      <!-- SECCIÓN 12: REGLAS DE NEGOCIO DEL DASHBOARD Y ANALÍTICA INSTITUCIONAL -->
+      <section id="sec-dashboard" class="content-section">
+        <div class="section-header">
+          <h2><span>📊</span> 12. Reglas de Negocio del Dashboard y Analítica Institucional</h2>
+          <span class="section-badge">Analítica y Control SGC</span>
+        </div>
+        <p class="section-intro">
+          Especificación canónica y reglas vinculantes que gobiernan los módulos del Dashboard: <strong>Resumen Documental</strong>, <strong>Gestión de Calidad</strong>, <strong>Auditoría Institucional</strong> y <strong>Control de Cambios Documentales</strong>, junto con las políticas de control de exportaciones e interoperabilidad corporativa.
+        </p>
+
+        <!-- 12.1 ARQUITECTURA Y RBAC -->
+        <h3 style="margin: 24px 0 12px 0; color: var(--primary-dark); font-family: var(--font-title);">
+          12.1. Arquitectura de Módulos del Dashboard y Matriz de Acceso RBAC
+        </h3>
+        <p style="font-size: 0.9rem; margin-bottom: 12px;">
+          El acceso a los tableros analíticos se rige por el principio de segregación estricta de funciones. Los perfiles operativos tienen denegado el acceso al Dashboard, mientras que los perfiles administrativos se limitan exclusivamente al Resumen de solo lectura de sus áreas, reservando Calidad, Auditoría e Histórico a la Dirección y Administración del SGC.
+        </p>
+
+        <div class="mermaid-card">
+          <div class="mermaid-title"><span>📊</span> Diagrama 12.1: Enrutamiento y Control de Acceso RBAC a Módulos del Dashboard</div>
+          <pre class="mermaid">
+flowchart TD
+    USER_REQ(["Usuario solicita vista Dashboard (📊)"]) --> CHECK_PERFIL{"Perfil del Colaborador"}
+    
+    CHECK_PERFIL -- Operativo --> BLOCK_OPERATIVO["🚫 ACCESO DENEGADO
+    El perfil Operativo tiene bloqueado el Dashboard.
+    Redirige forzosamente a vista Catálogo."]
+    
+    CHECK_PERFIL -- Administrativo --> PERM_ADM["📊 RESUMEN DOCUMENTAL (Solo Lectura)
+    Visualiza métricas generales de su área asignada.
+    Restricción: Módulos Calidad/Auditoría/Cambios OCULTOS.
+    Restricción: Grupo Exportaciones estrictamente OCULTO."]
+    
+    CHECK_PERFIL -- Directivo --> PERM_DIR["🎯 CALIDAD + RESUMEN
+    Acceso a Resumen Documental y Gestión de Calidad.
+    Exportaciones Habilitadas: Listado Maestro, Vencidos y Matriz de Calidad.
+    Restricción: Auditoría y Control de Cambios OCULTOS."]
+    
+    CHECK_PERFIL -- Acceso Total / Administrador --> PERM_TOTAL["👑 ACCESO COMPLETO IRRESTRICTO
+    1. Resumen Documental
+    2. Gestión de Calidad y Semáforo de Vigencias
+    3. Auditoría Institucional y Telemetría
+    4. Control de Cambios Documentales (Histórico)
+    Exportaciones Habilitadas: Todas (Maestro, Vencidos, Calidad, Auditoría, Cambios)."]
+          </pre>
+        </div>
+
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Módulo o Funcionalidad del Dashboard</th>
+                <th>Perfil Operativo</th>
+                <th>Perfil Administrativo</th>
+                <th>Perfil Directivo</th>
+                <th>Perfil Acceso Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Resumen Documental (<code class="code-inline">resumen</code>)</strong></td>
+                <td><span class="pill-badge pill-red">🚫 Bloqueado</span></td>
+                <td><span class="pill-badge pill-blue">👁️ Solo Lectura (Área)</span></td>
+                <td><span class="pill-badge pill-green">👁️ Completo</span></td>
+                <td><span class="pill-badge pill-green">👁️ Completo (SSOT)</span></td>
+              </tr>
+              <tr>
+                <td><strong>Gestión de Calidad (<code class="code-inline">calidad</code>)</strong></td>
+                <td><span class="pill-badge pill-red">🚫 Bloqueado</span></td>
+                <td><span class="pill-badge pill-red">🚫 Bloqueado</span></td>
+                <td><span class="pill-badge pill-green">👁️ Completo</span></td>
+                <td><span class="pill-badge pill-green">👁️ Completo (SSOT)</span></td>
+              </tr>
+              <tr>
+                <td><strong>Auditoría Institucional (<code class="code-inline">auditoria</code>)</strong></td>
+                <td><span class="pill-badge pill-red">🚫 Bloqueado</span></td>
+                <td><span class="pill-badge pill-red">🚫 Bloqueado</span></td>
+                <td><span class="pill-badge pill-red">🚫 Bloqueado</span></td>
+                <td><span class="pill-badge pill-green">👁️ Completo (SSOT)</span></td>
+              </tr>
+              <tr>
+                <td><strong>Control de Cambios (<code class="code-inline">cambios</code>)</strong></td>
+                <td><span class="pill-badge pill-red">🚫 Bloqueado</span></td>
+                <td><span class="pill-badge pill-red">🚫 Bloqueado</span></td>
+                <td><span class="pill-badge pill-red">🚫 Bloqueado</span></td>
+                <td><span class="pill-badge pill-green">👁️ Completo (SSOT)</span></td>
+              </tr>
+              <tr>
+                <td><strong>Descargar Listado Maestro (<code class="code-inline">.csv</code>)</strong></td>
+                <td><span class="pill-badge pill-red">🚫 Bloqueado</span></td>
+                <td><span class="pill-badge pill-red">🚫 Bloqueado</span></td>
+                <td><span class="pill-badge pill-green">✅ Permitido</span></td>
+                <td><span class="pill-badge pill-green">✅ Permitido</span></td>
+              </tr>
+              <tr>
+                <td><strong>Descargar Documentos Vencidos (<code class="code-inline">.csv</code>)</strong></td>
+                <td><span class="pill-badge pill-red">🚫 Bloqueado</span></td>
+                <td><span class="pill-badge pill-red">🚫 Bloqueado</span></td>
+                <td><span class="pill-badge pill-green">✅ Permitido</span></td>
+                <td><span class="pill-badge pill-green">✅ Permitido</span></td>
+              </tr>
+              <tr>
+                <td><strong>Exportar Matriz de Calidad (<code class="code-inline">.csv</code>)</strong></td>
+                <td><span class="pill-badge pill-red">🚫 Bloqueado</span></td>
+                <td><span class="pill-badge pill-red">🚫 Bloqueado</span></td>
+                <td><span class="pill-badge pill-green">✅ Permitido</span></td>
+                <td><span class="pill-badge pill-green">✅ Permitido</span></td>
+              </tr>
+              <tr>
+                <td><strong>Exportar Auditoría de Actividad (<code class="code-inline">.csv</code>)</strong></td>
+                <td><span class="pill-badge pill-red">🚫 Bloqueado</span></td>
+                <td><span class="pill-badge pill-red">🚫 Bloqueado</span></td>
+                <td><span class="pill-badge pill-red">🚫 Bloqueado</span></td>
+                <td><span class="pill-badge pill-green">✅ Permitido</span></td>
+              </tr>
+              <tr>
+                <td><strong>Exportar Control de Cambios (<code class="code-inline">.csv</code>)</strong></td>
+                <td><span class="pill-badge pill-red">🚫 Bloqueado</span></td>
+                <td><span class="pill-badge pill-red">🚫 Bloqueado</span></td>
+                <td><span class="pill-badge pill-red">🚫 Bloqueado</span></td>
+                <td><span class="pill-badge pill-green">✅ Permitido</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- 12.2 GESTIÓN DE CALIDAD -->
+        <h3 style="margin: 28px 0 12px 0; color: var(--primary-dark); font-family: var(--font-title);">
+          12.2. Políticas de Gestión de Calidad y Semáforo Quinquenal de Vigencias
+        </h3>
+        <p style="font-size: 0.9rem; margin-bottom: 12px;">
+          El motor de evaluación de vigencias calcula de manera automática los días restantes y el semáforo normativo aplicando la <strong>Regla Quinquenal Institucional (5 años calendario)</strong> en ausencia de fecha explícita, o respetando el vencimiento normativo formal.
+        </p>
+
+        <div class="mermaid-card">
+          <div class="mermaid-title"><span>📊</span> Diagrama 12.2: Algoritmo de Evaluación de Vigencia Documental y Semáforo Quinquenal</div>
+          <pre class="mermaid">
+flowchart TD
+    DOC_IN(["Documento a Evaluar"]) --> CHECK_ESTADO{"¿doc.estado === 'En Revisión'?"}
+    
+    CHECK_ESTADO -- SÍ --> RES_REV["🔵 ESTADO: EN REVISIÓN (Azul)
+    Badge: semaforo-badge-revision
+    Días restantes: 9999 (Indeterminado)
+    Prioridad: Trámite activo en Comité SGC"]
+    
+    CHECK_ESTADO -- NO --> PARSE_VENC{"¿Existe doc.fechaVencimiento válida?"}
+    
+    PARSE_VENC -- SÍ --> CALC_DIFF["Calcular diffDias = (fVenc - hoy) / 86400000"]
+    PARSE_VENC -- NO --> PARSE_APROB{"¿Existe doc.fechaAprobacion o modificación?"}
+    
+    PARSE_APROB -- SÍ --> CALC_5A["Aplicar Regla Quinquenal Institucional:
+    fVenc = Date(fAprob.año + 5, fAprob.mes, fAprob.día)"]
+    PARSE_APROB -- NO --> FALLBACK_BASE["Fallback Institucional de Calidad:
+    fAprob = 01/08/2026 | fVenc = 01/08/2031"]
+    
+    CALC_5A --> CALC_DIFF
+    FALLBACK_BASE --> CALC_DIFF
+    
+    CALC_DIFF --> EVAL_DIAS{"Evaluación de diffDias"}
+    EVAL_DIAS -- diffDias < 0 --> RES_VENC["🔴 ESTADO: VENCIDO (Rojo)
+    Badge: semaforo-badge-vencido
+    Texto: 'Vencido hace X días'
+    Acción: Riesgo No Conformidad. Actualización Inmediata."]
+    
+    EVAL_DIAS -- 0 <= diffDias <= 365 --> RES_PROX["🟡 ESTADO: PRÓXIMO A VENCER (Amarillo)
+    Badge: semaforo-badge-proximo
+    Texto: 'Vence en M meses'
+    Acción: Programar revisión en Plan Anual de Calidad."]
+    
+    EVAL_DIAS -- diffDias > 365 --> RES_VIG["🟢 ESTADO: VIGENTE (Verde)
+    Badge: semaforo-badge-vigente
+    Texto: 'Vigente (A.A años)'
+    Acción: Documento en plena vigencia operativa."]
+          </pre>
+        </div>
+
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Estado Semáforo</th>
+                <th>Insignia Visual</th>
+                <th>Rango Cronológico</th>
+                <th>Etiqueta Dinámica</th>
+                <th>Acción Normativa SGC Requerida</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>REVISIÓN</strong></td>
+                <td><span class="pill-badge pill-blue">🔵 En Revisión</span></td>
+                <td>Estado = <code class="code-inline">En Revisión</code></td>
+                <td><code class="code-inline">En Revisión</code></td>
+                <td>Documento en actualización por comité técnico; se mantiene consulta de la versión vigente.</td>
+              </tr>
+              <tr>
+                <td><strong>VENCIDO</strong></td>
+                <td><span class="pill-badge pill-red">🔴 Vencido</span></td>
+                <td><code class="code-inline">diffDias &lt; 0</code></td>
+                <td><code class="code-inline">Vencido (X d)</code></td>
+                <td><strong>Alerta Crítica:</strong> Expirado normativamente. Requiere actualización o ratificación inmediata.</td>
+              </tr>
+              <tr>
+                <td><strong>PRÓXIMO</strong></td>
+                <td><span class="pill-badge pill-amber">🟡 Próximo</span></td>
+                <td><code class="code-inline">0 &le; diffDias &le; 365</code></td>
+                <td><code class="code-inline">Vence en M m</code></td>
+                <td><strong>Alerta Preventiva:</strong> Vence dentro de los próximos 12 meses; agendar en cronograma de calidad.</td>
+              </tr>
+              <tr>
+                <td><strong>VIGENTE</strong></td>
+                <td><span class="pill-badge pill-green">🟢 Vigente</span></td>
+                <td><code class="code-inline">diffDias &gt; 365</code></td>
+                <td><code class="code-inline">Vigente (A a)</code></td>
+                <td><strong>Conforme:</strong> Documento activo con más de 1 año de vigencia normativa restante.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="alert-box">
+          <strong>Fórmulas de Calidad Institucional:</strong><br/>
+          • <strong>Disponibilidad Técnica:</strong> <code class="code-inline">doc.disponible === true &amp;&amp; doc.sharepointUrl &amp;&amp; doc.sharepointUrl !== '#'</code>.<br/>
+          • <strong>Índice de Salud Global Documental:</strong> <code class="code-inline">Salud Global (%) = round(((Vigentes + En Revisión) / Total Documentos) * 100)</code>. Un porcentaje inferior al 90% genera notificación de gestión.
+        </div>
+
+        <!-- 12.3 AUDITORÍA INSTITUCIONAL -->
+        <h3 style="margin: 28px 0 12px 0; color: var(--primary-dark); font-family: var(--font-title);">
+          12.3. Políticas de Auditoría Institucional y Trazabilidad Transaccional
+        </h3>
+        <p style="font-size: 0.9rem; margin-bottom: 12px;">
+          Garantía del principio de no-repudio y trazabilidad en tiempo real sobre toda acción que consuma o altere el repositorio. Los eventos se registran de forma atómica en <code>auditoria.dat</code> y se sincronizan en vivo.
+        </p>
+
+        <div class="mermaid-card">
+          <div class="mermaid-title"><span>📊</span> Diagrama 12.3: Pipeline de Auditoría e Ingesta Inmutable hacia auditoria.dat</div>
+          <pre class="mermaid">
+sequenceDiagram
+    autonumber
+    participant CLIENTE as Cliente SPA (Navegador)
+    participant ENGINE as staffService.registrarAuditoria()
+    participant MEM as Throttle Buffer (5-10s)
+    participant STORAGE as IndexedDB / Cache Local
+    participant CLOUD as auditoria.dat (Google Apps Script)
+
+    CLIENTE->>ENGINE: Disparo de Acción (Login, Descarga, Carpeta, Edición, etc.)
+    
+    alt Es Consulta Pasiva o Búsqueda
+        ENGINE-->>CLIENTE: Descartado inmediatamente (No almacena ruido analítico)
+    else Acción Transaccional Válida
+        ENGINE->>MEM: Evaluar firma: (Identificación + Tipo + Código + Detalle)
+        alt Duplicado dentro de ventana Anti-Flood (5s / 10s)
+            MEM-->>ENGINE: Descarte silencioso por debounce
+        else Evento Válido e Inédito
+            MEM->>STORAGE: Persistir en registroAuditoria[] (IndexedDB)
+            STORAGE->>CLOUD: POST ?action=guardar_auditoria (Append atómico)
+            CLOUD-->>STORAGE: Confirmación de sincronización cloud
+            ENGINE->>CLIENTE: window.dispatchEvent('agy_audit_event_logged')
+            Note over CLIENTE: Dashboard de Auditoría se actualiza en vivo
+        end
+    end
+          </pre>
+        </div>
+
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Evento Auditado</th>
+                <th>Desencadenante Operativo</th>
+                <th>Ventana Anti-Flood</th>
+                <th>Atributos Capturados</th>
+                <th>Propósito de Seguridad SGC</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code class="code-inline">LOGIN</code></td>
+                <td>Inicio de sesión exitoso.</td>
+                <td>10 segundos</td>
+                <td>Cédula, Nombre, Cargo, Perfil, Dispositivo, Timestamp.</td>
+                <td>Control de acceso y principio de no-repudio.</td>
+              </tr>
+              <tr>
+                <td><code class="code-inline">DESCARGA</code></td>
+                <td>Clic en botón 📥 Descargar.</td>
+                <td>5 segundos</td>
+                <td>Código, Título, Extensión, Subclase, Formato Servido.</td>
+                <td>Trazabilidad de entrega documental y fuga de datos.</td>
+              </tr>
+              <tr>
+                <td><code class="code-inline">CARPETA</code></td>
+                <td>Clic en botón 📁 Carpeta.</td>
+                <td>5 segundos</td>
+                <td>Código, Carpeta Destino, Usuario, Perfil.</td>
+                <td>Auditoría de navegación estructural en SharePoint.</td>
+              </tr>
+              <tr>
+                <td><code class="code-inline">EDICION</code></td>
+                <td>Clic en ✏️ SharePoint Online.</td>
+                <td>5 segundos</td>
+                <td>Código, Título, Colaborador, URL SharePoint.</td>
+                <td>Trazabilidad de edición física. Bloqueado en perfil operativo.</td>
+              </tr>
+              <tr>
+                <td><code class="code-inline">CREACION</code></td>
+                <td>Alta de nuevo documento o derivado.</td>
+                <td>Inmediato</td>
+                <td>Código, Título, Subclase, Código Padre, Autor.</td>
+                <td>Control de origen y versiones iniciales aprobadas.</td>
+              </tr>
+              <tr>
+                <td><code class="code-inline">METADATOS</code></td>
+                <td>Actualización de ficha técnica.</td>
+                <td>Inmediato</td>
+                <td>Código, Campos Modificados, Autor, Cédula.</td>
+                <td>Integridad de atributos normativos y retención.</td>
+              </tr>
+              <tr>
+                <td><code class="code-inline">ELIMINACION</code></td>
+                <td>Retiro lógico (Soft-Delete).</td>
+                <td>Inmediato</td>
+                <td>Código, Motivo Obligatorio, Gestor de Calidad.</td>
+                <td>Justificación obligatoria y preservación legal.</td>
+              </tr>
+              <tr>
+                <td><code class="code-inline">SEGURIDAD</code></td>
+                <td>Alta de usuario, clave o desbloqueo.</td>
+                <td>Inmediato</td>
+                <td>Cédula afectada, Acción de seguridad, Autor.</td>
+                <td>Fiscalización de la gestión de identidades y accesos.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="alert-box">
+          <strong>Sincronización en Tiempo Real:</strong><br/>
+          • <strong>Polling Activo:</strong> Verificación periódica en la nube cada 15 segundos mientras la pestaña de auditoría esté activa.<br/>
+          • <strong>Sincronización por Foco:</strong> Al volver a la pestaña (<code class="code-inline">window.focus</code> o <code class="code-inline">visibilitychange</code>), sincroniza automáticamente con Google Drive.<br/>
+          • <strong>Botón Manual:</strong> Permite sincronización forzada bajo demanda con animación giratoria interactiva.
+        </div>
+
+        <!-- 12.4 CONTROL DE CAMBIOS DOCUMENTALES -->
+        <h3 style="margin: 28px 0 12px 0; color: var(--primary-dark); font-family: var(--font-title);">
+          12.4. Políticas de Control de Cambios Documentales (Histórico Oficial)
+        </h3>
+        <p style="font-size: 0.9rem; margin-bottom: 12px;">
+          El archivo <code>Historico_Documentos_USV.csv</code> constituye la <strong>Fuente Única de Verdad Histórica</strong> del ciclo de vida de los documentos. El motor compara en cada sincronización el catálogo actual contra el último snapshot diferencial.
+        </p>
+
+        <div class="mermaid-card">
+          <div class="mermaid-title"><span>📊</span> Diagrama 12.4: Detección Automática de Cambios por Snapshot Diferencial</div>
+          <pre class="mermaid">
+flowchart TD
+    SYNC_TRIGGER(["Sincronización o Carga de Catálogo"]) --> LOAD_SNAPSHOT["Cargar snapshotAnterior vs. CatalogoActual"]
+    
+    LOAD_SNAPSHOT --> LOOP_DOCS{"Iterar documentos del Catálogo Actual"}
+    
+    LOOP_DOCS -- Código No Estaba en Snapshot --> EVT_CREA["🆕 EVENTO: CREACION
+    Registra alta de documento base o registro derivado"]
+    
+    LOOP_DOCS -- Código Ya Existía --> CHECK_VER{"¿doc.version !== anterior.version?"}
+    
+    CHECK_VER -- SÍ y Versiones Distintas --> EVT_VER["🔄 EVENTO: CAMBIO_VERSION
+    Formatea a 'v01', 'v02'... Descarta versiones iguales o espurias."]
+    
+    CHECK_VER -- NO --> CHECK_META{"¿Cambio en Título, Proceso, Área, Ruta o Tipo?"}
+    
+    CHECK_META -- SÍ --> EVT_META["📋 EVENTO: CAMBIO_METADATOS
+    Registra lista de variaciones en la ficha técnica."]
+    
+    CHECK_META -- NO --> CHECK_SP{"¿mAnt !== mAct en SharePoint?"}
+    
+    CHECK_SP -- SÍ --> EVT_SP["✏️ EVENTO: EDICION_SHAREPOINT
+    Registra edición física del archivo en Microsoft 365."]
+    
+    LOOP_DOCS -- Fin de Documentos Actuales --> CHECK_DELETED{"¿Códigos en Snapshot que no están en Catálogo Actual?"}
+    
+    CHECK_DELETED -- SÍ --> EVT_ELIM["❌ EVENTO: ELIMINACION
+    Registra retiro lógico, motivo y fecha de baja."]
+    
+    EVT_CREA --> APPEND_HIST["Incorporar a Historico_Documentos_USV.csv
+    Notificar a interfaz: window.dispatchEvent('agy_doc_history_logged')"]
+    EVT_VER --> APPEND_HIST
+    EVT_META --> APPEND_HIST
+    EVT_SP --> APPEND_HIST
+    EVT_ELIM --> APPEND_HIST
+          </pre>
+        </div>
+
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Categoría de Evento</th>
+                <th>Insignia UI</th>
+                <th>Condición Lógica de Disparo</th>
+                <th>Regla de Saneamiento y Validación</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code class="code-inline">CREACION</code></td>
+                <td><span class="pill-badge pill-green">🆕 Creado</span></td>
+                <td>Código nuevo ausente en <code class="code-inline">snapshotAnterior</code>.</td>
+                <td>Asocia metadatos iniciales, autoría, fecha y distingue si es Base o Derivado.</td>
+              </tr>
+              <tr>
+                <td><code class="code-inline">CAMBIO_VERSION</code></td>
+                <td><span class="pill-badge pill-blue">🔄 Versión</span></td>
+                <td><code class="code-inline">doc.version !== anterior.version</code></td>
+                <td>Formatea a <code class="code-inline">v01</code>-<code class="code-inline">v99</code>. Descarta si <code class="code-inline">vA === vN</code> o texto mayor a 8 caracteres.</td>
+              </tr>
+              <tr>
+                <td><code class="code-inline">CAMBIO_METADATOS</code></td>
+                <td><span class="pill-badge pill-purple">📋 Metadatos</span></td>
+                <td>Variación en título, área, proceso, ruta o tipo.</td>
+                <td>Detalla exhaustivamente los campos modificados preservando el histórico anterior.</td>
+              </tr>
+              <tr>
+                <td><code class="code-inline">EDICION_SHAREPOINT</code></td>
+                <td><span class="pill-badge pill-amber">✏️ Edición SP</span></td>
+                <td><code class="code-inline">mAnt !== mAct</code> en fecha física de modificación.</td>
+                <td>Registra edición directa sobre el archivo en OneDrive/SharePoint con marcas de tiempo.</td>
+              </tr>
+              <tr>
+                <td><code class="code-inline">ELIMINACION</code></td>
+                <td><span class="pill-badge pill-red">❌ Eliminado</span></td>
+                <td>Código en snapshot que fue retirado del catálogo.</td>
+                <td>Exige justificación técnica obligatoria; descarta si el documento continúa activo.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- 12.5 POLÍTICAS DE EXPORTACIÓN -->
+        <h3 style="margin: 28px 0 12px 0; color: var(--primary-dark); font-family: var(--font-title);">
+          12.5. Políticas de Exportaciones Oficiales e Interoperabilidad (CSV / Excel)
+        </h3>
+        <p style="font-size: 0.9rem; margin-bottom: 12px;">
+          Todos los reportes generados desde el Dashboard siguen una directriz unificada de interoperabilidad diseñada para apertura inmediata en Microsoft Excel en español sin requerir asistentes de importación.
+        </p>
+
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Reporte Oficial</th>
+                <th>Módulo Origen</th>
+                <th>Nombre del Archivo Generado</th>
+                <th>Columnas</th>
+                <th>Alcance SGC y Contenido</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Listado Maestro de Documentos</strong></td>
+                <td>Resumen Documental</td>
+                <td><code class="code-inline">Listado_Maestro_Documentos_USV_YYYY-MM-DD.csv</code></td>
+                <td>18</td>
+                <td>Inventario completo del SGC con metadatos, versiones, permisos RBAC y rutas SharePoint.</td>
+              </tr>
+              <tr>
+                <td><strong>Documentos Vencidos o No Disponibles</strong></td>
+                <td>Resumen Documental</td>
+                <td><code class="code-inline">DOCUMENTOS_VENCIDOS_USV_YYYY-MM-DD.csv</code></td>
+                <td>13</td>
+                <td>Filtro de documentos vencidos, &gt; 2 años sin actualización o con URL rota.</td>
+              </tr>
+              <tr>
+                <td><strong>Matriz de Calidad y Vigencias</strong></td>
+                <td>Gestión de Calidad</td>
+                <td><code class="code-inline">Matriz_Calidad_y_Vigencias_USV_YYYY-MM-DD.csv</code></td>
+                <td>16</td>
+                <td>Diagnóstico de semáforo, días restantes, custodia, retención y ciclo de vida.</td>
+              </tr>
+              <tr>
+                <td><strong>Auditoría de Actividad y Accesos</strong></td>
+                <td>Auditoría Institucional</td>
+                <td><code class="code-inline">Auditoria_Actividad_USV_YYYY-MM-DD.csv</code></td>
+                <td>13</td>
+                <td>Log forense de inicios de sesión, descargas, carpetas, ediciones y seguridad.</td>
+              </tr>
+              <tr>
+                <td><strong>Control de Cambios Documentales</strong></td>
+                <td>Control de Cambios</td>
+                <td><code class="code-inline">CONTROL_CAMBIOS_DOCUMENTALES_USV_YYYY-MM-DD.csv</code></td>
+                <td>16</td>
+                <td>Histórico secuencial de creaciones, versiones, modificaciones y bajas oficiales.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="alert-box alert-warning">
+          <strong>Mandamientos de Exportación Universal:</strong><br/>
+          1. <strong>Preámbulo UTF-8 con BOM (<code class="code-inline">\uFEFF</code>):</strong> Obligatorio al inicio del archivo para garantizar visualización perfecta de tildes y eñes en Excel.<br/>
+          2. <strong>Delimitador Oficial:</strong> Punto y coma (<code class="code-inline">;</code>). Prohibido el uso de coma (<code class="code-inline">,</code>).<br/>
+          3. <strong>Escape de Comillas:</strong> Campos encerrados en <code class="code-inline">"..."</code> con comillas internas duplicadas (<code class="code-inline">""</code>).<br/>
+          4. <strong>Protección RBAC:</strong> Perfiles administrativos y operativos tienen estrictamente prohibida la exportación masiva de datos institucionales.
         </div>
       </section>
 

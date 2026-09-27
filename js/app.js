@@ -13,7 +13,7 @@
 
 import { sharepointService, determinarEstrategiaDescarga, esDocumentoFMT } from './sharepoint-service.js?v=11.6.79';
 import { filterEngine } from './filters.js?v=11.6.79';
-import { modalManager } from './modal.js?v=11.6.79';
+import { modalManager } from './modal.js?v=11.6.80';
 import { analyticsManager } from './analytics.js?v=11.6.79';
 import { staffService } from './staff-service.js?v=11.6.79';
 
