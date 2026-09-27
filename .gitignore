@@ -15,6 +15,7 @@ scratch/
 
 # Copias de seguridad temporales y backups antiguos
 *.backup_*
+*.bak
 *.tmp
 *.temp
 
@@ -25,3 +26,9 @@ scratch/
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# Protección de Datos Personales (Habeas Data) y Exclusión de Datos Estáticos
+# Los colaboradores activos se sincronizan en vivo desde OneDrive / Cloud a IndexedDB
+EMPLEADOS_ACTIVOS.csv
+EMPLEADOS_ACTIVOS.csv.bak
+
