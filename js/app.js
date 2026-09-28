@@ -1281,28 +1281,6 @@ class AppController {
     // Alternar Modo Edición
     this.el.btnToggleEdit?.addEventListener('click', () => this.toggleModoEdicion());
 
-    // Botón Actualizar / Sincronizar Datos en Vivo (🔄)
-    this.el.btnRefresh?.addEventListener('click', async () => {
-      this.mostrarToast('🔄 Sincronizando catálogo institucional y personal...', 'info');
-      if (this.el.refreshIcon) {
-        this.el.refreshIcon.classList.add('spinning');
-      }
-      try {
-        await Promise.all([
-          staffService.sincronizarConfiguracion(),
-          staffService.sincronizarEmpleados(),
-          this.cargarDatos(true)
-        ]);
-        this.mostrarToast('✅ Catálogo y personal sincronizados exitosamente.', 'success');
-      } catch (err) {
-        this.mostrarToast('⚠️ Sincronización parcial completada.', 'warning');
-      } finally {
-        if (this.el.refreshIcon) {
-          this.el.refreshIcon.classList.remove('spinning');
-        }
-      }
-    });
-
     // Crear Nuevo Documento Institucional (Acceso Total / Admin)
     this.el.btnNuevoDoc?.addEventListener('click', () => {
       modalManager.abrirModalNuevoDocumento({

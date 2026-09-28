@@ -542,66 +542,48 @@ export class DataService {
   }
 
   /**
-   * Calcula el siguiente código secuencial para un registro secundario (ej. FMT-GIC-016-1, FMT-GIC-016-2, ...)
+   * Calcula el siguiente código secuencial para un registro secundario (ej. FMT-GIC-015-1, FMT-GIC-015-2, ...)
+   * Se basa estrictamente en los registros derivados oficiales asociados al documento base en el catálogo oficial (Google Sheets / SSOT).
    */
   calcularSiguienteCodigoRegistro(docPadre) {
     if (!docPadre || !docPadre.codigo) return 'REG-001-1';
     const codPadre = docPadre.codigo.trim().toUpperCase();
 
+    // 1. Obtener la referencia oficial del documento base padre en memoria
+    const padreOficial = (Array.isArray(this.documentosEnMemoria)
+      ? this.documentosEnMemoria.find((d) => (d.codigo || '').toUpperCase() === codPadre && !d.esRegistro)
+      : null) || docPadre;
+
     const numerosExistentes = new Set();
     const regex = new RegExp(`^${codPadre.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}-(\\d+)$`, 'i');
 
-    // 1. Revisar registrosDerivados del documento padre
-    if (Array.isArray(docPadre.registrosDerivados)) {
-      for (const r of docPadre.registrosDerivados) {
-        if (!r) continue;
-        const m = (r.codigo || '').match(regex);
-        if (m) numerosExistentes.add(parseInt(m[1], 10));
-        const mId = (r.id || '').match(regex);
-        if (mId) numerosExistentes.add(parseInt(mId[1], 10));
-        const mTit = (r.titulo || '').match(regex);
-        if (mTit) numerosExistentes.add(parseInt(mTit[1], 10));
+    // 2. Revisar los registros derivados oficiales asociados al documento padre
+    const listaDerivados = Array.isArray(padreOficial.registrosDerivados)
+      ? padreOficial.registrosDerivados
+      : (Array.isArray(docPadre.registrosDerivados) ? docPadre.registrosDerivados : []);
+
+    for (const r of listaDerivados) {
+      if (!r || !r.codigo) continue;
+      const m = r.codigo.trim().match(regex);
+      if (m && m[1]) {
+        const num = parseInt(m[1], 10);
+        if (!isNaN(num)) numerosExistentes.add(num);
       }
     }
 
-    // 2. Revisar documentosEnMemoria
+    // 3. Revisar cualquier documento derivado oficial presente en el catálogo activo en memoria
     if (Array.isArray(this.documentosEnMemoria)) {
       for (const d of this.documentosEnMemoria) {
-        if (!d) continue;
-        const m = (d.codigo || '').match(regex);
-        if (m) numerosExistentes.add(parseInt(m[1], 10));
-        if (Array.isArray(d.registrosDerivados) && (d.codigo || '').toUpperCase() === codPadre) {
-          for (const r of d.registrosDerivados) {
-            const mR = (r.codigo || '').match(regex);
-            if (mR) numerosExistentes.add(parseInt(mR[1], 10));
+        if (!d || !d.codigo) continue;
+        if (d.esRegistro && (d.documentoPadreCodigo || '').toUpperCase() === codPadre) {
+          const m = d.codigo.trim().match(regex);
+          if (m && m[1]) {
+            const num = parseInt(m[1], 10);
+            if (!isNaN(num)) numerosExistentes.add(num);
           }
         }
       }
     }
-
-    // 3. Revisar en onedriveMap si existe
-    if (this._ultimoOnedriveMap) {
-      this._ultimoOnedriveMap.forEach((_, k) => {
-        const m = (k || '').match(regex);
-        if (m) numerosExistentes.add(parseInt(m[1], 10));
-      });
-    }
-
-    // 4. Revisar localStorage
-    try {
-      const rawLocal = localStorage.getItem('agy_sgc_documentos_creados');
-      if (rawLocal) {
-        const obj = JSON.parse(rawLocal);
-        for (const k of Object.keys(obj)) {
-          const m = k.match(regex);
-          if (m) numerosExistentes.add(parseInt(m[1], 10));
-          if (obj[k] && obj[k].codigo) {
-            const mC = obj[k].codigo.match(regex);
-            if (mC) numerosExistentes.add(parseInt(mC[1], 10));
-          }
-        }
-      }
-    } catch {}
 
     const maxNum = numerosExistentes.size > 0 ? Math.max(...numerosExistentes) : 0;
     const siguienteNum = maxNum + 1;
@@ -614,7 +596,7 @@ export class DataService {
    */
   async obtenerDocumentos(forzarRefresco = false) {
     // 0. Verificación estricta de versión de esquema documental SSOT (Google Sheets como fuente de la verdad)
-    const SCHEMA_VERSION_SSOT = '20260928_ssot_v1';
+    const SCHEMA_VERSION_SSOT = '20260928_ssot_v3';
     try {
       const verLocal = typeof localStorage !== 'undefined' ? localStorage.getItem('agy_sgc_ssot_version') : null;
       if (verLocal !== SCHEMA_VERSION_SSOT) {
@@ -623,6 +605,26 @@ export class DataService {
         if (cacheService && cacheService.guardarDocumentos) {
           await cacheService.guardarDocumentos([]);
         }
+        // Purgar borradores residuales o registros fantasma que distorsionen los consecutivos oficiales
+        try {
+          const rawCreados = localStorage.getItem('agy_sgc_documentos_creados');
+          if (rawCreados) {
+            const creados = JSON.parse(rawCreados);
+            let cambiado = false;
+            for (const k of Object.keys(creados)) {
+              if (k.toUpperCase().startsWith('FMT-GIC-015-') || k.includes('::') || k.startsWith('_LISTA_')) {
+                const m = k.match(/FMT-GIC-015-(\d+)/i);
+                if (!m || parseInt(m[1], 10) > 9) {
+                  delete creados[k];
+                  cambiado = true;
+                }
+              }
+            }
+            if (cambiado) {
+              localStorage.setItem('agy_sgc_documentos_creados', JSON.stringify(creados));
+            }
+          }
+        } catch {}
         forzarRefresco = true;
       }
     } catch {}
@@ -905,6 +907,36 @@ export class DataService {
         onedriveMap = this.parsearRepositorioDat(repoPersistente);
       }
     }
+
+    // Incorporar a onedriveMap cualquier documento o registro creado por el usuario en almacenamiento web
+    try {
+      const rawCreados = localStorage.getItem('agy_sgc_documentos_creados');
+      if (rawCreados) {
+        const objCreados = JSON.parse(rawCreados);
+        Object.entries(objCreados).forEach(([cCode, cDoc]) => {
+          if (cDoc && cDoc.codigo && (cDoc.downloadUrl || cDoc.sharepointUrl)) {
+            const codNorm = cDoc.codigo.trim().toUpperCase();
+            if (!onedriveMap.has(codNorm)) {
+              onedriveMap.set(codNorm, {
+                codigo: codNorm,
+                nombre: cDoc.titulo || '',
+                titulo: cDoc.titulo || '',
+                extension: cDoc.extension || '',
+                formato: cDoc.formato || '',
+                carpeta: cDoc.carpeta || '',
+                proceso: cDoc.proceso || '',
+                tipoDoc: cDoc.tipoDocumento || '',
+                urlEdicion: cDoc.sharepointUrl || '',
+                urlDescarga: cDoc.downloadUrl || cDoc.sharepointUrl || '',
+                sharepointUrl: cDoc.sharepointUrl || '',
+                downloadUrl: cDoc.downloadUrl || cDoc.sharepointUrl || '',
+                modificacion: cDoc.modificacion || new Date().toISOString()
+              });
+            }
+          }
+        });
+      }
+    } catch {}
     this._ultimoOnedriveMap = onedriveMap;
 
 
@@ -1331,6 +1363,7 @@ export class DataService {
     const idxEstado = getColIndex(['estadoactual', 'estado'], 19);
     const idxTipoDoc = getColIndex(['tipodedocumento', 'tipodocumento', 'tipo'], 1);
     const idxSubclase = getColIndex(['subclase', 'nivel', 'niveldocumental', 'tiporegistro', 'jerarquia', 'clasedocumento'], -1);
+    const idxFechaAprobacion = getColIndex(['fechadeaprobacion', 'fechaaprobacion', 'fecha'], 0);
 
     const filas = [];
     const mapaDocsBase = new Map();
@@ -1393,7 +1426,7 @@ export class DataService {
         formato = 'Word';
         extension = 'DOC';
       }
-      const modificacion = odData?.modificacion || (esRegistro ? 'N/A' : (baseDoc?.modificacion || 'N/A'));
+      let modificacion = odData?.modificacion || (esRegistro ? 'N/A' : (baseDoc?.modificacion || 'N/A'));
       let sharepointUrl = odData?.sharepointUrl || (esRegistro ? '' : (baseDoc?.sharepointUrl || ''));
       let downloadUrl = odData?.downloadUrl || (esRegistro ? '' : (baseDoc?.downloadUrl || sharepointUrl));
 
@@ -1402,6 +1435,36 @@ export class DataService {
         if (downloadUrl === baseDoc.downloadUrl || sharepointUrl === baseDoc.sharepointUrl) {
           downloadUrl = '';
           sharepointUrl = '';
+        }
+      }
+
+      // Si es un registro derivado oficial de la hoja y aún no tiene enlaces en onedriveMap,
+      // resolver su enlace oficial SharePoint a partir del documento base padre
+      if (esRegistro && (!downloadUrl || !sharepointUrl)) {
+        const padreDoc = (baseDoc && !baseDoc.esRegistro) ? baseDoc : (DOCUMENTOS_REALES.find(d => (d.codigo || '').toUpperCase() === codPadre && !d.esRegistro) || null);
+        if (padreDoc && (padreDoc.sharepointUrl || padreDoc.downloadUrl)) {
+          const enlacesAuto = this.generarEnlacesDocumentoSecundario(padreDoc, {
+            codigo: codUpper,
+            titulo: tituloGS,
+            extension: rawExt || 'DOC'
+          });
+          if (enlacesAuto) {
+            sharepointUrl = sharepointUrl || enlacesAuto.sharepointUrl;
+            downloadUrl = downloadUrl || enlacesAuto.downloadUrl || sharepointUrl;
+          }
+        }
+      }
+
+      // Si la fecha de modificación no vino de OneDrive, usar la fecha de aprobación de Google Sheets
+      if (esRegistro && modificacion === 'N/A') {
+        const fechaSheet = idxFechaAprobacion !== -1 && valores[idxFechaAprobacion] ? valores[idxFechaAprobacion].trim() : '';
+        if (fechaSheet && fechaSheet !== 'N/A') {
+          modificacion = fechaSheet;
+        } else {
+          const padreDoc = (baseDoc && !baseDoc.esRegistro) ? baseDoc : (DOCUMENTOS_REALES.find(d => (d.codigo || '').toUpperCase() === codPadre && !d.esRegistro) || null);
+          if (padreDoc?.modificacion && padreDoc.modificacion !== 'N/A') {
+            modificacion = padreDoc.modificacion;
+          }
         }
       }
 
@@ -2178,12 +2241,6 @@ export class DataService {
       if (docObj.subclase === 'Registro' || docObj.esRegistro === true || cod.startsWith('REG_') || cod.includes('::') || docObj.codigoPadre || mSecCod) {
         const codUpper = codRaw;
         const codPadre = (docObj.documentoPadreCodigo || docObj.codigoPadre || (mSecCod ? mSecCod[1] : (docObj.codigo ? docObj.codigo.replace(/-(\d+)$/, '') : '')) || cod.replace(/^REG_/, '').replace(/-(\d+)$/, '').split('::')[0]).trim().toUpperCase();
-
-        // Evitar inyección de registros derivados fantasma o no oficiales en FMT-GIC-015
-        if (codPadre === 'FMT-GIC-015' && mSecCod && parseInt(mSecCod[2], 10) > 8) {
-          return;
-        }
-
         const base = docsEnriquecidos.find(d => (d.codigo || '').toUpperCase() === codPadre && !d.esRegistro) ||
                      nuevosParaAgregar.find(d => (d.codigo || '').toUpperCase() === codPadre && !d.esRegistro);
         if (base) {
@@ -2501,7 +2558,7 @@ export class DataService {
         }
       }
 
-      // Vincular directamente desde el mapa de OneDrive si faltan enlaces, sin calcular rutas sintéticas
+      // Vincular directamente desde el mapa de OneDrive si faltan enlaces, o resolver via padre
       if (!reg.downloadUrl || !reg.sharepointUrl) {
         const odExacto = this.buscarEnOneDriveMap(this._ultimoOnedriveMap, reg.codigo, reg.titulo, true);
         if (odExacto) {
@@ -2509,6 +2566,14 @@ export class DataService {
           reg.sharepointUrl = odExacto.sharepointUrl || odExacto.urlEdicion || '';
           reg.disponible = Boolean(reg.downloadUrl || reg.sharepointUrl);
           reg.estado = reg.disponible ? 'DISPONIBLE' : 'NO DISPONIBLE';
+        } else if (docPadre && (docPadre.downloadUrl || docPadre.sharepointUrl)) {
+          const enlacesAuto = this.generarEnlacesDocumentoSecundario(docPadre, reg);
+          if (enlacesAuto) {
+            reg.downloadUrl = enlacesAuto.downloadUrl;
+            reg.sharepointUrl = enlacesAuto.sharepointUrl;
+            reg.disponible = Boolean(reg.downloadUrl || reg.sharepointUrl);
+            reg.estado = reg.disponible ? 'DISPONIBLE' : 'NO DISPONIBLE';
+          }
         }
       }
 
