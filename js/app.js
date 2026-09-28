@@ -11,11 +11,11 @@
  * - Modo Edición: Desbloqueo Automático para Acceso Total y Contraseña Personal para Directivos y Administrativos
  */
 
-import { sharepointService, determinarEstrategiaDescarga, esDocumentoFMT } from './sharepoint-service.js?v=11.6.92';
-import { filterEngine } from './filters.js?v=11.6.92';
-import { modalManager } from './modal.js?v=11.6.92';
-import { analyticsManager } from './analytics.js?v=11.6.92';
-import { staffService } from './staff-service.js?v=11.6.92';
+import { sharepointService, determinarEstrategiaDescarga, esDocumentoFMT } from './sharepoint-service.js?v=11.6.93';
+import { filterEngine } from './filters.js?v=11.6.93';
+import { modalManager } from './modal.js?v=11.6.93';
+import { analyticsManager } from './analytics.js?v=11.6.93';
+import { staffService } from './staff-service.js?v=11.6.93';
 
 const STORAGE_KEY_EDIT_MODE = 'agy_sgc_edit_mode';
 const STORAGE_KEY_FAVORITES = 'agy_sgc_favorites';
@@ -2393,20 +2393,50 @@ class AppController {
 
   agregarNuevoDocumentoEnApp(nuevoDoc) {
     if (!nuevoDoc) return;
-    const codUpper = (nuevoDoc.codigo || '').toUpperCase();
-    if (nuevoDoc.subclase === 'Registro' || nuevoDoc.esRegistro === true) {
-      const docBase = this.documentos.find((d) => (d.codigo || '').toUpperCase() === codUpper && !d.esRegistro);
+    const codUpper = (nuevoDoc.codigo || '').trim().toUpperCase();
+    const esReg = Boolean(nuevoDoc.subclase === 'Registro' || nuevoDoc.esRegistro === true || (nuevoDoc.id && String(nuevoDoc.id).includes('_REG_')) || /^[A-Z]{3,4}-[A-Z]{2,4}-\d{3,4}-\d+$/i.test(codUpper));
+    
+    if (esReg) {
+      const mSec = codUpper.match(/^([A-Z]{3,4}-[A-Z]{2,4}-\d{3,4})-(\d+)$/i);
+      const codPadre = (nuevoDoc.documentoPadreCodigo || nuevoDoc.codigoPadre || (mSec ? mSec[1] : codUpper.replace(/-(\d+)$/, ''))).trim().toUpperCase();
+      const docBase = this.documentos.find((d) => (d.codigo || '').toUpperCase() === codPadre && !d.esRegistro);
       if (docBase) {
         docBase.registrosDerivados = docBase.registrosDerivados || [];
-        const existeIdx = docBase.registrosDerivados.findIndex(r => r.id === nuevoDoc.id || (r.titulo && r.titulo.toLowerCase() === nuevoDoc.titulo.toLowerCase()));
+        const nuevoNormalizado = {
+          ...nuevoDoc,
+          codigo: codUpper,
+          esRegistro: true,
+          subclase: 'Registro',
+          tipoDocumento: 'Registro',
+          documentoPadreCodigo: codPadre,
+          proceso: docBase.proceso || docBase.carpeta,
+          carpeta: docBase.carpeta || docBase.proceso,
+          area: docBase.area,
+          areaNombre: docBase.areaNombre || docBase.area,
+          tipoProceso: docBase.tipoProceso,
+          extension: nuevoDoc.extension || docBase.extension || 'PDF',
+          formato: nuevoDoc.formato || (docBase.formato === 'Excel' ? 'Excel' : 'PDF')
+        };
+        const existeIdx = docBase.registrosDerivados.findIndex(r => 
+          (r.codigo && r.codigo.toUpperCase() === codUpper) ||
+          (nuevoDoc.id && r.id === nuevoDoc.id)
+        );
         if (existeIdx >= 0) {
-          docBase.registrosDerivados[existeIdx] = nuevoDoc;
+          docBase.registrosDerivados[existeIdx] = { ...docBase.registrosDerivados[existeIdx], ...nuevoNormalizado };
         } else {
-          docBase.registrosDerivados.push(nuevoDoc);
+          docBase.registrosDerivados.push(nuevoNormalizado);
+        }
+        if (typeof sharepointService._deduplicarRegistros === 'function') {
+          docBase.registrosDerivados = sharepointService._deduplicarRegistros(docBase.registrosDerivados);
         }
       }
     } else {
-      this.documentos.unshift(nuevoDoc);
+      const existeIdx = this.documentos.findIndex(d => (d.codigo || '').toUpperCase() === codUpper && !d.esRegistro);
+      if (existeIdx >= 0) {
+        this.documentos[existeIdx] = { ...this.documentos[existeIdx], ...nuevoDoc };
+      } else {
+        this.documentos.unshift(nuevoDoc);
+      }
     }
     this.aplicarFiltros(true);
     if (this.vistaActual === 'analytics') {
@@ -2417,17 +2447,25 @@ class AppController {
 
   actualizarDocumentoEnApp(docActualizado) {
     if (!docActualizado) return;
-    const codUpper = (docActualizado.codigo || '').toUpperCase();
-    const codAntUpper = (docActualizado.codigoAnterior || '').toUpperCase();
-    const esReg = Boolean(docActualizado.esRegistro || docActualizado.subclase === 'Registro' || (docActualizado.id && String(docActualizado.id).includes('_REG_')));
+    const codUpper = (docActualizado.codigo || '').trim().toUpperCase();
+    const codAntUpper = (docActualizado.codigoAnterior || '').trim().toUpperCase();
+    const esReg = Boolean(docActualizado.esRegistro || docActualizado.subclase === 'Registro' || (docActualizado.id && String(docActualizado.id).includes('_REG_')) || /^[A-Z]{3,4}-[A-Z]{2,4}-\d{3,4}-\d+$/i.test(codUpper));
 
     let idx = -1;
-    if (codAntUpper) {
-      idx = this.documentos.findIndex((d) => (d.codigo || '').toUpperCase() === codAntUpper && !d.esRegistro);
+    if (esReg) {
+      const mSec = codUpper.match(/^([A-Z]{3,4}-[A-Z]{2,4}-\d{3,4})-(\d+)$/i);
+      const mAnt = codAntUpper.match(/^([A-Z]{3,4}-[A-Z]{2,4}-\d{3,4})-(\d+)$/i);
+      const codPadre = (docActualizado.documentoPadreCodigo || docActualizado.codigoPadre || (mAnt ? mAnt[1] : (mSec ? mSec[1] : codUpper.replace(/-(\d+)$/, '')))).trim().toUpperCase();
+      idx = this.documentos.findIndex((d) => (d.codigo || '').toUpperCase() === codPadre && !d.esRegistro);
+    } else {
+      if (codAntUpper) {
+        idx = this.documentos.findIndex((d) => (d.codigo || '').toUpperCase() === codAntUpper && !d.esRegistro);
+      }
+      if (idx < 0) {
+        idx = this.documentos.findIndex((d) => (d.codigo || '').toUpperCase() === codUpper && !d.esRegistro);
+      }
     }
-    if (idx < 0) {
-      idx = this.documentos.findIndex((d) => (d.codigo || '').toUpperCase() === codUpper && !d.esRegistro);
-    }
+
     if (idx >= 0) {
       if (esReg) {
         // ACTUALIZACIÓN DE REGISTRO DERIVADO: NUNCA tocar propiedades del documento base
@@ -2437,9 +2475,11 @@ class AppController {
 
         let regIdx = this.documentos[idx].registrosDerivados.findIndex((r) => {
           if (docActualizado.id && r.id === docActualizado.id) return true;
+          if (r.codigo && codUpper && r.codigo.toUpperCase() === codUpper) return true;
+          if (codAntUpper && r.codigo && r.codigo.toUpperCase() === codAntUpper) return true;
           const rTitNorm = (r.titulo || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-          if (titAntNorm && (rTitNorm === titAntNorm || rTitNorm.includes(titAntNorm) || titAntNorm.includes(rTitNorm))) return true;
-          if (titNuevoNorm && (rTitNorm === titNuevoNorm || rTitNorm.includes(titNuevoNorm) || titNuevoNorm.includes(rTitNorm))) return true;
+          if (titAntNorm && rTitNorm === titAntNorm) return true;
+          if (titNuevoNorm && rTitNorm === titNuevoNorm) return true;
           return false;
         });
 
@@ -2455,7 +2495,7 @@ class AppController {
           area: this.documentos[idx].area,
           areaNombre: this.documentos[idx].areaNombre || this.documentos[idx].area,
           tipoProceso: this.documentos[idx].tipoProceso,
-          extension: this.documentos[idx].extension || docActualizado.extension || 'doc'
+          extension: this.documentos[idx].extension || docActualizado.extension || 'PDF'
         };
 
         if (regIdx >= 0) {

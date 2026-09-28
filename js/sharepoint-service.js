@@ -596,7 +596,7 @@ export class DataService {
    */
   async obtenerDocumentos(forzarRefresco = false) {
     // 0. Verificación estricta de versión de esquema documental SSOT (Google Sheets como fuente de la verdad)
-    const SCHEMA_VERSION_SSOT = '20260928_ssot_v3';
+    const SCHEMA_VERSION_SSOT = '20260928_ssot_v4';
     try {
       const verLocal = typeof localStorage !== 'undefined' ? localStorage.getItem('agy_sgc_ssot_version') : null;
       if (verLocal !== SCHEMA_VERSION_SSOT) {
@@ -612,12 +612,9 @@ export class DataService {
             const creados = JSON.parse(rawCreados);
             let cambiado = false;
             for (const k of Object.keys(creados)) {
-              if (k.toUpperCase().startsWith('FMT-GIC-015-') || k.includes('::') || k.startsWith('_LISTA_')) {
-                const m = k.match(/FMT-GIC-015-(\d+)/i);
-                if (!m || parseInt(m[1], 10) > 9) {
-                  delete creados[k];
-                  cambiado = true;
-                }
+              if (k.startsWith('REG_FMT-GIC-016') || k.startsWith('FMT-GIC-016') || k.includes('::') || k.startsWith('_LISTA_')) {
+                delete creados[k];
+                cambiado = true;
               }
             }
             if (cambiado) {
@@ -1620,10 +1617,13 @@ export class DataService {
           const coincideYa = (r) => {
             if (r.id === registroObj.id) return true;
             if (r.codigo && registroObj.codigo && r.codigo.toUpperCase() === registroObj.codigo.toUpperCase()) return true;
+            const m1 = (r.codigo || '').match(/-(\d+)$/);
+            const m2 = (registroObj.codigo || '').match(/-(\d+)$/);
+            if (m1 && m2 && m1[1] !== m2[1]) return false;
             if (r.titulo && registroObj.titulo && r.titulo.toLowerCase().trim() === registroObj.titulo.toLowerCase().trim()) return true;
             const n1 = (r.titulo || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
             const n2 = (registroObj.titulo || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
-            return n1 === n2 || (n1.length > 5 && n2.length > 5 && (n1.includes(n2) || n2.includes(n1)));
+            return !m1 && !m2 && (n1 === n2 || (n1.length > 5 && n2.length > 5 && (n1.includes(n2) || n2.includes(n1))));
           };
           const idxReg = docPadre.registrosDerivados.findIndex(coincideYa);
           if (idxReg >= 0) {
@@ -2288,10 +2288,13 @@ export class DataService {
           const coincideReg = (r) => {
             if (docObj.id && r.id === docObj.id) return true;
             if (r.codigo && docCorregido.codigo && r.codigo.toUpperCase() === docCorregido.codigo.toUpperCase()) return true;
+            const m1 = (r.codigo || '').match(/-(\d+)$/);
+            const m2 = (docCorregido.codigo || '').match(/-(\d+)$/);
+            if (m1 && m2 && m1[1] !== m2[1]) return false;
             if (r.titulo && docObj.titulo && r.titulo.toLowerCase().trim() === docObj.titulo.toLowerCase().trim()) return true;
             const nR = (r.titulo || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
             const nObj = (docObj.titulo || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
-            return nR === nObj || (nR.length > 5 && nObj.length > 5 && (nR.includes(nObj) || nObj.includes(nR)));
+            return !m1 && !m2 && (nR === nObj || (nR.length > 5 && nObj.length > 5 && (nR.includes(nObj) || nObj.includes(nR))));
           };
 
           const idxReg = base.registrosDerivados.findIndex(coincideReg);
@@ -2501,7 +2504,14 @@ export class DataService {
       const docBase = this.documentosEnMemoria.find((d) => (d.codigo || '').toUpperCase() === codPadre && !d.esRegistro);
       if (docBase) {
         docBase.registrosDerivados = docBase.registrosDerivados || [];
-        const idxReg = docBase.registrosDerivados.findIndex(r => r.id === docNormalizado.id || (r.codigo && r.codigo.toUpperCase() === codUpper) || (r.titulo && r.titulo.toLowerCase() === docNormalizado.titulo.toLowerCase()));
+        const idxReg = docBase.registrosDerivados.findIndex(r => {
+          if (docNormalizado.id && r.id === docNormalizado.id) return true;
+          if (r.codigo && codUpper && r.codigo.toUpperCase() === codUpper) return true;
+          const m1 = (r.codigo || '').match(/-(\d+)$/);
+          const m2 = codUpper.match(/-(\d+)$/);
+          if (m1 && m2 && m1[1] !== m2[1]) return false;
+          return r.titulo && docNormalizado.titulo && r.titulo.toLowerCase().trim() === docNormalizado.titulo.toLowerCase().trim();
+        });
         if (idxReg >= 0) {
           docBase.registrosDerivados[idxReg] = { ...docBase.registrosDerivados[idxReg], ...docNormalizado };
         } else {

@@ -927,7 +927,10 @@ export class ModalManager {
           if (window.__agyApp) {
             window.__agyApp.agregarNuevoDocumentoEnApp(nuevoDoc);
           }
-          const docActualizado = (sharepointService.documentosEnMemoria || []).find((d) => (d.codigo || '').toUpperCase() === (doc.codigo || '').toUpperCase());
+          const codPadre = (nuevoDoc.documentoPadreCodigo || nuevoDoc.codigoPadre || (nuevoDoc.codigo ? nuevoDoc.codigo.replace(/-(\d+)$/, '') : (doc.codigo || ''))).trim().toUpperCase();
+          const docActualizado = (window.__agyApp?.documentos || []).find((d) => (d.codigo || '').toUpperCase() === codPadre && !d.esRegistro) ||
+                                (sharepointService.documentosEnMemoria || []).find((d) => (d.codigo || '').toUpperCase() === codPadre && !d.esRegistro) ||
+                                doc;
           if (docActualizado) {
             this.abrirDrawerDocumento(docActualizado, modoEdicion, onEditarSharePoint, onDescargar, onActualizarDoc, onEliminarDoc, 'registros');
             setTimeout(() => {
