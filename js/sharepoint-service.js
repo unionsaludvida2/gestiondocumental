@@ -1887,8 +1887,23 @@ export class DataService {
       return `/api/descargar-pdf?codigo=${codEnc}&url=${urlEnc}&titulo=${titEnc}&esRegistro=${esReg}`;
     }
 
-    // Transformación para SharePoint Online en entorno web / GitHub Pages:
-    // Utilizar el vínculo directo oficial con download=1 para forzar la descarga sin exponer carpetas ni fallar con error REST
+    // Transformación nativa para SharePoint Online en entorno web / GitHub Pages:
+    // Utilizar la API REST v2.0 oficial de SharePoint Online que convierte el Word a PDF al vuelo
+    const libMarker = limpia.includes('/Documentos compartidos/') ? '/Documentos compartidos/' : (limpia.includes('/Shared Documents/') ? '/Shared Documents/' : null);
+    if (libMarker) {
+      try {
+        const idx = limpia.indexOf(libMarker);
+        const siteBase = limpia.substring(0, idx); // Ej: https://unionsaludvida.sharepoint.com/sites/INTRANET
+        const subpath = limpia.substring(idx + libMarker.length);
+        const subpathEncoded = encodeURI(decodeURI(subpath));
+
+        // Endpoint REST v2.0 oficial de SharePoint Online que entrega el PDF convertido al vuelo
+        return `${siteBase}/_api/v2.0/drive/root:/${subpathEncoded}:/content?format=pdf`;
+      } catch (e) {
+        console.warn('[sharepointService] Error construyendo URL REST v2.0 PDF:', e);
+      }
+    }
+
     let urlDirecta = urlOriginal;
     if (urlDirecta.includes('sharepoint.com') && !urlDirecta.includes('download=1')) {
       const sep = urlDirecta.includes('?') ? '&' : '?';
@@ -1937,7 +1952,6 @@ export class DataService {
       alert(`El documento ${doc.codigo || ''} no tiene enlace de descarga disponible en el repositorio.`);
       return false;
     }
-
 
     const codigo = (doc.codigo || 'DOC').trim();
     const titulo = (doc.titulo || 'documento').trim();
@@ -1989,13 +2003,9 @@ export class DataService {
     }
 
     // 2. Entorno Producción / Web (GitHub Pages / Online):
-    // Descarga directa oficial desde SharePoint usando download=1 sin calcular rutas ni exponer carpetas
-    this.notificar(`📥 Descargando ${codigo}...`, 'info');
-    let urlDestino = doc.downloadUrl || doc.sharepointUrl || urlPdf;
-    if (urlDestino && urlDestino.includes('sharepoint.com') && !urlDestino.includes('download=1')) {
-      const sep = urlDestino.includes('?') ? '&' : '?';
-      urlDestino = `${urlDestino}${sep}download=1`;
-    }
+    // Descarga y conversión oficial directa a PDF utilizando la API de SharePoint Online
+    this.notificar(`📄 Descargando ${codigo} en formato PDF...`, 'info');
+    let urlDestino = urlPdf;
 
     // Apertura directa para descarga en el navegador del usuario
     window.open(urlDestino, '_blank', 'noopener,noreferrer');
