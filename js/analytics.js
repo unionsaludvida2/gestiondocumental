@@ -6,7 +6,7 @@
  * exportación del Listado Maestro y Auditoría de Actividad en pestañas separadas.
  */
 
-import { staffService } from './staff-service.js?v=11.6.85';
+import { staffService } from './staff-service.js?v=11.6.92';
 
 export class AnalyticsManager {
 
@@ -462,67 +462,58 @@ export class AnalyticsManager {
 
   detectarRegistroDerivado(item) {
     if (!item) return { esDerivado: false, codPadre: '', codDisplay: '' };
-    let esDerivado = Boolean(item.esRegistro);
-    let codPadre = item.documentoPadreCodigo || '';
-    const codRaw = (item.codigo || item.documentoCodigo || '').trim();
+    const rawStr = String(item.codigo || item.documentoCodigo || '').trim();
+    const codRaw = rawStr.split('::')[0].trim().toUpperCase();
     let codDisplay = codRaw;
 
-    // 1. Detectar códigos derivados con 4 partes (p.ej. FMT-GIC-016-1, FMT-GIC-016-2)
-    const mSec = codRaw.match(/^([A-Za-z0-9]+-[A-Za-z0-9]+-\d+)-(\d+)$/);
-    if (mSec) {
-      esDerivado = true;
-      codPadre = codPadre || mSec[1];
-      codDisplay = codRaw;
+    // 1. Regla base: Documentos base institucionales tienen 3 partes (ej: INS-GTH-013, DA-GMD-017, FMT-GTH-045, FMT-GIC-015)
+    // Los documentos base NUNCA son registros derivados y NUNCA tienen formato base.
+    const mBase = codRaw.match(/^[A-Z]{2,4}-[A-Z]{2,4}-\d{3,4}$/);
+    if (mBase) {
+      return { esDerivado: false, codPadre: '', codDisplay };
     }
 
-    // 2. Curación inteligente para registros creados históricamente bajo FMT-GIC-016 o FMT-GIC-015
+    // 2. Regla derivada: Registros derivados oficiales tienen 4 partes (ej: FMT-GIC-015-8)
+    const mSec = codRaw.match(/^([A-Z]{2,4}-[A-Z]{2,4}-\d{3,4})-(\d+)$/);
+    if (mSec) {
+      return {
+        esDerivado: true,
+        codPadre: mSec[1],
+        codDisplay
+      };
+    }
+
+    // 3. Curación inteligente para registros creados históricamente bajo FMT-GIC-016 o FMT-GIC-015
     const tit = (item.titulo || item.documentoTitulo || '').toLowerCase();
     const det = (item.detalle || '').toLowerCase();
-    if (!mSec && (codRaw === 'FMT-GIC-016' || codRaw === 'FMT-GIC-015' || det.includes('fmt-gic-016') || det.includes('fmt-gic-015'))) {
+    if (codRaw === 'FMT-GIC-016' || codRaw === 'FMT-GIC-015' || det.includes('fmt-gic-016') || det.includes('fmt-gic-015')) {
       const pCod = 'FMT-GIC-015';
       if (tit.includes('anticoagula') && tit.includes('2026-1')) {
-        esDerivado = true;
-        codPadre = pCod;
-        codDisplay = `${pCod}-1`;
+        return { esDerivado: true, codPadre: pCod, codDisplay: `${pCod}-1` };
       } else if (tit.includes('anticoagula') && tit.includes('2026-2')) {
-        esDerivado = true;
-        codPadre = pCod;
-        codDisplay = `${pCod}-2`;
+        return { esDerivado: true, codPadre: pCod, codDisplay: `${pCod}-2` };
       } else if (tit.includes('asma') || tit.includes('epoc')) {
-        esDerivado = true;
-        codPadre = pCod;
-        codDisplay = `${pCod}-3`;
+        return { esDerivado: true, codPadre: pCod, codDisplay: `${pCod}-3` };
       } else if (tit.includes('cpr') && tit.includes('2026-1')) {
-        esDerivado = true;
-        codPadre = pCod;
-        codDisplay = `${pCod}-4`;
+        return { esDerivado: true, codPadre: pCod, codDisplay: `${pCod}-4` };
       } else if (tit.includes('cpr') && tit.includes('2026-2')) {
-        esDerivado = true;
-        codPadre = pCod;
-        codDisplay = `${pCod}-5`;
+        return { esDerivado: true, codPadre: pCod, codDisplay: `${pCod}-5` };
       } else if (tit.includes('especialista') && tit.includes('2026-1')) {
-        esDerivado = true;
-        codPadre = pCod;
-        codDisplay = `${pCod}-6`;
+        return { esDerivado: true, codPadre: pCod, codDisplay: `${pCod}-6` };
       } else if (tit.includes('especialista') && tit.includes('2026-2')) {
-        esDerivado = true;
-        codPadre = pCod;
-        codDisplay = `${pCod}-7`;
+        return { esDerivado: true, codPadre: pCod, codDisplay: `${pCod}-7` };
       } else if (tit.includes('infancia')) {
-        esDerivado = true;
-        codPadre = pCod;
-        codDisplay = `${pCod}-8`;
+        return { esDerivado: true, codPadre: pCod, codDisplay: `${pCod}-8` };
       }
     }
 
-    if (!esDerivado && (det.includes('registro derivado') || (item.tipoDocumento || item.tipoNuevo || '').toUpperCase().includes('REGISTRO'))) {
-      esDerivado = true;
-      if (!codPadre && codRaw.split('-').length >= 4) {
-        codPadre = codRaw.split('-').slice(0, 3).join('-');
-      }
+    // 4. Código padre explícito válido (debe tener al menos 3 partes completas)
+    const codPadre = String(item.documentoPadreCodigo || '').trim();
+    if (codPadre && codPadre.split('-').length >= 3) {
+      return { esDerivado: true, codPadre, codDisplay };
     }
 
-    return { esDerivado, codPadre, codDisplay };
+    return { esDerivado: false, codPadre: '', codDisplay };
   }
 
   exportarAuditoriaCSV() {
@@ -602,8 +593,11 @@ export class AnalyticsManager {
     if (!this.container) return;
     this.documentosActuales = documentos || [];
 
-    // Determinar perfil efectivo de forma infalible desde sesión / staffService
+    // Determinar perfil efectivo de forma infalible desde sesión / staffService / AppController
     let perfilEfectivo = perfilActual;
+    if (!perfilEfectivo) {
+      perfilEfectivo = (window.__agyApp && window.__agyApp.perfil) || (window.antigravityApp && window.antigravityApp.perfil);
+    }
     if (!perfilEfectivo) {
       const sesion = staffService.obtenerSesionActiva();
       if (sesion) {
@@ -611,15 +605,16 @@ export class AnalyticsManager {
       }
     }
     if (!perfilEfectivo) {
-      perfilEfectivo = localStorage.getItem('agy_sgc_user_profile') || 'operativo';
+      perfilEfectivo = localStorage.getItem('agy_user_profile') || localStorage.getItem('agy_sgc_user_profile') || 'operativo';
     }
 
     const data = this.calcularMetricas(documentos);
     const listaCompleta = documentos; // Estrictamente limitado a la documentación permitida para el perfil
-    const esAccesoTotal = Boolean(perfilEfectivo && (perfilEfectivo === 'total' || perfilEfectivo === 'administrador'));
-    const esDirectivo = Boolean(perfilEfectivo && perfilEfectivo === 'directivo');
-    const esAdministrativo = Boolean(perfilEfectivo && perfilEfectivo === 'administrativo');
-    const esOperativo = Boolean(!perfilEfectivo || perfilEfectivo === 'operativo');
+    const perfilNorm = String(perfilEfectivo || '').toLowerCase();
+    const esAccesoTotal = Boolean(perfilNorm === 'total' || perfilNorm === 'administrador' || perfilNorm.includes('total'));
+    const esDirectivo = Boolean(perfilNorm === 'directivo');
+    const esAdministrativo = Boolean(perfilNorm === 'administrativo');
+    const esOperativo = Boolean(!perfilEfectivo || perfilNorm === 'operativo');
     const tieneAccesoModulosCompletos = esAccesoTotal || esDirectivo;
 
     // Si el perfil es administrativo u operativo, forzar estrictamente a resumen
@@ -1155,8 +1150,8 @@ export class AnalyticsManager {
 
     this.inicializarModuloCalidad(documentos);
 
-    // 2. Si es Acceso Total, inicializar lógica y render de auditoría
-    if (esAccesoTotal) {
+    // 2. Si tiene acceso a módulos completos (Total o Directivo), inicializar lógica y render de auditoría
+    if (tieneAccesoModulosCompletos) {
       this.inicializarAuditoriaDashboard();
     }
 
@@ -1169,8 +1164,11 @@ export class AnalyticsManager {
    */
   cambiarPestana(tabTarget) {
     const sesion = staffService.obtenerSesionActiva();
-    const perfilUsuario = String(sesion?.perfil || localStorage.getItem('agy_sgc_user_profile') || 'operativo').toLowerCase();
-    const esAccesoTotal = perfilUsuario === 'total' || perfilUsuario === 'administrador';
+    const appPerfil = (window.__agyApp && window.__agyApp.perfil) || (window.antigravityApp && window.antigravityApp.perfil);
+    const rawPerfil = appPerfil || sesion?.perfil || (sesion ? staffService.determinarPerfil(sesion.cargo, sesion.identificacion) : null) || localStorage.getItem('agy_user_profile') || localStorage.getItem('agy_sgc_user_profile') || 'operativo';
+    const perfilUsuario = String(rawPerfil).toLowerCase();
+
+    const esAccesoTotal = perfilUsuario === 'total' || perfilUsuario === 'administrador' || perfilUsuario.includes('total');
     const esDirectivo = perfilUsuario === 'directivo';
     const esAdministrativo = perfilUsuario === 'administrativo';
     const esOperativo = perfilUsuario === 'operativo';
@@ -1942,8 +1940,10 @@ export class AnalyticsManager {
             const padreHtml = (esDerivado && codPadre)
               ? `<div style="font-size:0.71rem; color:#0369a1; font-weight:600; margin-top:2px;">Formato Base: <span>${codPadre}</span></div>`
               : '';
-            const detalleExtra = (ev.detalle && !ev.detalle.toLowerCase().includes(codDisplay.toLowerCase()))
-              ? `<div style="font-size:0.70rem; color:#64748b; margin-top:2px;">${ev.detalle}</div>`
+            const titClean = String(ev.documentoTitulo || '').replace(/\.(docx|xlsx|pdf|doc|xls)$/i, '').trim();
+            const detClean = String(ev.detalle || '').replace(/::[a-zA-Z0-9_\.]+/g, '').trim();
+            const detalleExtra = (detClean && !detClean.toLowerCase().includes(codDisplay.toLowerCase()))
+              ? `<div style="font-size:0.70rem; color:#64748b; margin-top:2px;">${detClean}</div>`
               : '';
 
             detalleDoc = `
@@ -1951,12 +1951,13 @@ export class AnalyticsManager {
                 <span>${codDisplay}</span>
                 ${badgeDerivadoHtml}
               </div>
-              <div style="font-size: 0.74rem; color: #475569; margin-top:1px;">${ev.documentoTitulo || ''}</div>
+              <div style="font-size: 0.74rem; color: #475569; margin-top:1px;">${titClean}</div>
               ${padreHtml}
               ${detalleExtra}
             `;
           } else if (ev.detalle) {
-            detalleDoc = `<div style="font-size: 0.74rem; color: #475569;">${ev.detalle}</div>`;
+            const detClean = String(ev.detalle || '').replace(/::[a-zA-Z0-9_\.]+/g, '').trim();
+            detalleDoc = `<div style="font-size: 0.74rem; color: #475569;">${detClean}</div>`;
           }
 
           return `
@@ -2013,18 +2014,21 @@ export class AnalyticsManager {
 
       const eventosHist = (eventosHistCrudo || []).map((ev) => {
         if (!ev || !ev.codigo) return null;
-        const codUpper = (ev.codigo || '').trim().toUpperCase();
-        const docCat = mapaDocs.get(codUpper) || snapshotBase[codUpper];
+        const codClean = (ev.codigo || '').split('::')[0].trim().toUpperCase();
+        const docCat = mapaDocs.get(codClean) || snapshotBase[codClean];
         const fMod = (ev.fechaModificacionActual || docCat?.modificacion || ev.fechaHora || '').trim();
 
         const rutaCompleta = (docCat && (docCat.proceso || docCat.area || docCat.tipoProceso))
           ? `${docCat.tipoProceso || 'Misional'} / ${docCat.area || ''} / ${docCat.proceso || ''}`.replace(/\s*\/\s*\/\s*/g, ' / ').replace(/^\s*\/\s*|\s*\/\s*$/g, '')
           : (ev.rutaNueva && ev.rutaNueva !== 'N/A' ? ev.rutaNueva : (ev.rutaAnterior || 'N/A'));
 
+        let tituloFinal = docCat?.titulo || ev.titulo || 'Documento Institucional';
+        tituloFinal = String(tituloFinal).replace(/\.(docx|xlsx|pdf|doc|xls)$/i, '').trim();
+
         return {
           ...ev,
-          codigo: codUpper,
-          titulo: ev.titulo || docCat?.titulo || 'Documento Institucional',
+          codigo: codClean,
+          titulo: tituloFinal,
           rutaNueva: rutaCompleta,
           fechaModificacionActual: fMod
         };
@@ -2074,8 +2078,14 @@ export class AnalyticsManager {
         return texto.includes(q);
       });
 
-      // Filtrar eventos inconsistentes (ej. versiones con nombres de áreas o versiones idénticas)
+      // Filtrar eventos inconsistentes (ej. versiones con nombres de áreas, registros corruptos o pseudocódigos)
       filtrados = filtrados.filter((ev) => {
+        if (!ev || !ev.codigo) return false;
+        const codNorm = (ev.codigo || '').trim().toUpperCase();
+        if (codNorm.includes('HIST_') || codNorm === 'EDICION_SHAREPOINT' || codNorm.endsWith('ION_SHAREPOINT')) {
+          return false;
+        }
+
         const tipoNorm = (ev.tipoEvento || '').toUpperCase();
         if (tipoNorm === 'CAMBIO_VERSION') {
           const vA = (ev.versionAnterior || '').trim();
@@ -2127,10 +2137,12 @@ export class AnalyticsManager {
             badgeEvento = `<span style="background:#f1f5f9; color:#475569; padding:2px 8px; border-radius:12px; font-weight:700; font-size:0.72rem;">ℹ️ ${ev.tipoEvento || 'Modificación'}</span>`;
           }
 
-          const docCat = mapaDocs.get((ev.codigo || '').trim().toUpperCase());
+          const codClean = (ev.codigo || '').split('::')[0].trim().toUpperCase();
+          const isBaseDoc = /^[A-Z]{2,4}-[A-Z]{2,4}-\d{3,4}$/.test(codClean);
+          const docCat = mapaDocs.get(codClean);
           const { esDerivado: esDerivDetectado, codPadre: codPadreDetectado, codDisplay } = this.detectarRegistroDerivado(ev);
-          const esDerivado = esDerivDetectado || Boolean(docCat && docCat.esRegistro);
-          const codPadre = codPadreDetectado || docCat?.documentoPadreCodigo || '';
+          const esDerivado = !isBaseDoc && (esDerivDetectado || Boolean(docCat && docCat.esRegistro));
+          const codPadre = isBaseDoc ? '' : (codPadreDetectado || docCat?.documentoPadreCodigo || '');
           const badgeDerivado = esDerivado
             ? `<span style="background:#fef3c7; color:#92400e; font-size:0.67rem; font-weight:700; padding:1px 5px; border-radius:4px; border:1px solid #fde68a; display:block; margin-top:2px; width:fit-content;">📂 REGISTRO DERIVADO</span>`
             : '';
@@ -2250,11 +2262,11 @@ export class AnalyticsManager {
                 ${badgeEvento}
               </td>
               <td style="padding: 8px 10px; font-weight: 800; color: #0f172a; white-space: nowrap;">
-                ${codDisplay || ev.codigo || '-'}
+                ${codDisplay || codClean || '-'}
                 ${badgeDerivado}
               </td>
               <td style="padding: 8px 10px;">
-                <div style="font-weight: 600; color: #1e293b; line-height: 1.3; font-size: 0.82rem;">${ev.titulo || docCat?.titulo || '-'}</div>
+                <div style="font-weight: 600; color: #1e293b; line-height: 1.3; font-size: 0.82rem;">${String(docCat?.titulo || ev.titulo || '-').replace(/\.(docx|xlsx|pdf|doc|xls)$/i, '').trim()}</div>
                 ${esDerivado && codPadre ? `<div style="font-size:0.71rem; color:#0369a1; font-weight:600; margin-top:2px;">Formato Base: ${codPadre}</div>` : ''}
               </td>
               <td style="padding: 8px 10px;">

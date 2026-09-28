@@ -657,16 +657,65 @@ function actualizarAuditoriaDatEnDrive(dataObj) {
       return { status: 'ok', mensaje: 'Sin eventos nuevos para procesar', total: existingEvents.length };
     }
 
+    // Función auxiliar de saneamiento estricto
+    function sanitizarEventoGas(ev) {
+      if (!ev || typeof ev !== 'object') return ev;
+      let cod = String(ev.documentoCodigo || ev.codigo || '').trim();
+      if (cod.indexOf('::') !== -1) {
+        cod = cod.split('::')[0].trim().toUpperCase();
+        ev.documentoCodigo = cod;
+        if (ev.codigo) ev.codigo = cod;
+      } else {
+        cod = cod.toUpperCase();
+        ev.documentoCodigo = cod;
+        if (ev.codigo) ev.codigo = cod;
+      }
+
+      if (ev.detalle && typeof ev.detalle === 'string' && ev.detalle.indexOf('::') !== -1) {
+        ev.detalle = ev.detalle.replace(/::[a-zA-Z0-9_\.]+/g, '');
+      }
+
+      if (ev.documentoTitulo && typeof ev.documentoTitulo === 'string') {
+        ev.documentoTitulo = ev.documentoTitulo.replace(/\.(docx|xlsx|pdf|doc|xls)$/i, '').trim();
+      }
+      if (ev.titulo && typeof ev.titulo === 'string') {
+        ev.titulo = ev.titulo.replace(/\.(docx|xlsx|pdf|doc|xls)$/i, '').trim();
+      }
+
+      const mDeriv = cod.match(/^([A-Z]{2,4}-[A-Z]{2,4}-\d{3,4})-(\d+)$/);
+      const mBase = cod.match(/^[A-Z]{2,4}-[A-Z]{2,4}-\d{3,4}$/);
+
+      if (mDeriv) {
+        ev.esRegistro = true;
+        ev.documentoPadreCodigo = mDeriv[1];
+      } else if (mBase) {
+        ev.esRegistro = false;
+        ev.documentoPadreCodigo = '';
+        if (typeof ev.detalle === 'string' && ev.detalle.toLowerCase().indexOf('registro derivado') !== -1) {
+          ev.detalle = ev.detalle.replace(/registro derivado/gi, 'documento');
+        }
+      } else {
+        const p = String(ev.documentoPadreCodigo || '').trim();
+        if (!p || p.split('-').length < 3) {
+          ev.esRegistro = false;
+          ev.documentoPadreCodigo = '';
+        }
+      }
+      return ev;
+    }
+
+    const esReemplazoTotal = Boolean(dataObj.sobrescribir || dataObj.reemplazoTotal);
+
     // 2. Fusión deduplicada por id o clave compuesta
     const mapAud = new Map();
     let nuevosAgregados = 0;
 
-    // Primero incorporar los existentes en Drive
-    for (let i = 0; i < existingEvents.length; i++) {
-      const ev = existingEvents[i];
-      if (ev && typeof ev === 'object') {
-        const k = ev.id || `${ev.tipo}_${ev.identificacion || ev.usuario}_${ev.documentoCodigo || ''}_${ev.fechaHora || ev.timestamp}`;
-        if (!mapAud.has(k)) {
+    if (!esReemplazoTotal) {
+      // Primero incorporar los existentes en Drive saneados
+      for (let i = 0; i < existingEvents.length; i++) {
+        const ev = sanitizarEventoGas(existingEvents[i]);
+        if (ev && typeof ev === 'object') {
+          const k = ev.id || `${ev.tipo}_${ev.identificacion || ev.usuario}_${ev.documentoCodigo || ''}_${ev.fechaHora || ev.timestamp}`;
           mapAud.set(k, ev);
         }
       }
@@ -674,26 +723,16 @@ function actualizarAuditoriaDatEnDrive(dataObj) {
 
     const existingCount = mapAud.size;
 
-    // Luego incorporar los entrantes
+    // Luego incorporar los entrantes saneados (tienen precedencia de actualización)
     for (let i = 0; i < incomingEvents.length; i++) {
-      const ev = incomingEvents[i];
+      const ev = sanitizarEventoGas(incomingEvents[i]);
       if (ev && typeof ev === 'object') {
         const k = ev.id || `${ev.tipo}_${ev.identificacion || ev.usuario}_${ev.documentoCodigo || ''}_${ev.fechaHora || ev.timestamp}`;
-        if (!mapAud.has(k)) {
-          mapAud.set(k, ev);
+        if (!mapAud.has(k) || esReemplazoTotal) {
           nuevosAgregados++;
         }
+        mapAud.set(k, ev);
       }
-    }
-
-    // Si no hubo ningún registro nuevo y el total es idéntico, NO sobreescribir el archivo en Google Drive (evita versiones basura)
-    if (nuevosAgregados === 0 && mapAud.size === existingCount && existingEvents.length > 0) {
-      return { 
-        status: 'ok', 
-        mensaje: 'Auditoría ya sincronizada (sin cambios, no se requiere nueva versión en Drive)', 
-        total: mapAud.size,
-        nuevos: 0 
-      };
     }
 
     // 3. Ordenar cronológicamente descendente (el más reciente arriba) - Historial ilimitado sin cortes
@@ -711,7 +750,7 @@ function actualizarAuditoriaDatEnDrive(dataObj) {
       registroAuditoria: listaConsolidada
     };
 
-    // 4. Escribir únicamente cuando hay cambios reales
+    // 4. Escribir archivo consolidado
     fileAud.setContent(JSON.stringify(resultadoFinal, null, 2));
 
     return { 
@@ -898,13 +937,39 @@ function obtenerHistoricoDeCsv(fileIdCustom) {
     const headers = parseCsvLine(lines[0]).map(h => h.trim());
     const lista = [];
 
+    const eventosConocidos = {
+      'CREACION': 1, 'ELIMINACION': 1, 'CAMBIO_VERSION': 1, 'CAMBIO_METADATOS': 1, 'METADATOS': 1,
+      'CAMBIO_RUTA': 1, 'CAMBIO_TIPO': 1, 'EDICION_SHAREPOINT': 1, 'EDICION': 1
+    };
+
     for (let i = 1; i < lines.length; i++) {
-      const cols = parseCsvLine(lines[i]);
-      if (!cols || cols.length === 0 || !cols[2]) continue;
+      let cols = parseCsvLine(lines[i]);
+      if (!cols || cols.length === 0) continue;
+
+      // Autocorrección de filas donde se omitió la columna 'id' desplazando las demás
+      const primerValor = (cols[0] || '').trim().toUpperCase();
+      if (eventosConocidos[primerValor] || primerValor.indexOf('ION_SHAREPOINT') !== -1) {
+        const evtCorregido = primerValor.indexOf('ION_SHAREPOINT') !== -1 ? 'EDICION_SHAREPOINT' : primerValor;
+        cols = [`hist_auto_${i}_${Date.now()}`, evtCorregido].concat(cols.slice(1));
+      }
+
+      if (cols.length < 3 || !cols[2]) continue;
+
       const obj = {};
       for (let c = 0; c < headers.length; c++) {
         obj[headers[c]] = cols[c] !== undefined ? cols[c] : '';
       }
+
+      // Limpieza de claves compuestas con ::
+      if (obj.codigo && obj.codigo.indexOf('::') !== -1) {
+        obj.codigo = obj.codigo.split('::')[0].trim().toUpperCase();
+      }
+
+      const cod = (obj.codigo || '').trim().toUpperCase();
+      if (cod.indexOf('HIST_') !== -1 || eventosConocidos[cod] || cod.indexOf('ION_SHAREPOINT') !== -1) {
+        continue;
+      }
+
       lista.push(obj);
     }
 

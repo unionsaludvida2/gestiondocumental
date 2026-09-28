@@ -156,16 +156,71 @@ HISTORICO_CSV_HEADERS = [
     'fechaModificacionActual', 'sharepointUrl', 'fechaHora', 'timestamp'
 ]
 
+KNOWN_HISTORICO_EVENTS = {
+    'CREACION', 'ELIMINACION', 'CAMBIO_VERSION', 'CAMBIO_METADATOS', 'METADATOS',
+    'CAMBIO_RUTA', 'CAMBIO_TIPO', 'EDICION_SHAREPOINT', 'EDICION'
+}
+
+def sanitizar_registro_historico(h):
+    if not isinstance(h, dict):
+        return None
+    cod = (h.get('codigo') or '').strip().upper()
+    evt = (h.get('tipoEvento') or '').strip().upper()
+
+    # Descartar documentos inexistentes o registros corruptos
+    if 'HIST_' in cod or cod in KNOWN_HISTORICO_EVENTS or cod.endswith('ION_SHAREPOINT'):
+        return None
+
+    # Auto-corrección de filas donde tipoEvento y codigo quedaron invertidos o desplazados
+    if evt not in KNOWN_HISTORICO_EVENTS and any(evt.startswith(pre) for pre in ['FMT-', 'INS-', 'PR-', 'PT-', 'DA-', 'MN-', 'PVE-']):
+        h['codigo'] = evt
+        h['tipoEvento'] = 'EDICION_SHAREPOINT'
+        # Si el titulo era el codigo anterior (desplazado), intentar recuperar el titulo real
+        if h.get('titulo') == 'v01' or not h.get('titulo'):
+            h['titulo'] = (cod if cod and cod not in KNOWN_HISTORICO_EVENTS else 'Documento institucional')
+
+    # Limpieza de claves compuestas con ::
+    if h.get('codigo') and '::' in h['codigo']:
+        h['codigo'] = h['codigo'].split('::')[0].strip().upper()
+
+    # Limpiar ID si tiene duplicaciones
+    clean_id = (h.get('id') or '').strip()
+    if clean_id:
+        m = re.search(r'(hist_\d+_[a-z0-9]+)$', clean_id.lower())
+        if m:
+            h['id'] = m.group(1)
+
+    if not h.get('codigo'):
+        return None
+    return h
+
 def leer_historico_csv():
     if not os.path.exists(HISTORICO_CSV_PATH):
         return []
     lista = []
     try:
         with open(HISTORICO_CSV_PATH, 'r', encoding='utf-8-sig') as f:
-            reader = csv.DictReader(f, delimiter=';')
-            for row in reader:
-                if row and (row.get('codigo') or row.get('id')):
-                    lista.append(row)
+            reader = csv.reader(f, delimiter=';')
+            raw_headers = next(reader, None)
+            if not raw_headers:
+                return []
+            headers = [h.strip() for h in raw_headers]
+            for i, row in enumerate(reader, start=2):
+                if not row or len(row) < 2:
+                    continue
+                # Auto-corrección de filas donde se omitió la columna 'id' desplazando las demás
+                p0 = row[0].strip().upper()
+                if p0 in KNOWN_HISTORICO_EVENTS or p0.endswith('ION_SHAREPOINT'):
+                    evt = 'EDICION_SHAREPOINT' if p0.endswith('ION_SHAREPOINT') else p0
+                    row = [f'hist_auto_{i}_{int(time.time()*1000)}', evt] + [c.strip() for c in row[1:]]
+
+                obj = {}
+                for c in range(min(len(headers), len(row))):
+                    obj[headers[c]] = row[c].strip()
+
+                sani = sanitizar_registro_historico(obj)
+                if sani:
+                    lista.append(sani)
     except Exception as e:
         print("[Server.py] Error leyendo Historico CSV:", e)
     return lista
@@ -258,36 +313,82 @@ CACHE = {
 def sanitizar_evento_auditoria(ev):
     if not isinstance(ev, dict):
         return ev
-    cod = str(ev.get('documentoCodigo') or '').strip()
-    tit = str(ev.get('documentoTitulo') or '').lower()
-    det = str(ev.get('detalle') or '').lower()
+    cod = str(ev.get('documentoCodigo') or ev.get('codigo') or '').strip()
+    tit = str(ev.get('documentoTitulo') or ev.get('titulo') or '')
+    det = str(ev.get('detalle') or '')
 
-    # 1. Detectar códigos derivados con 4 partes (p.ej. FMT-GIC-016-1, FMT-GIC-016-2)
-    m = re.match(r'^([A-Za-z0-9]+-[A-Za-z0-9]+-\d+)-(\d+)$', cod)
-    if m:
+    # 0. Limpieza de claves compuestas con ::
+    if '::' in cod:
+        cod = cod.split('::')[0].strip().upper()
+        ev['documentoCodigo'] = cod
+        if 'codigo' in ev:
+            ev['codigo'] = cod
+    else:
+        cod = cod.upper()
+        ev['documentoCodigo'] = cod
+        if 'codigo' in ev:
+            ev['codigo'] = cod
+
+    if '::' in det:
+        ev['detalle'] = re.sub(r'::[a-zA-Z0-9_\.]+', '', det)
+        det = ev['detalle']
+
+    if re.search(r'\.(xlsx|docx|pdf|xls|doc)$', tit, re.I):
+        clean_tit = re.sub(r'\.(xlsx|docx|pdf|xls|doc)$', '', tit, flags=re.I).strip()
+        ev['documentoTitulo'] = clean_tit
+        if 'titulo' in ev:
+            ev['titulo'] = clean_tit
+        tit = clean_tit
+
+    # 1. Detectar códigos derivados con 4 partes (p.ej. FMT-GIC-015-1, FMT-GIC-015-8)
+    m_deriv = re.match(r'^([A-Z]{2,4}-[A-Z]{2,4}-\d{3,4})-(\d+)$', cod)
+    if m_deriv:
         ev['esRegistro'] = True
-        ev['documentoPadreCodigo'] = ev.get('documentoPadreCodigo') or m.group(1)
+        ev['documentoPadreCodigo'] = m_deriv.group(1)
         return ev
 
-    # 2. Curación inteligente para registros creados históricamente bajo FMT-GIC-016 / FMT-GIC-015
-    if cod in ('FMT-GIC-016', 'FMT-GIC-015') or 'fmt-gic-016' in det or 'fmt-gic-015' in det:
-        if '2026-1' in tit or '2026-1' in det:
+    # 2. Documento base regular (3 partes): ej. INS-GTH-013, DA-GMD-017, FMT-GTH-045, FMT-GIC-015
+    m_base = re.match(r'^[A-Z]{2,4}-[A-Z]{2,4}-\d{3,4}$', cod)
+    if m_base:
+        ev['esRegistro'] = False
+        ev['documentoPadreCodigo'] = ''
+        if 'registro derivado' in det.lower():
+            ev['detalle'] = re.sub(r'registro derivado', 'documento', det, flags=re.I)
+        return ev
+
+    # 3. Curación inteligente para registros creados históricamente bajo FMT-GIC-016 / FMT-GIC-015
+    tit_lower = tit.lower()
+    det_lower = det.lower()
+    if cod in ('FMT-GIC-016', 'FMT-GIC-015') or 'fmt-gic-016' in det_lower or 'fmt-gic-015' in det_lower:
+        if '2026-1' in tit_lower or '2026-1' in det_lower:
             ev['esRegistro'] = True
             ev['documentoPadreCodigo'] = 'FMT-GIC-015'
             ev['documentoCodigo'] = 'FMT-GIC-015-1'
-        elif '2026-2' in tit or '2026-2' in det:
+            return ev
+        elif '2026-2' in tit_lower or '2026-2' in det_lower:
             ev['esRegistro'] = True
             ev['documentoPadreCodigo'] = 'FMT-GIC-015'
             ev['documentoCodigo'] = 'FMT-GIC-015-2'
-        elif 'asma' in tit or 'asma' in det:
+            return ev
+        elif 'asma' in tit_lower or 'asma' in det_lower:
             ev['esRegistro'] = True
             ev['documentoPadreCodigo'] = 'FMT-GIC-015'
             ev['documentoCodigo'] = 'FMT-GIC-015-3'
-        elif 'anticoagula' in tit or 'anticoagula' in det:
+            return ev
+        elif 'anticoagula' in tit_lower or 'anticoagula' in det_lower:
             ev['esRegistro'] = True
             ev['documentoPadreCodigo'] = 'FMT-GIC-015'
-            ev['documentoCodigo'] = 'FMT-GIC-015-2'
+            ev['documentoCodigo'] = 'FMT-GIC-015-4'
+            return ev
+
+    # 4. Códigos no estándar: no son derivados a menos que tengan documentoPadreCodigo con al menos 3 partes
+    padre = str(ev.get('documentoPadreCodigo') or '').strip()
+    if not padre or len(padre.split('-')) < 3:
+        ev['esRegistro'] = False
+        ev['documentoPadreCodigo'] = ''
+
     return ev
+
 
 
 def deduplicar_registro_auditoria(lista_aud):
@@ -628,12 +729,13 @@ def _trigger_background_historico_sync():
                 cloud_data = json.loads(data.decode('utf-8'))
                 cloud_list = cloud_data.get('historicoDocumental') or []
                 if cloud_list and isinstance(cloud_list, list):
-                    # Unir y deduplicar por id o tupla
+                    # Unir y deduplicar por id o tupla sanitizando previamente
                     map_h = {}
                     for h in (lista_local + cloud_list):
-                        if isinstance(h, dict) and (h.get('codigo') or h.get('id')):
-                            k = h.get('id') or f"{h.get('codigo')}_{h.get('tipoEvento')}_{h.get('fechaHora')}"
-                            map_h[k] = h
+                        sani = sanitizar_registro_historico(h)
+                        if sani and (sani.get('codigo') or sani.get('id')):
+                            k = sani.get('id') or f"{sani.get('codigo')}_{sani.get('tipoEvento')}_{sani.get('fechaHora')}"
+                            map_h[k] = sani
                     lista_final = list(map_h.values())
                     lista_final.sort(key=lambda x: parsear_fecha_ms(x.get('fechaHora') or x.get('fechaModificacionActual') or x.get('timestamp')), reverse=True)
                     guardar_historico_csv(lista_final)
@@ -690,12 +792,14 @@ def _trigger_background_auditoria_sync():
             local_evs = local_data.get('registroAuditoria') or []
             cloud_evs = (cloud_data.get('registroAuditoria') or []) if isinstance(cloud_data, dict) else []
 
-            # Unir y deduplicar por id o clave compuesta
+            # Pre-sanitizar y fusionar
+            sanitized_local = [sanitizar_evento_auditoria(e) for e in local_evs if isinstance(e, dict)]
+            sanitized_cloud = [sanitizar_evento_auditoria(e) for e in cloud_evs if isinstance(e, dict)]
+
             map_aud = {}
-            for ev in (local_evs + cloud_evs):
-                if isinstance(ev, dict):
-                    k = ev.get('id') or f"{ev.get('tipo')}_{ev.get('identificacion') or ev.get('usuario')}_{ev.get('documentoCodigo')}_{ev.get('fechaHora') or ev.get('timestamp')}"
-                    map_aud[k] = ev
+            for ev in (sanitized_cloud + sanitized_local):
+                k = ev.get('id') or f"{ev.get('tipo')}_{ev.get('identificacion') or ev.get('usuario')}_{ev.get('documentoCodigo')}_{ev.get('fechaHora') or ev.get('timestamp')}"
+                map_aud[k] = ev
 
             merged_list = deduplicar_registro_auditoria(list(map_aud.values()))
 
@@ -718,11 +822,10 @@ def _trigger_background_auditoria_sync():
             CACHE['auditoria']['ts'] = time.time()
             print(f"[Server.py] ✅ auditoria.dat sincronizado con Google Drive ({len(merged_list)} registros totales, sin límite).")
 
-            # Si localmente tenemos eventos que Google Drive no tenía, auto-reparar la nube
-            if len(merged_list) > len(cloud_evs):
-                aud_data_cloud = {**res_obj, 'accion': 'guardar_auditoria', 'fileId': '1yNiuug2P-idZMUKkRb87DH_Mb3-Wn0hR'}
-                sincronizar_con_google_async(GOOGLE_SCRIPT_CONF_URL, json.dumps(aud_data_cloud, ensure_ascii=False).encode('utf-8'))
-                print(f"[Server.py] 🚀 Auto-reparando Google Drive con {len(merged_list)} eventos consolidados.")
+            # Reparar Google Drive con eventos saneados
+            aud_data_cloud = {**res_obj, 'accion': 'guardar_auditoria', 'fileId': '1yNiuug2P-idZMUKkRb87DH_Mb3-Wn0hR', 'sobrescribir': True, 'reemplazoTotal': True}
+            sincronizar_con_google_async(GOOGLE_SCRIPT_CONF_URL, json.dumps(aud_data_cloud, ensure_ascii=False).encode('utf-8'))
+            print(f"[Server.py] 🚀 Saneando Google Drive con {len(merged_list)} eventos consolidados.")
         except Exception as e:
             print('[Server.py] Sync background auditoria error:', e)
         finally:
@@ -1266,14 +1369,16 @@ class LiveOneDriveHandler(http.server.SimpleHTTPRequestHandler):
                 lista_existente = leer_historico_csv()
                 map_h = {}
                 for h in lista_existente:
-                    if isinstance(h, dict) and (h.get('codigo') or h.get('id')):
-                        k = h.get('id') or f"{h.get('codigo')}_{h.get('tipoEvento')}_{h.get('fechaHora')}"
-                        map_h[k] = h
+                    sani = sanitizar_registro_historico(h)
+                    if sani and (sani.get('codigo') or sani.get('id')):
+                        k = sani.get('id') or f"{sani.get('codigo')}_{sani.get('tipoEvento')}_{sani.get('fechaHora')}"
+                        map_h[k] = sani
 
                 for h in nuevos_evs:
-                    if isinstance(h, dict) and (h.get('codigo') or h.get('id')):
-                        k = h.get('id') or f"{h.get('codigo')}_{h.get('tipoEvento')}_{h.get('fechaHora')}"
-                        map_h[k] = h
+                    sani = sanitizar_registro_historico(h)
+                    if sani and (sani.get('codigo') or sani.get('id')):
+                        k = sani.get('id') or f"{sani.get('codigo')}_{sani.get('tipoEvento')}_{sani.get('fechaHora')}"
+                        map_h[k] = sani
 
                 lista_final = list(map_h.values())
                 lista_final.sort(key=lambda x: parsear_fecha_ms(x.get('fechaHora') or x.get('fechaModificacionActual') or x.get('timestamp')), reverse=True)

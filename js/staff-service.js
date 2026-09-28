@@ -417,35 +417,87 @@ export class StaffService {
 
   sanitizarEventoAuditoria(ev) {
     if (!ev || typeof ev !== 'object') return ev;
-    const codRaw = (ev.documentoCodigo || '').trim();
-    const mSec = codRaw.match(/^([A-Za-z0-9]+-[A-Za-z0-9]+-\d+)-(\d+)$/);
-    if (mSec) {
+
+    // 1. Limpieza de código (eliminar sufijos :: y normalizar a mayúsculas)
+    let codRaw = String(ev.documentoCodigo || ev.codigo || '').trim();
+    if (codRaw.includes('::')) {
+      codRaw = codRaw.split('::')[0].trim().toUpperCase();
+      ev.documentoCodigo = codRaw;
+      if (ev.codigo) ev.codigo = codRaw;
+    } else {
+      codRaw = codRaw.toUpperCase();
+      ev.documentoCodigo = codRaw;
+      if (ev.codigo) ev.codigo = codRaw;
+    }
+
+    // 2. Limpieza de detalle (eliminar cadenas ::)
+    if (ev.detalle && typeof ev.detalle === 'string' && ev.detalle.includes('::')) {
+      ev.detalle = ev.detalle.replace(/::[a-zA-Z0-9_\.]+/g, '');
+    }
+
+    // 3. Limpieza de títulos (eliminar extensiones .docx, .xlsx, .pdf, etc.)
+    if (ev.documentoTitulo && typeof ev.documentoTitulo === 'string') {
+      ev.documentoTitulo = ev.documentoTitulo.replace(/\.(docx|xlsx|pdf|doc|xls)$/i, '').trim();
+    }
+    if (ev.titulo && typeof ev.titulo === 'string') {
+      ev.titulo = ev.titulo.replace(/\.(docx|xlsx|pdf|doc|xls)$/i, '').trim();
+    }
+
+    // 4. Verificación estricta de registros derivados vs documentos base:
+    // Derivados tienen 4 segmentos: ej. FMT-GIC-015-8
+    const mDeriv = codRaw.match(/^([A-Z]{2,4}-[A-Z]{2,4}-\d{3,4})-(\d+)$/);
+    // Base tienen 3 segmentos: ej. INS-GTH-013, DA-GMD-017, FMT-GTH-045, FMT-GIC-015
+    const mBase = codRaw.match(/^[A-Z]{2,4}-[A-Z]{2,4}-\d{3,4}$/);
+
+    if (mDeriv) {
       ev.esRegistro = true;
-      ev.documentoPadreCodigo = ev.documentoPadreCodigo || mSec[1];
+      ev.documentoPadreCodigo = mDeriv[1];
       return ev;
     }
 
-    const tit = (ev.documentoTitulo || '').toLowerCase();
+    // Curación inteligente histórica para FMT-GIC-016
+    const tit = (ev.documentoTitulo || ev.titulo || '').toLowerCase();
     const det = (ev.detalle || '').toLowerCase();
     if (codRaw === 'FMT-GIC-016' || det.includes('fmt-gic-016')) {
       if (tit.includes('2026-1') || det.includes('2026-1')) {
         ev.esRegistro = true;
-        ev.documentoPadreCodigo = 'FMT-GIC-016';
-        ev.documentoCodigo = 'FMT-GIC-016-1';
+        ev.documentoPadreCodigo = 'FMT-GIC-015';
+        ev.documentoCodigo = 'FMT-GIC-015-1';
+        return ev;
       } else if (tit.includes('2026-2') || det.includes('2026-2')) {
         ev.esRegistro = true;
-        ev.documentoPadreCodigo = 'FMT-GIC-016';
-        ev.documentoCodigo = 'FMT-GIC-016-2';
+        ev.documentoPadreCodigo = 'FMT-GIC-015';
+        ev.documentoCodigo = 'FMT-GIC-015-2';
+        return ev;
       } else if (tit.includes('asma') || det.includes('asma')) {
         ev.esRegistro = true;
-        ev.documentoPadreCodigo = 'FMT-GIC-016';
-        ev.documentoCodigo = 'FMT-GIC-016-3';
+        ev.documentoPadreCodigo = 'FMT-GIC-015';
+        ev.documentoCodigo = 'FMT-GIC-015-3';
+        return ev;
       } else if (tit.includes('anticoagula') || det.includes('anticoagula')) {
         ev.esRegistro = true;
-        ev.documentoPadreCodigo = 'FMT-GIC-016';
-        ev.documentoCodigo = 'FMT-GIC-016-4';
+        ev.documentoPadreCodigo = 'FMT-GIC-015';
+        ev.documentoCodigo = 'FMT-GIC-015-4';
+        return ev;
       }
     }
+
+    if (mBase) {
+      // Un documento base NUNCA es registro derivado ni tiene formato base
+      ev.esRegistro = false;
+      ev.documentoPadreCodigo = '';
+      if (typeof ev.detalle === 'string' && ev.detalle.toLowerCase().includes('registro derivado')) {
+        ev.detalle = ev.detalle.replace(/registro derivado/gi, 'documento');
+      }
+    } else {
+      // Si no tiene código padre válido de al menos 3 partes, no es derivado
+      const padre = String(ev.documentoPadreCodigo || '').trim();
+      if (!padre || padre.split('-').length < 3) {
+        ev.esRegistro = false;
+        ev.documentoPadreCodigo = '';
+      }
+    }
+
     return ev;
   }
 
@@ -806,15 +858,68 @@ export class StaffService {
     } catch { }
   }
 
+  sanitizarEventoHistorico(h) {
+    if (!h || typeof h !== 'object') return null;
+    let cod = (h.codigo || '').trim().toUpperCase();
+    let evt = (h.tipoEvento || '').trim().toUpperCase();
+
+    const eventosConocidos = new Set([
+      'CREACION', 'ELIMINACION', 'CAMBIO_VERSION', 'CAMBIO_METADATOS', 'METADATOS',
+      'CAMBIO_RUTA', 'CAMBIO_TIPO', 'EDICION_SHAREPOINT', 'EDICION'
+    ]);
+
+    // Descartar registros corruptos o pseudocódigos con hist_
+    if (cod.includes('HIST_') || eventosConocidos.has(cod) || cod.endsWith('ION_SHAREPOINT')) {
+      return null;
+    }
+
+    // Auto-corrección si tipoEvento y codigo quedaron invertidos/desplazados
+    const prefijosDoc = ['FMT-', 'INS-', 'PR-', 'PT-', 'DA-', 'MN-', 'PVE-'];
+    if (!eventosConocidos.has(evt) && prefijosDoc.some((p) => evt.startsWith(p))) {
+      h.codigo = evt;
+      h.tipoEvento = 'EDICION_SHAREPOINT';
+      if (h.titulo === 'v01' || !h.titulo) {
+        h.titulo = (cod && !eventosConocidos.has(cod)) ? cod : 'Documento institucional';
+      }
+      cod = h.codigo;
+      evt = h.tipoEvento;
+    }
+
+    // Limpieza de claves compuestas con ::
+    if (h.codigo && h.codigo.includes('::')) {
+      h.codigo = h.codigo.split('::')[0].trim().toUpperCase();
+    }
+
+    // Limpiar ID si tiene duplicaciones
+    if (h.id) {
+      const m = String(h.id).match(/(hist_\d+_[a-z0-9]+)$/i);
+      if (m) {
+        h.id = m[1];
+      }
+    }
+
+    // Limpiar restos de hist_ en timestamp o fechaHora
+    if (h.timestamp && /hist_/i.test(h.timestamp)) {
+      h.timestamp = h.timestamp.replace(/h?i?s?t?_?\d*.*$/i, '').replace(/[;:]+$/, '');
+    }
+    if (h.fechaHora && /hist_/i.test(h.fechaHora)) {
+      h.fechaHora = h.fechaHora.replace(/h?i?s?t?_?\d*.*$/i, '').replace(/[;:]+$/, '');
+    }
+
+    if (!h.codigo) return null;
+    return h;
+  }
+
   aplicarHistorico(lista) {
     if (!Array.isArray(lista)) return;
     const listaExistente = Array.isArray(this.historicoData) ? this.historicoData : [];
     const mapaHist = new Map();
     [...lista, ...listaExistente].forEach((h) => {
-      if (h && (h.id || h.timestamp || h.codigo)) {
-        const k = h.id || `${(h.codigo || '').toUpperCase()}_${h.tipoEvento || ''}_${h.fechaHora || h.timestamp}`;
+      const sani = this.sanitizarEventoHistorico(h);
+      if (sani && (sani.id || sani.timestamp || sani.codigo)) {
+        const k = sani.id || `${(sani.codigo || '').toUpperCase()}_${sani.tipoEvento || ''}_${sani.fechaHora || sani.timestamp}`;
         if (!mapaHist.has(k)) {
-          mapaHist.set(k, h);
+          mapaHist.set(k, sani);
         }
       }
     });
@@ -824,7 +929,7 @@ export class StaffService {
         const tB = this.parsearFechaMilisegundos(b.fechaHora || b.fechaModificacionActual || b.timestamp);
         return tB - tA;
       })
-      .slice(0, 2000);
+      .slice(0, 2500);
 
     try {
       localStorage.setItem(STORAGE_KEY_HISTORICO_CACHE, JSON.stringify(this.historicoData));
@@ -1151,14 +1256,39 @@ export class StaffService {
     const headers = rawHeaders.map((h) => h.trim());
     const lista = [];
 
+    const eventosConocidos = new Set([
+      'CREACION', 'ELIMINACION', 'CAMBIO_VERSION', 'CAMBIO_METADATOS', 'METADATOS',
+      'CAMBIO_RUTA', 'CAMBIO_TIPO', 'EDICION_SHAREPOINT', 'EDICION'
+    ]);
+
     for (let i = 1; i < lines.length; i++) {
-      const cols = this.dividirLineaCsv(lines[i], delimitador);
-      if (!cols || cols.length === 0 || !cols[2]) continue;
+      let cols = this.dividirLineaCsv(lines[i], delimitador);
+      if (!cols || cols.length === 0) continue;
+
+      // Autocorrección de filas donde se omitió la columna 'id' desplazando las demás
+      const primerValor = (cols[0] || '').trim().toUpperCase();
+      if (eventosConocidos.has(primerValor) || primerValor.endsWith('ION_SHAREPOINT')) {
+        const evtCorregido = primerValor.endsWith('ION_SHAREPOINT') ? 'EDICION_SHAREPOINT' : primerValor;
+        cols[0] = evtCorregido;
+        cols.unshift(`hist_auto_${i}_${Date.now()}`);
+      }
+
+      if (cols.length < 3 || !cols[2]) continue;
+
       const obj = {};
       for (let c = 0; c < headers.length; c++) {
         obj[headers[c]] = cols[c] !== undefined ? cols[c] : '';
       }
-      lista.push(obj);
+
+      // Limpieza de claves compuestas con ::
+      if (obj.codigo && obj.codigo.includes('::')) {
+        obj.codigo = obj.codigo.split('::')[0].trim().toUpperCase();
+      }
+
+      const sani = this.sanitizarEventoHistorico(obj);
+      if (sani) {
+        lista.push(sani);
+      }
     }
     return lista;
   }
@@ -2420,14 +2550,23 @@ export class StaffService {
       }
     }
 
-    const esReg = Boolean(
-      detalle.esRegistro || 
-      detalle.documentoPadreCodigo || 
-      /-[0-9]+$/.test(detalle.documentoCodigo || '') || 
-      (detalle.detalle || '').toLowerCase().includes('registro derivado') ||
-      (detalle.tipoDocumento || '').toUpperCase() === 'REGISTRO'
-    );
-    const docPadreCod = detalle.documentoPadreCodigo || (/-[0-9]+$/.test(detalle.documentoCodigo || '') ? (detalle.documentoCodigo || '').replace(/-[0-9]+$/, '') : '');
+    const codDocNorm = String(detalle.documentoCodigo || detalle.codigo || '').split('::')[0].trim().toUpperCase();
+    const titDocNorm = String(detalle.documentoTitulo || detalle.titulo || '').replace(/\.(docx|xlsx|pdf|doc|xls)$/i, '').trim();
+    const mDeriv = codDocNorm.match(/^([A-Z]{2,4}-[A-Z]{2,4}-\d{3,4})-(\d+)$/);
+    const mBase = codDocNorm.match(/^[A-Z]{2,4}-[A-Z]{2,4}-\d{3,4}$/);
+
+    let esReg = false;
+    let docPadreCod = '';
+    if (mDeriv) {
+      esReg = true;
+      docPadreCod = mDeriv[1];
+    } else if (mBase) {
+      esReg = false;
+      docPadreCod = '';
+    } else if (detalle.documentoPadreCodigo && detalle.documentoPadreCodigo.split('-').length >= 3) {
+      esReg = true;
+      docPadreCod = detalle.documentoPadreCodigo;
+    }
 
     const nuevoEvento = {
       id: `aud_${ahoraMs}_${Math.random().toString(36).substr(2, 5)}`,
@@ -2436,8 +2575,8 @@ export class StaffService {
       identificacion: docId,
       cargo: detalle.cargo || sesion?.cargo || 'N/A',
       perfil: detalle.perfil || sesion?.perfil || localStorage.getItem(STORAGE_KEY_USER_PROFILE) || 'operativo',
-      documentoCodigo: detalle.documentoCodigo || '',
-      documentoTitulo: detalle.documentoTitulo || '',
+      documentoCodigo: codDocNorm,
+      documentoTitulo: titDocNorm,
       documentoExtension: detalle.documentoExtension || '',
       esRegistro: esReg,
       documentoPadreCodigo: docPadreCod,
@@ -2446,6 +2585,7 @@ export class StaffService {
       timestamp: now.toISOString(),
       dispositivo: detalle.dispositivo || (navigator.userAgent.includes('Windows') ? 'Windows' : 'Web')
     };
+    this.sanitizarEventoAuditoria(nuevoEvento);
 
     // Insertar al inicio y mantener lista limpia deduplicada (sin límite artificial)
     this.auditoriaData.registroAuditoria.unshift(nuevoEvento);
@@ -2534,20 +2674,29 @@ export class StaffService {
     const vAntNorm = detalle.versionAnterior && detalle.versionAnterior !== 'N/A' ? this.normalizarVersion(detalle.versionAnterior) : 'N/A';
     const vNuevaNorm = detalle.versionNueva && detalle.versionNueva !== 'N/A' ? this.normalizarVersion(detalle.versionNueva) : 'N/A';
 
-    const esReg = Boolean(
-      detalle.esRegistro || 
-      detalle.documentoPadreCodigo || 
-      /-[0-9]+$/.test(detalle.codigo || '') || 
-      (detalle.detalle || '').toLowerCase().includes('registro derivado') || 
-      (detalle.tipoNuevo || '').toLowerCase().includes('registro')
-    );
-    const codPadre = detalle.documentoPadreCodigo || (/-[0-9]+$/.test(detalle.codigo || '') ? (detalle.codigo || '').replace(/-[0-9]+$/, '') : '');
+    const codNorm = String(detalle.codigo || '').split('::')[0].trim().toUpperCase();
+    const titNorm = String(detalle.titulo || '').replace(/\.(docx|xlsx|pdf|doc|xls)$/i, '').trim();
+    const mDeriv = codNorm.match(/^([A-Z]{2,4}-[A-Z]{2,4}-\d{3,4})-(\d+)$/);
+    const mBase = codNorm.match(/^[A-Z]{2,4}-[A-Z]{2,4}-\d{3,4}$/);
+
+    let esReg = false;
+    let codPadre = '';
+    if (mDeriv) {
+      esReg = true;
+      codPadre = mDeriv[1];
+    } else if (mBase) {
+      esReg = false;
+      codPadre = '';
+    } else if (detalle.documentoPadreCodigo && detalle.documentoPadreCodigo.split('-').length >= 3) {
+      esReg = true;
+      codPadre = detalle.documentoPadreCodigo;
+    }
 
     const nuevoCambio = {
       id: `hist_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
       tipoEvento: tipoEvento, // 'CREACION', 'ELIMINACION', 'CAMBIO_VERSION', 'CAMBIO_RUTA', 'CAMBIO_TIPO', 'EDICION_SHAREPOINT'
-      codigo: (detalle.codigo || '').trim(),
-      titulo: (detalle.titulo || '').trim(),
+      codigo: codNorm,
+      titulo: titNorm,
       esRegistro: esReg,
       documentoPadreCodigo: codPadre,
       versionAnterior: vAntNorm,
@@ -2749,14 +2898,16 @@ export class StaffService {
         else if (tipoNorm === 'METADATOS' || tipoNorm === 'CAMBIO_METADATOS') tipoEv = 'CAMBIO_METADATOS';
         else if (tipoNorm === 'CAMBIO_VERSION') tipoEv = 'CAMBIO_VERSION';
 
-        const codAud = (a.documentoCodigo || a.codigo || '').trim().toUpperCase();
+        const codAud = (a.documentoCodigo || a.codigo || '').split('::')[0].trim().toUpperCase();
         if (!codAud) return;
+
+        const titAud = (a.documentoTitulo || a.titulo || '').replace(/\.(docx|xlsx|pdf|doc|xls)$/i, '').trim();
 
         eventosAuditoriaDocs.push({
           id: a.id || `aud_bridge_${Date.now()}`,
           tipoEvento: tipoEv,
           codigo: codAud,
-          titulo: a.documentoTitulo || a.titulo || '',
+          titulo: titAud,
           versionAnterior: a.versionAnterior || '01',
           versionNueva: a.versionNueva || '01',
           rutaAnterior: a.rutaAnterior || 'N/A',
@@ -2971,8 +3122,20 @@ export class StaffService {
       mapaActual[codUpper] = doc;
 
       const anterior = snapshotAnterior[codUpper];
-      const esReg = Boolean(doc.esRegistro || doc.documentoPadreCodigo || /-[0-9]+$/.test(doc.codigo));
-      const codPadre = doc.documentoPadreCodigo || (/-[0-9]+$/.test(doc.codigo) ? doc.codigo.replace(/-[0-9]+$/, '') : '');
+      const mDeriv = codUpper.match(/^([A-Z]{2,4}-[A-Z]{2,4}-\d{3,4})-(\d+)$/);
+      const mBase = codUpper.match(/^[A-Z]{2,4}-[A-Z]{2,4}-\d{3,4}$/);
+      let esReg = false;
+      let codPadre = '';
+      if (mDeriv) {
+        esReg = true;
+        codPadre = mDeriv[1];
+      } else if (mBase) {
+        esReg = false;
+        codPadre = '';
+      } else if (doc.documentoPadreCodigo && doc.documentoPadreCodigo.split('-').length >= 3) {
+        esReg = true;
+        codPadre = doc.documentoPadreCodigo;
+      }
 
       // 1. NUEVO DOCUMENTO O REGISTRO DERIVADO (CREACION)
       if (!anterior) {
@@ -3147,8 +3310,21 @@ export class StaffService {
           return;
         }
 
-        const esReg = Boolean(docEliminado.esRegistro || docEliminado.documentoPadreCodigo || /-[0-9]+$/.test(docEliminado.codigo || ''));
-        const codPadre = docEliminado.documentoPadreCodigo || (/-[0-9]+$/.test(docEliminado.codigo || '') ? docEliminado.codigo.replace(/-[0-9]+$/, '') : '');
+        const codElimUpper = (docEliminado.codigo || '').trim().toUpperCase();
+        const mDeriv = codElimUpper.match(/^([A-Z]{2,4}-[A-Z]{2,4}-\d{3,4})-(\d+)$/);
+        const mBase = codElimUpper.match(/^[A-Z]{2,4}-[A-Z]{2,4}-\d{3,4}$/);
+        let esReg = false;
+        let codPadre = '';
+        if (mDeriv) {
+          esReg = true;
+          codPadre = mDeriv[1];
+        } else if (mBase) {
+          esReg = false;
+          codPadre = '';
+        } else if (docEliminado.documentoPadreCodigo && docEliminado.documentoPadreCodigo.split('-').length >= 3) {
+          esReg = true;
+          codPadre = docEliminado.documentoPadreCodigo;
+        }
 
         this.registrarAuditoria('ELIMINACION', {
           documentoCodigo: docEliminado.codigo,
@@ -3203,13 +3379,11 @@ export class StaffService {
       } else if (fUpper === 'EDICION_SHAREPOINT') {
         eventos = eventos.filter((ev) => ['EDICION_SHAREPOINT', 'EDICION'].includes((ev.tipoEvento || '').toUpperCase()));
       } else if (fUpper === 'REGISTROS') {
-        eventos = eventos.filter((ev) => Boolean(
-          ev.esRegistro || 
-          ev.documentoPadreCodigo || 
-          /-[0-9]+$/.test(ev.codigo || '') || 
-          (ev.detalle || '').toLowerCase().includes('registro derivado') || 
-          (ev.tipoNuevo || '').toLowerCase().includes('registro')
-        ));
+        eventos = eventos.filter((ev) => {
+          const cod = (ev.codigo || '').split('::')[0].trim().toUpperCase();
+          const es4Partes = /^[A-Z]{3,4}-[A-Z]{2,4}-\d{3,4}-\d+$/i.test(cod);
+          return Boolean(ev.esRegistro || ev.documentoPadreCodigo || es4Partes);
+        });
       } else {
         eventos = eventos.filter((ev) => (ev.tipoEvento || '').toUpperCase() === fUpper);
       }

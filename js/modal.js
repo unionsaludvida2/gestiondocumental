@@ -3,9 +3,9 @@
  * Unión para la salud y la vida S.A.S.
  */
 
-import { sharepointService, determinarEstrategiaDescarga, esDocumentoFMT } from './sharepoint-service.js?v=11.6.90';
-import { staffService } from './staff-service.js?v=11.6.90';
-import { filterEngine } from './filters.js?v=11.6.90';
+import { sharepointService, determinarEstrategiaDescarga, esDocumentoFMT } from './sharepoint-service.js?v=11.6.92';
+import { staffService } from './staff-service.js?v=11.6.92';
+import { filterEngine } from './filters.js?v=11.6.92';
 
 const STORAGE_KEY_USER_PROFILE = 'agy_user_profile';
 
@@ -5588,8 +5588,21 @@ export class ModalManager {
 
       const res = await sharepointService.eliminarDocumento(doc.codigo, motivo, borradoFisico);
       if (res.exito) {
-        const esRegDoc = Boolean(doc.esRegistro || doc.documentoPadreCodigo || /-[0-9]+$/.test(doc.codigo || ''));
-        const codPadreDoc = doc.documentoPadreCodigo || (/-[0-9]+$/.test(doc.codigo || '') ? doc.codigo.replace(/-[0-9]+$/, '') : '');
+        const codDocUpper = (doc.codigo || '').trim().toUpperCase();
+        const mDerivDoc = codDocUpper.match(/^([A-Z]{2,4}-[A-Z]{2,4}-\d{3,4})-(\d+)$/);
+        const mBaseDoc = codDocUpper.match(/^[A-Z]{2,4}-[A-Z]{2,4}-\d{3,4}$/);
+        let esRegDoc = false;
+        let codPadreDoc = '';
+        if (mDerivDoc) {
+          esRegDoc = true;
+          codPadreDoc = mDerivDoc[1];
+        } else if (mBaseDoc) {
+          esRegDoc = false;
+          codPadreDoc = '';
+        } else if (doc.documentoPadreCodigo && doc.documentoPadreCodigo.split('-').length >= 3) {
+          esRegDoc = true;
+          codPadreDoc = doc.documentoPadreCodigo;
+        }
 
         // 1. Registrar en Auditoría Institucional
         staffService.registrarAuditoria('ELIMINACION', {

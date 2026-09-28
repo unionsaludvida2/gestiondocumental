@@ -613,6 +613,20 @@ export class DataService {
    * Renderizado instantáneo a 0 ms y revalidación asíncrona en segundo plano diariamente o bajo demanda.
    */
   async obtenerDocumentos(forzarRefresco = false) {
+    // 0. Verificación estricta de versión de esquema documental SSOT (Google Sheets como fuente de la verdad)
+    const SCHEMA_VERSION_SSOT = '20260928_ssot_v1';
+    try {
+      const verLocal = typeof localStorage !== 'undefined' ? localStorage.getItem('agy_sgc_ssot_version') : null;
+      if (verLocal !== SCHEMA_VERSION_SSOT) {
+        localStorage.setItem('agy_sgc_ssot_version', SCHEMA_VERSION_SSOT);
+        console.log('[DataService] 🔄 Actualización de esquema documental SSOT detectada. Limpiando caché local para refresco fiel desde Google Sheets...');
+        if (cacheService && cacheService.guardarDocumentos) {
+          await cacheService.guardarDocumentos([]);
+        }
+        forzarRefresco = true;
+      }
+    } catch {}
+
     // 1. Carga inmediata desde IndexedDB si no se fuerza refresco
     if (!forzarRefresco) {
       try {
@@ -628,15 +642,15 @@ export class DataService {
           this.documentosEnMemoria = validos;
           const ahora = Date.now();
           const edadMs = ahora - (repoMeta?.timestamp || 0);
-          const TTL_DIARIO_MS = 24 * 60 * 60 * 1000; // 24 horas
+          const TTL_REVALIDACION_MS = 3 * 60 * 1000; // 3 minutos para asegurar sincronización constante con Google Sheets
 
-          if (edadMs < TTL_DIARIO_MS) {
+          if (edadMs < TTL_REVALIDACION_MS) {
             console.log(`[DataService] ⚡ Catálogo cargado desde caché persistente (${validos.length} docs, edad: ${Math.round(edadMs / 60000)} min).`);
             return validos;
           }
 
-          // Si superó 24h, devolver inmediatamente para renderizado a 0 ms y revalidar en segundo plano
-          console.log(`[DataService] 🔄 Caché documental diaria vencida (>24h). Revalidando en segundo plano...`);
+          // Si superó 3 minutos, devolver inmediatamente para renderizado a 0 ms y revalidar en segundo plano con Google Sheets
+          console.log(`[DataService] 🔄 Caché documental revalidando en segundo plano con Google Sheets (SSOT)...`);
           setTimeout(() => {
             this.descargarCsvEnVivo(true).then((freshDocs) => {
               if (freshDocs && freshDocs.length > 0) {
@@ -930,95 +944,27 @@ export class DataService {
         };
       });
 
-      // Incorporar también registros de onedriveMap que no estén en DOCUMENTOS_REALES
-      const codigosReales = new Set(fusionados.map((d) => (d.codigo || '').toUpperCase()));
-      onedriveMap.forEach((od, cod) => {
-        if (!cod || cod.startsWith('_LISTA_') || cod.includes('::') || Array.isArray(od) || !od || typeof od !== 'object') return;
-        const codUpper = cod.toUpperCase();
-        if (codigosReales.has(codUpper)) return;
-
-        // Si es documento secundario/derivado, asociar a su documento padre
-        const mSec = codUpper.match(/^([A-Z]{3,4}-[A-Z]{2,4}-\d{3,4})-(\d+)$/i);
-        if (mSec) {
-          const codPadre = mSec[1];
-          const padre = fusionados.find((d) => (d.codigo || '').toUpperCase() === codPadre);
-          if (padre) {
-            padre.registrosDerivados = padre.registrosDerivados || [];
-            const regObj = {
-              id: `${codUpper}_REG`,
-              codigo: codUpper,
-              titulo: od.titulo || codUpper,
-              formato: od.formato || 'Word',
-              extension: od.extension || 'DOC',
-              estado: 'DISPONIBLE',
-              disponible: true,
-              descargable: true,
-              permisoOperativo: true,
-              permisoAdministrativo: true,
-              permisoDirectivo: true,
-              estadoDocumento: 'Activo',
-              tipoProceso: padre.tipoProceso,
-              area: padre.area,
-              areaNombre: padre.areaNombre || padre.area,
-              proceso: padre.proceso,
-              carpeta: padre.carpeta || padre.proceso,
-              tipoDocumento: 'Registro',
-              subclase: 'Registro',
-              esRegistro: true,
-              documentoPadreCodigo: codPadre,
-              modificacion: od.modificacion || 'N/A',
-              version: '01',
-              vigencia: padre.vigencia || '01/08/2026',
-              tiempoRetencion: padre.tiempoRetencion || '5 Años',
-              lugar: 'Archivo Digital',
-              fechaVencimiento: '',
-              tipoCambio: 'Creación del documento',
-              descripcion: `Registro Derivado de ${codPadre}.`,
-              sharepointUrl: od.sharepointUrl,
-              downloadUrl: od.downloadUrl
-            };
-            const idxExistente = padre.registrosDerivados.findIndex((r) => (r.codigo || '').toUpperCase() === codUpper);
-            if (idxExistente >= 0) {
-              padre.registrosDerivados[idxExistente] = { ...padre.registrosDerivados[idxExistente], ...regObj };
-            } else {
-              padre.registrosDerivados.push(regObj);
-            }
-            padre.registrosDerivados = this._deduplicarRegistros(padre.registrosDerivados);
-            codigosReales.add(codUpper);
-            return;
-          }
+      // Enriquecer registros derivados existentes en DOCUMENTOS_REALES con vínculos directos de onedriveMap
+      fusionados.forEach((docBase) => {
+        if (docBase.titulo) {
+          docBase.titulo = docBase.titulo.replace(/\.(docx|pdf|xlsx|doc|xls|csv)$/i, '').trim();
         }
-
-        codigosReales.add(codUpper);
-        fusionados.push({
-          id: codUpper,
-          codigo: codUpper,
-          titulo: od.titulo || codUpper,
-          formato: od.formato || 'Word',
-          extension: od.extension || 'DOC',
-          estado: 'DISPONIBLE',
-          disponible: true,
-          descargable: true,
-          permisoOperativo: true,
-          permisoAdministrativo: true,
-          permisoDirectivo: true,
-          estadoDocumento: 'Activo',
-          tipoProceso: od.tipoProceso || 'Estratégicos',
-          area: od.area || 'Gestión Integral Calidad',
-          proceso: od.proceso || 'Gestión Integral de Calidad',
-          carpeta: od.carpeta || od.proceso || 'Formatos',
-          tipoDocumento: od.tipoDocumento || 'Formato',
-          modificacion: od.modificacion || 'N/A',
-          version: '01',
-          vigencia: '25/9/2026',
-          tiempoRetencion: '5 Años',
-          lugar: 'Archivo Digital',
-          fechaVencimiento: '',
-          tipoCambio: 'Creación del documento',
-          descripcion: `${od.tipoDocumento || 'Formato'} para ${od.area || 'Calidad'}.`,
-          sharepointUrl: od.sharepointUrl,
-          downloadUrl: od.downloadUrl
-        });
+        if (Array.isArray(docBase.registrosDerivados)) {
+          docBase.registrosDerivados.forEach((reg) => {
+            const codR = (reg.codigo || '').toUpperCase();
+            const odR = this.buscarEnOneDriveMap(onedriveMap, codR, reg.titulo);
+            if (odR) {
+              reg.downloadUrl = odR.downloadUrl || reg.downloadUrl || odR.sharepointUrl || '';
+              reg.sharepointUrl = odR.sharepointUrl || reg.sharepointUrl || odR.downloadUrl || '';
+              if (odR.modificacion && odR.modificacion !== 'N/A') reg.modificacion = odR.modificacion;
+              reg.disponible = Boolean(reg.downloadUrl || reg.sharepointUrl);
+              reg.estado = reg.disponible ? 'DISPONIBLE' : 'NO DISPONIBLE';
+            }
+            if (reg.titulo) {
+              reg.titulo = reg.titulo.replace(/\.(docx|pdf|xlsx|doc|xls|csv)$/i, '').trim();
+            }
+          });
+        }
       });
 
 
@@ -1489,7 +1435,8 @@ export class DataService {
       const tiempoRetencion = idxTiempoRetencion !== -1 && valores[idxTiempoRetencion] && valores[idxTiempoRetencion].trim() ? valores[idxTiempoRetencion].trim() : (baseDoc?.tiempoRetencion || baseDoc?.tiempo || '5 Años');
       const lugar = idxLugar !== -1 && valores[idxLugar] && valores[idxLugar].trim() ? valores[idxLugar].trim() : (baseDoc?.lugar || 'Oficina Central y sede');
       const fechaVencimiento = idxFechaVencimiento !== -1 && valores[idxFechaVencimiento] && valores[idxFechaVencimiento].trim() ? valores[idxFechaVencimiento].trim() : (baseDoc?.fechaVencimiento || '');
-      const titulo = tituloGS || baseDoc?.titulo || codigo;
+      const rawTitulo = (tituloGS || baseDoc?.titulo || codigo).trim();
+      const titulo = rawTitulo.replace(/\.(docx|pdf|xlsx|doc|xls|csv)$/i, '').trim();
 
       // 7. Campos Categóricos
       const rawAreaGS = idxArea !== -1 && valores[idxArea] ? valores[idxArea].trim() : '';
@@ -1599,6 +1546,9 @@ export class DataService {
             if (odDirecto) {
               registroObj.downloadUrl = odDirecto.downloadUrl;
               registroObj.sharepointUrl = odDirecto.sharepointUrl;
+              if (odDirecto.modificacion && odDirecto.modificacion !== 'N/A') {
+                registroObj.modificacion = odDirecto.modificacion;
+              }
             }
           }
           registroObj.disponible = Boolean(registroObj.downloadUrl || registroObj.sharepointUrl);
@@ -1614,7 +1564,11 @@ export class DataService {
           };
           const idxReg = docPadre.registrosDerivados.findIndex(coincideYa);
           if (idxReg >= 0) {
-            docPadre.registrosDerivados[idxReg] = { ...docPadre.registrosDerivados[idxReg], ...registroObj };
+            docPadre.registrosDerivados[idxReg] = { 
+              ...docPadre.registrosDerivados[idxReg], 
+              ...registroObj,
+              titulo: (registroObj.titulo || docPadre.registrosDerivados[idxReg].titulo || '').replace(/\.(docx|pdf|xlsx|doc|xls|csv)$/i, '').trim()
+            };
           } else {
             docPadre.registrosDerivados.push(registroObj);
           }
@@ -1635,6 +1589,9 @@ export class DataService {
           if (odDirecto) {
             registroObj.downloadUrl = odDirecto.downloadUrl;
             registroObj.sharepointUrl = odDirecto.sharepointUrl;
+            if (odDirecto.modificacion && odDirecto.modificacion !== 'N/A') {
+              registroObj.modificacion = odDirecto.modificacion;
+            }
           }
         }
         registroObj.disponible = Boolean(registroObj.downloadUrl || registroObj.sharepointUrl);
@@ -1655,128 +1612,42 @@ export class DataService {
       }
     });
 
-    // 8. Incorporar cualquier documento de onedriveMap que tenga URLs activas pero no esté aún en filas de Google Sheets
+    // 8. POLÍTICA ESTRICTA: Google Sheets es la ÚNICA FUENTE DE LA VERDAD (SSOT).
+    // Solo los documentos y registros derivados registrados en Google Sheets son válidos y oficiales.
+    // El mapa de OneDrive/SharePoint se utiliza ÚNICAMENTE para enriquecer los vínculos directos y metadatos técnicos.
+    // NUNCA se deben inyectar archivos de SharePoint/OneDrive que no estén registrados en la hoja de cálculo.
     if (onedriveMap && onedriveMap.size > 0) {
-      const codigosEnFilas = new Set(filas.map((f) => (f.codigo || '').trim().toUpperCase()));
-      let extraIdx = filas.length + 1;
-      onedriveMap.forEach((od, cod) => {
-        const codUpper = (cod || '').trim().toUpperCase();
-        if (codUpper.includes('::') || codUpper.startsWith('_')) return;
-        if (codUpper && !codigosEnFilas.has(codUpper)) {
-          // Si el código corresponde a un registro derivado (ej. FMT-GIC-016-1) y su padre existe, adjuntarlo a su padre
-          const mSec = codUpper.match(/^([A-Z]{3,4}-[A-Z]{2,4}-\d{3,4})-(\d+)$/i);
-          if (mSec && mapaDocsBase.has(mSec[1])) {
-            const codPadre = mSec[1];
-            const docPadre = mapaDocsBase.get(codPadre);
-            docPadre.registrosDerivados = docPadre.registrosDerivados || [];
-            const rawExt = (od.extension || '').toUpperCase();
-            const esExcel = rawExt.includes('XLS') || rawExt.includes('CSV') || (od.downloadUrl && od.downloadUrl.toLowerCase().includes('.xlsx'));
-            const formato = esExcel ? 'Excel' : 'Word';
-            const extension = esExcel ? 'XLS' : 'DOC';
-            const registroObj = {
-              id: `${codUpper}_REG_${Date.now()}`,
-              codigo: codUpper,
-              titulo: od.titulo || codUpper,
-              formato: formato,
-              extension: extension,
-              estado: 'DISPONIBLE',
-              disponible: true,
-              descargable: true,
-              permisoOperativo: true,
-              permisoAdministrativo: true,
-              permisoDirectivo: true,
-              estadoDocumento: 'Activo',
-              tipoProceso: docPadre.tipoProceso,
-              area: docPadre.area,
-              areaNombre: docPadre.areaNombre || docPadre.area,
-              proceso: docPadre.proceso,
-              carpeta: docPadre.carpeta || docPadre.proceso,
-              tipoDocumento: 'Registro',
-              subclase: 'Registro',
-              esRegistro: true,
-              documentoPadreCodigo: codPadre,
-              modificacion: od.modificacion || new Date().toISOString().replace('T', ' ').substring(0, 19),
-              version: '01',
-              vigencia: docPadre.vigencia || '01/08/2026',
-              tiempoRetencion: docPadre.tiempoRetencion || '5 Años',
-              tiempo: docPadre.tiempoRetencion || '5 Años',
-              tiempoVigencia: docPadre.tiempoRetencion || '5 Años',
-              lugar: docPadre.lugar || 'Archivo Digital',
-              lugarArchivo: docPadre.lugarArchivo || 'Archivo Digital',
-              fechaVencimiento: docPadre.fechaVencimiento || '',
-              tipoCambio: 'Creación del documento',
-              descripcion: `Registro Derivado de ${codPadre}.`,
-              sharepointUrl: od.sharepointUrl || '',
-              downloadUrl: od.downloadUrl || od.sharepointUrl || ''
-            };
-
-            const coincideYa = (r) => (r.codigo && r.codigo.toUpperCase() === codUpper) || (r.titulo && r.titulo.toLowerCase().trim() === registroObj.titulo.toLowerCase().trim());
-            const idxExistente = docPadre.registrosDerivados.findIndex(coincideYa);
-            if (idxExistente >= 0) {
-              docPadre.registrosDerivados[idxExistente] = { ...docPadre.registrosDerivados[idxExistente], ...registroObj };
-            } else {
-              docPadre.registrosDerivados.push(registroObj);
-            }
-            docPadre.registrosDerivados = this._deduplicarRegistros(docPadre.registrosDerivados);
-            codigosEnFilas.add(codUpper);
-            return;
+      filas.forEach((docBase) => {
+        if (!docBase.downloadUrl && !docBase.sharepointUrl) {
+          const od = this.buscarEnOneDriveMap(onedriveMap, docBase.codigo, docBase.titulo);
+          if (od) {
+            docBase.downloadUrl = od.downloadUrl || od.sharepointUrl || '';
+            docBase.sharepointUrl = od.sharepointUrl || od.downloadUrl || '';
+            if (od.modificacion && od.modificacion !== 'N/A') docBase.modificacion = od.modificacion;
+            docBase.disponible = Boolean(docBase.downloadUrl || docBase.sharepointUrl);
+            docBase.estado = docBase.disponible ? 'DISPONIBLE' : 'NO DISPONIBLE';
           }
-          const tieneUrl = Boolean(
-            (od.sharepointUrl && od.sharepointUrl.trim() !== '' && od.sharepointUrl !== '#') ||
-            (od.downloadUrl && od.downloadUrl.trim() !== '' && od.downloadUrl !== '#')
-          );
-          if (tieneUrl) {
-            const rawExt = (od.extension || '').toUpperCase();
-            const esExcel = rawExt.includes('XLS') || rawExt.includes('CSV') || (od.downloadUrl && od.downloadUrl.toLowerCase().includes('.xlsx'));
-            const esFMT = esDocumentoFMT(codUpper);
-            let formato = 'PDF';
-            let extension = 'PDF';
-            if (esExcel) {
-              formato = 'Excel';
-              extension = 'XLS';
-            } else if (esFMT) {
-              formato = 'Word';
-              extension = 'DOC';
+        }
+        if (docBase.titulo) {
+          docBase.titulo = docBase.titulo.replace(/\.(docx|pdf|xlsx|doc|xls|csv)$/i, '').trim();
+        }
+        if (Array.isArray(docBase.registrosDerivados)) {
+          docBase.registrosDerivados.forEach((reg) => {
+            if (!reg.downloadUrl && !reg.sharepointUrl) {
+              const odR = this.buscarEnOneDriveMap(onedriveMap, reg.codigo, reg.titulo);
+              if (odR) {
+                reg.downloadUrl = odR.downloadUrl || odR.sharepointUrl || '';
+                reg.sharepointUrl = odR.sharepointUrl || odR.downloadUrl || '';
+                if (odR.modificacion && odR.modificacion !== 'N/A') reg.modificacion = odR.modificacion;
+                reg.disponible = Boolean(reg.downloadUrl || reg.sharepointUrl);
+                reg.estado = reg.disponible ? 'DISPONIBLE' : 'NO DISPONIBLE';
+              }
             }
-            const tipoDoc = normalizarTipoDocumentoDoc(od.tipoDocumento || '', codUpper);
-            const area = normalizarAreaDoc(od.area || '', codUpper);
-            const proceso = od.proceso || area;
-            const tipoProceso = normalizarTipoProcesoDoc(od.tipoProceso || '', area, codUpper);
-
-            filas.push({
-              id: `doc-${String(extraIdx++).padStart(3, '0')}`,
-              codigo: codUpper,
-              titulo: od.titulo || codUpper,
-              formato: formato,
-              extension: extension,
-              estado: 'DISPONIBLE',
-              disponible: true,
-              descargable: true,
-              permisoOperativo: true,
-              permisoAdministrativo: true,
-              permisoDirectivo: true,
-              estadoDocumento: 'Activo',
-              tipoProceso: tipoProceso,
-              area: area,
-              proceso: proceso,
-              carpeta: proceso,
-              tipoDocumento: tipoDoc,
-              modificacion: od.modificacion || 'N/A',
-              version: '01',
-              vigencia: '25/9/2026',
-              tiempoRetencion: '5 Años',
-              tiempo: '5 Años',
-              tiempoVigencia: '5 Años',
-              lugar: 'Archivo Digital',
-              lugarArchivo: 'Archivo Digital',
-              fechaVencimiento: '',
-              tipoCambio: 'Creación del documento',
-              descripcion: `${tipoDoc} para ${area} dentro del proceso ${proceso}.`,
-              sharepointUrl: od.sharepointUrl || '',
-              downloadUrl: od.downloadUrl || od.sharepointUrl || ''
-            });
-            codigosEnFilas.add(codUpper);
-          }
+            if (reg.titulo) {
+              reg.titulo = reg.titulo.replace(/\.(docx|pdf|xlsx|doc|xls|csv)$/i, '').trim();
+            }
+          });
+          docBase.registrosDerivados = this._deduplicarRegistros(docBase.registrosDerivados);
         }
       });
     }
@@ -2286,12 +2157,33 @@ export class DataService {
     const nuevosParaAgregar = [];
     Object.entries(todosCreados).forEach(([cod, docObj]) => {
       if (!docObj) return;
+      const codRaw = (docObj.codigo || cod || '').trim().toUpperCase();
+      if (
+        !codRaw ||
+        codRaw.includes('HIST_') ||
+        codRaw.startsWith('_LISTA_') ||
+        codRaw.includes('::') ||
+        !/^[A-Z]{2,4}-[A-Z]{2,4}-\d{3,4}/.test(codRaw)
+      ) {
+        return;
+      }
+
+      // Sanitizar título institucional
+      if (docObj.titulo) {
+        docObj.titulo = docObj.titulo.replace(/\.(docx|pdf|xlsx|doc|xls|csv)$/i, '').trim();
+      }
 
       // Si es un Registro Derivado, asociarlo a su Documento Base padre
-      const mSecCod = (docObj.codigo || cod).match(/^([A-Z]{3,4}-[A-Z]{2,4}-\d{3,4})-(\d+)$/i);
+      const mSecCod = codRaw.match(/^([A-Z]{3,4}-[A-Z]{2,4}-\d{3,4})-(\d+)$/i);
       if (docObj.subclase === 'Registro' || docObj.esRegistro === true || cod.startsWith('REG_') || cod.includes('::') || docObj.codigoPadre || mSecCod) {
-        const codUpper = (docObj.codigo || cod).trim().toUpperCase();
+        const codUpper = codRaw;
         const codPadre = (docObj.documentoPadreCodigo || docObj.codigoPadre || (mSecCod ? mSecCod[1] : (docObj.codigo ? docObj.codigo.replace(/-(\d+)$/, '') : '')) || cod.replace(/^REG_/, '').replace(/-(\d+)$/, '').split('::')[0]).trim().toUpperCase();
+
+        // Evitar inyección de registros derivados fantasma o no oficiales en FMT-GIC-015
+        if (codPadre === 'FMT-GIC-015' && mSecCod && parseInt(mSecCod[2], 10) > 8) {
+          return;
+        }
+
         const base = docsEnriquecidos.find(d => (d.codigo || '').toUpperCase() === codPadre && !d.esRegistro) ||
                      nuevosParaAgregar.find(d => (d.codigo || '').toUpperCase() === codPadre && !d.esRegistro);
         if (base) {
@@ -2318,6 +2210,7 @@ export class DataService {
             ...docObj,
             id: docObj.id || `${codUpper}_REG_${Date.now()}`,
             codigo: codUpper,
+            titulo: (docObj.titulo || codUpper).replace(/\.(docx|pdf|xlsx|doc|xls|csv)$/i, '').trim(),
             subclase: 'Registro',
             esRegistro: true,
             documentoPadreCodigo: codPadre,
@@ -2357,7 +2250,7 @@ export class DataService {
         return;
       }
 
-      const codUpper = cod.trim().toUpperCase();
+      const codUpper = codRaw;
       if (!codigosExistentes.has(codUpper) && docObj) {
         const od = mapOD?.get(codUpper);
         const spUrl = od?.sharepointUrl || docObj.sharepointUrl || '';
@@ -2371,7 +2264,7 @@ export class DataService {
         nuevosParaAgregar.push({
           id: codUpper,
           codigo: codUpper,
-          titulo: od?.titulo || docObj.titulo || docObj.nombre || 'Documento Institucional',
+          titulo: (docObj.titulo || docObj.nombre || od?.titulo || 'Documento Institucional').replace(/\.(docx|pdf|xlsx|doc|xls|csv)$/i, '').trim(),
           version: docObj.version || '01',
           estado: estaDisponible ? 'DISPONIBLE' : 'NO DISPONIBLE',
           area: od?.area || docObj.area || 'Gestión Integral Calidad',
@@ -2588,6 +2481,9 @@ export class DataService {
     for (let reg of registros) {
       if (!reg || !reg.titulo) continue;
 
+      // Limpiar extensión de archivo si viniera en el título
+      reg.titulo = reg.titulo.replace(/\.(docx|pdf|xlsx|doc|xls|csv)$/i, '').trim();
+
       // Corregir posibles repeticiones de título introducidas por duplicación
       if (reg.titulo && /Criterios de FormaciCriterios de Formacion/i.test(reg.titulo)) {
         reg.titulo = reg.titulo.replace(/Criterios de FormaciCriterios de Formacion/i, 'Criterios de Formación');
@@ -2655,6 +2551,9 @@ export class DataService {
 
         if (preferirNuevo || (!tieneRepeticion(reg.titulo) && (fechaReg >= fechaExistente || reg.titulo.length <= existente.titulo.length))) {
           resultado[idxExistente] = { ...existente, ...reg, id: existente.id || reg.id || `${reg.codigo || existente.codigo || 'REG'}_REG` };
+        }
+        if (resultado[idxExistente].titulo) {
+          resultado[idxExistente].titulo = resultado[idxExistente].titulo.replace(/\.(docx|pdf|xlsx|doc|xls|csv)$/i, '').trim();
         }
       } else {
         resultado.push(reg);

@@ -11,11 +11,11 @@
  * - Modo Edición: Desbloqueo Automático para Acceso Total y Contraseña Personal para Directivos y Administrativos
  */
 
-import { sharepointService, determinarEstrategiaDescarga, esDocumentoFMT } from './sharepoint-service.js?v=11.6.90';
-import { filterEngine } from './filters.js?v=11.6.90';
-import { modalManager } from './modal.js?v=11.6.90';
-import { analyticsManager } from './analytics.js?v=11.6.90';
-import { staffService } from './staff-service.js?v=11.6.90';
+import { sharepointService, determinarEstrategiaDescarga, esDocumentoFMT } from './sharepoint-service.js?v=11.6.92';
+import { filterEngine } from './filters.js?v=11.6.92';
+import { modalManager } from './modal.js?v=11.6.92';
+import { analyticsManager } from './analytics.js?v=11.6.92';
+import { staffService } from './staff-service.js?v=11.6.92';
 
 const STORAGE_KEY_EDIT_MODE = 'agy_sgc_edit_mode';
 const STORAGE_KEY_FAVORITES = 'agy_sgc_favorites';
@@ -196,6 +196,13 @@ class AppController {
           filterEngine.setPerfil(this.perfil);
           this.actualizarIndicadorPerfil();
         }
+        sesionActiva.perfil = this.perfil;
+        try {
+          localStorage.setItem(STORAGE_KEY_USER_PROFILE, this.perfil);
+          localStorage.setItem('agy_sgc_user_profile', this.perfil);
+          localStorage.setItem(STORAGE_KEY_AUTH_SESSION, JSON.stringify(sesionActiva));
+        } catch { }
+
         const esAccesoTotal = Boolean(this.perfil === 'total' || this.perfil === 'administrador');
         if (!esAccesoTotal) {
           this.modoEdicion = false;
@@ -208,6 +215,13 @@ class AppController {
         this.actualizarBotonModoEdicion();
         this.actualizarVisibilidadModulos();
         this.aplicarFiltros(true);
+
+        // Si el usuario ya está navegando en el Dashboard, refrescar de inmediato con los datos completados
+        if (this.vistaActual === 'analytics') {
+          const docsPerfil = filterEngine.obtenerDocumentosPorPerfil(this.documentos);
+          analyticsManager.render(docsPerfil, this.perfil, docsPerfil);
+          analyticsManager.cambiarPestana(analyticsManager.pestanaActiva || 'resumen');
+        }
       }
       this.iniciarSincronizacionInteligente();
     }).catch((e) => console.warn('[App] Error en sincronización de fondo:', e));
@@ -528,6 +542,9 @@ class AppController {
     this.perfil = nuevoPerfilId;
     this.actualizarClasesPerfilBody();
     localStorage.setItem(STORAGE_KEY_USER_PROFILE, nuevoPerfilId);
+    try {
+      localStorage.setItem('agy_sgc_user_profile', nuevoPerfilId);
+    } catch { }
 
     // Si hay un colaborador en sesión, guardar y sincronizar su perfil personalizado en Google Drive
     const colab = staffService.obtenerSesionActiva();
