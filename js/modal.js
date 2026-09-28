@@ -1868,45 +1868,39 @@ export class ModalManager {
         })
         .join('');
 
-      // Detección de cambio en select inline para habilitar botón Guardar
+      // Auto-guardado instantáneo al seleccionar nuevo perfil inline
       tbody.querySelectorAll('.select-inline-special-profile').forEach((sel) => {
-        sel.addEventListener('change', (e) => {
+        sel.addEventListener('change', async (e) => {
           const docNum = sel.getAttribute('data-doc');
           const original = sel.getAttribute('data-original');
           const nuevoPerf = e.target.value;
-          const row = tbody.querySelector(`tr[data-row-doc="${docNum}"]`);
-          const btnSave = row ? row.querySelector('.btn-save-inline-profile') : null;
+          if (nuevoPerf === original) return;
 
-          if (nuevoPerf !== original) {
+          sel.disabled = true;
+          sel.style.borderColor = '#3b82f6';
+          sel.style.backgroundColor = '#eff6ff';
+
+          try {
+            await staffService.asignarPerfilPersonalizado(docNum, nuevoPerf);
+            sel.setAttribute('data-original', nuevoPerf);
             sel.style.borderColor = '#16a34a';
             sel.style.backgroundColor = '#f0fdf4';
-            if (btnSave) {
-              btnSave.style.display = 'inline-flex';
+
+            if (window.antigravityApp?.mostrarToast) {
+              window.antigravityApp.mostrarToast(`✅ Perfil "${nuevoPerf.toUpperCase()}" asignado con éxito.`, 'success');
             }
-          } else {
-            sel.style.borderColor = '#cbd5e1';
-            sel.style.backgroundColor = '#ffffff';
-            if (btnSave) {
-              btnSave.style.display = 'none';
+
+            renderListaColaboradoresEspeciales(document.getElementById('search-special-profiles')?.value || '');
+          } catch (err) {
+            console.error('[Config] Error al guardar perfil personalizado:', err);
+            sel.value = original;
+            sel.style.borderColor = '#dc2626';
+            sel.style.backgroundColor = '#fef2f2';
+            sel.disabled = false;
+            if (window.antigravityApp?.mostrarToast) {
+              window.antigravityApp.mostrarToast(`❌ Error al guardar perfil: ${err.message || 'Error de conexión'}`, 'error');
             }
           }
-        });
-      });
-
-      // Eventos del botón Guardar en la columna de Acciones
-      tbody.querySelectorAll('.btn-save-inline-profile').forEach((btnSave) => {
-        btnSave.addEventListener('click', async () => {
-          const docNum = btnSave.getAttribute('data-doc');
-          const row = tbody.querySelector(`tr[data-row-doc="${docNum}"]`);
-          const sel = row ? row.querySelector('.select-inline-special-profile') : null;
-          if (!sel) return;
-
-          const nuevoPerf = sel.value;
-          btnSave.disabled = true;
-          btnSave.innerHTML = `<span>⏳</span> Guardando...`;
-
-          await staffService.asignarPerfilPersonalizado(docNum, nuevoPerf);
-          renderListaColaboradoresEspeciales(document.getElementById('search-special-profiles')?.value || '');
         });
       });
 

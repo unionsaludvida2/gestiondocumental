@@ -1436,9 +1436,7 @@ class LiveOneDriveHandler(http.server.SimpleHTTPRequestHandler):
                             conf_data['favoritosPorUsuario'] = {}
                         conf_data['favoritosPorUsuario'].update(v)
                     elif k == 'mapeoPerfilesPersonalizados' and isinstance(v, dict):
-                        if 'mapeoPerfilesPersonalizados' not in conf_data:
-                            conf_data['mapeoPerfilesPersonalizados'] = {}
-                        conf_data['mapeoPerfilesPersonalizados'].update(v)
+                        conf_data['mapeoPerfilesPersonalizados'] = v
                     elif k == 'preferenciasPorUsuario' and isinstance(v, dict):
                         if 'preferenciasPorUsuario' not in conf_data:
                             conf_data['preferenciasPorUsuario'] = {}

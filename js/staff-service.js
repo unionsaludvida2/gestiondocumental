@@ -826,10 +826,9 @@ export class StaffService {
         ...(this.configuracion.favoritosPorUsuario || {}),
         ...(json.favoritosPorUsuario || {})
       },
-      mapeoPerfilesPersonalizados: {
-        ...(this.configuracion.mapeoPerfilesPersonalizados || {}),
-        ...(json.mapeoPerfilesPersonalizados || {})
-      },
+      mapeoPerfilesPersonalizados: json.mapeoPerfilesPersonalizados !== undefined
+        ? json.mapeoPerfilesPersonalizados
+        : (this.configuracion.mapeoPerfilesPersonalizados || {}),
       preferenciasPorUsuario: {
         ...(this.configuracion.preferenciasPorUsuario || {}),
         ...(json.preferenciasPorUsuario || {})
@@ -1387,25 +1386,18 @@ export class StaffService {
 
     let huboCambios = false;
 
-    // Sanear mapeoPerfilesPersonalizados
-    if (this.configuracion.mapeoPerfilesPersonalizados) {
-      for (const [doc, perf] of Object.entries(this.configuracion.mapeoPerfilesPersonalizados)) {
-        if (perf === 'directivo') {
-          const emp = this.empleados.find((e) => this.limpiarNumeros(e.identificacion) === doc);
-          const reg = this.configuracion.usuariosRegistrados?.[doc];
-          const cargo = (emp?.cargo || reg?.cargo || '').toLowerCase();
-          if (esCargoLiderOAdmin(cargo) && !esCargoDirectivo(cargo)) {
-            this.configuracion.mapeoPerfilesPersonalizados[doc] = 'administrativo';
-            huboCambios = true;
-          }
-        }
-      }
-    }
+    // NOTA: mapeoPerfilesPersonalizados almacena las asignaciones manuales explícitas de los administradores.
+    // REGLA INSTITUCIONAL: Los cambios manuales en los códigos/cédulas PRIORIZAN sobre los perfiles automáticos
+    // y NUNCA deben ser alterados ni degradados por heurísticas de cargo.
 
-    // Sanear usuariosRegistrados
+    // Sanear usuariosRegistrados únicamente si NO existe una asignación manual explícita
     if (this.configuracion.usuariosRegistrados) {
       for (const [doc, u] of Object.entries(this.configuracion.usuariosRegistrados)) {
         if (u && u.perfil === 'directivo') {
+          // Si el usuario tiene asignación manual explícita en mapeoPerfilesPersonalizados, respetarla
+          if (this.configuracion.mapeoPerfilesPersonalizados?.[doc]) {
+            continue;
+          }
           const emp = this.empleados.find((e) => this.limpiarNumeros(e.identificacion) === doc);
           const cargo = (emp?.cargo || u.cargo || '').toLowerCase();
           if (esCargoLiderOAdmin(cargo) && !esCargoDirectivo(cargo)) {
@@ -1425,15 +1417,30 @@ export class StaffService {
   }
 
   /**
-   * Determina automáticamente el perfil (directivo, administrativo, operativo, total) según el cargo o asignaciones especiales
-   * Política institucional:
-   * - Acceso Total: 8160602 o explícito
-   * - Directivo: Exclusivamente directores, directoras, gerentes o subdirectores
-   * - Administrativo: Todos los líderes (asistenciales, médicos, tecnología, finanzas, cumplimiento, etc.), analistas, auxiliares administrativos, TIC, GH, comunicadores
-   * - Operativo: Médicos, especialistas y auxiliares de salud asistenciales
+   * Determina el perfil (directivo, administrativo, operativo, total) según asignaciones manuales o cargo
+   * REGLA DE ORO INSTITUCIONAL:
+   * Los cambios manuales por código/cédula (mapeoPerfilesPersonalizados) PRIORIZAN ESTRICTAMENTE
+   * sobre cualquier perfil automático o regla por cargo.
    */
   determinarPerfil(cargo, identificacion) {
     const docClean = this.limpiarNumeros(identificacion);
+
+    // 1. PRIORIDAD MÁXIMA: Asignación manual explícita en el mapeo de perfiles personalizados
+    if (docClean) {
+      const perfPers = this.configuracion?.mapeoPerfilesPersonalizados?.[docClean];
+      if (perfPers) {
+        return perfPers;
+      }
+      const perfReg = this.configuracion?.usuariosRegistrados?.[docClean]?.perfil;
+      if (perfReg) {
+        return perfReg;
+      }
+      // Acceso Total por defecto para cédula maestra institucional si no fue reasignada manualmente
+      if (docClean === '8160602') {
+        return 'total';
+      }
+    }
+
     const cNorm = (cargo || '').toLowerCase();
     const esDirectivoReal =
       cNorm.includes('director') ||
@@ -1441,37 +1448,6 @@ export class StaffService {
       cNorm.includes('gerente') ||
       cNorm.includes('subdirector') ||
       cNorm.includes('subgerente');
-    const esLiderOAdmin =
-      cNorm.includes('lider') ||
-      cNorm.includes('líder') ||
-      cNorm.includes('analista') ||
-      cNorm.includes('coordinador') ||
-      cNorm.includes('auxiliar');
-
-    if (docClean) {
-      if (docClean === '8160602') {
-        return 'total';
-      }
-      const perfPers = this.configuracion?.mapeoPerfilesPersonalizados?.[docClean];
-      if (perfPers) {
-        if (perfPers === 'directivo' && esLiderOAdmin && !esDirectivoReal) {
-          return 'administrativo';
-        }
-        return perfPers;
-      }
-      const perfReg = this.configuracion?.usuariosRegistrados?.[docClean]?.perfil;
-      if (perfReg) {
-        if (perfReg === 'directivo' && esLiderOAdmin && !esDirectivoReal) {
-          return 'administrativo';
-        }
-        return perfReg;
-      }
-    }
-
-    // Perfil Directivo 👑: EXCLUSIVAMENTE cargos directivos
-    if (esDirectivoReal) {
-      return 'directivo';
-    }
 
     // Perfil Administrativo 💼: Todos los líderes de operación/área y cargos administrativos
     if (
