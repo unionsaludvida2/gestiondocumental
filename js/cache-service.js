@@ -236,7 +236,7 @@ class CacheService {
         // Limpiar para refresco fiel
         store.clear();
         for (const doc of listaDocumentos) {
-          if (doc && doc.codigo) {
+          if (doc && doc.codigo && !doc.codigo.startsWith('_LISTA_') && !doc.codigo.includes('::')) {
             store.put(doc);
           }
         }

@@ -3,9 +3,9 @@
  * Unión para la salud y la vida S.A.S.
  */
 
-import { sharepointService, determinarEstrategiaDescarga, esDocumentoFMT } from './sharepoint-service.js?v=11.6.87';
-import { staffService } from './staff-service.js?v=11.6.87';
-import { filterEngine } from './filters.js?v=11.6.87';
+import { sharepointService, determinarEstrategiaDescarga, esDocumentoFMT } from './sharepoint-service.js?v=11.6.89';
+import { staffService } from './staff-service.js?v=11.6.89';
+import { filterEngine } from './filters.js?v=11.6.89';
 
 const STORAGE_KEY_USER_PROFILE = 'agy_user_profile';
 
@@ -822,6 +822,13 @@ export class ModalManager {
         const regId = btn.getAttribute('data-reg-id');
         const reg = (doc.registrosDerivados || []).find((r) => (r.id && r.id === regId) || (r.codigo && r.codigo === regId) || (regId === 'undefined' && r.codigo === 'FMT-GIC-015-2'));
         if (reg && onDescargar) {
+          if (!reg.downloadUrl || reg.downloadUrl === doc.downloadUrl || reg.downloadUrl === '#') {
+            const odDirecto = sharepointService?.buscarEnOneDriveMap?.(sharepointService._ultimoOnedriveMap, reg.codigo, reg.titulo, true);
+            if (odDirecto && (odDirecto.downloadUrl || odDirecto.vinculoDescarga)) {
+              reg.downloadUrl = odDirecto.downloadUrl || odDirecto.vinculoDescarga;
+              reg.sharepointUrl = odDirecto.sharepointUrl || odDirecto.vinculoEdicion || reg.downloadUrl;
+            }
+          }
           if (!reg.downloadUrl || reg.downloadUrl === doc.downloadUrl || reg.downloadUrl === '#') {
             if (window.__agyApp) window.__agyApp.mostrarToast(`📄 El registro "${reg.titulo}" no tiene un archivo individual cargado en SharePoint.`, 'info');
             return;

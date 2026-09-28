@@ -11,11 +11,11 @@
  * - Modo Edición: Desbloqueo Automático para Acceso Total y Contraseña Personal para Directivos y Administrativos
  */
 
-import { sharepointService, determinarEstrategiaDescarga, esDocumentoFMT } from './sharepoint-service.js?v=11.6.87';
-import { filterEngine } from './filters.js?v=11.6.87';
-import { modalManager } from './modal.js?v=11.6.87';
-import { analyticsManager } from './analytics.js?v=11.6.87';
-import { staffService } from './staff-service.js?v=11.6.87';
+import { sharepointService, determinarEstrategiaDescarga, esDocumentoFMT } from './sharepoint-service.js?v=11.6.89';
+import { filterEngine } from './filters.js?v=11.6.89';
+import { modalManager } from './modal.js?v=11.6.89';
+import { analyticsManager } from './analytics.js?v=11.6.89';
+import { staffService } from './staff-service.js?v=11.6.89';
 
 const STORAGE_KEY_EDIT_MODE = 'agy_sgc_edit_mode';
 const STORAGE_KEY_FAVORITES = 'agy_sgc_favorites';
@@ -1721,7 +1721,12 @@ class AppController {
           (r) => String(r.id) === idStr || String(r.codigo) === idStr || `${r.codigo}_REG` === idStr
         );
         if (reg) {
+          const odDirecto = sharepointService?.buscarEnOneDriveMap?.(sharepointService._ultimoOnedriveMap, reg.codigo, reg.titulo || reg.documento, true);
+          const downloadUrl = (reg.downloadUrl && reg.downloadUrl !== '#' ? reg.downloadUrl : (odDirecto?.downloadUrl || odDirecto?.vinculoDescarga || ''));
+          const sharepointUrl = (reg.sharepointUrl && reg.sharepointUrl !== '#' ? reg.sharepointUrl : (odDirecto?.sharepointUrl || odDirecto?.vinculoEdicion || downloadUrl));
+
           return {
+            ...d,
             ...reg,
             id: reg.id || `${reg.codigo}_REG`,
             codigo: reg.codigo,
@@ -1734,17 +1739,17 @@ class AppController {
             extension: reg.extension || 'PDF',
             version: reg.version || '01',
             modificacion: reg.modificacion || d.modificacion,
-            disponible: reg.disponible !== false,
-            descargable: reg.descargable !== false,
-            estado: reg.estado || 'DISPONIBLE',
-            sharepointUrl: reg.sharepointUrl || '',
-            downloadUrl: reg.downloadUrl || '',
-            carpetaSharepointUrl: reg.carpetaSharepointUrl || '',
+            disponible: Boolean(downloadUrl || sharepointUrl),
+            descargable: Boolean(downloadUrl || sharepointUrl),
+            estado: (downloadUrl || sharepointUrl) ? 'DISPONIBLE' : 'NO DISPONIBLE',
+            sharepointUrl: sharepointUrl,
+            downloadUrl: downloadUrl,
+            carpetaSharepointUrl: '',
             documentoPadreCodigo: d.codigo,
             documentoPadreTitulo: d.titulo,
             documentoPadreId: d.id,
             esRegistro: true,
-            subcarpetaUrl: d.downloadUrl ? (sharepointService?.generarEnlacesDocumentoSecundario ? sharepointService.generarEnlacesDocumentoSecundario(d, reg).subcarpeta : '') : ''
+            subcarpetaUrl: ''
           };
         }
       }
@@ -1965,6 +1970,10 @@ class AppController {
         let subfilasHtml = '';
         if (tieneRegistros && !hayBusqueda) {
           subfilasHtml = doc.registrosDerivados.map((reg, regIdx) => {
+            const odDirecto = sharepointService?.buscarEnOneDriveMap?.(sharepointService._ultimoOnedriveMap, reg.codigo, reg.titulo || reg.documento, true);
+            const downloadUrl = (reg.downloadUrl && reg.downloadUrl !== '#' ? reg.downloadUrl : (odDirecto?.downloadUrl || odDirecto?.vinculoDescarga || ''));
+            const sharepointUrl = (reg.sharepointUrl && reg.sharepointUrl !== '#' ? reg.sharepointUrl : (odDirecto?.sharepointUrl || odDirecto?.vinculoEdicion || downloadUrl));
+
             const regDoc = {
               ...reg,
               id: reg.id || `${reg.codigo}_REG`,
@@ -1978,17 +1987,17 @@ class AppController {
               extension: reg.extension || 'PDF',
               version: reg.version || '01',
               modificacion: reg.modificacion || doc.modificacion,
-              disponible: reg.disponible !== false,
-              descargable: reg.descargable !== false,
-              estado: reg.estado || 'DISPONIBLE',
-              sharepointUrl: reg.sharepointUrl || '',
-              downloadUrl: reg.downloadUrl || '',
-              carpetaSharepointUrl: reg.carpetaSharepointUrl || '',
+              disponible: Boolean(downloadUrl || sharepointUrl),
+              descargable: Boolean(downloadUrl || sharepointUrl),
+              estado: (downloadUrl || sharepointUrl) ? 'DISPONIBLE' : 'NO DISPONIBLE',
+              sharepointUrl: sharepointUrl,
+              downloadUrl: downloadUrl,
+              carpetaSharepointUrl: '',
               documentoPadreCodigo: doc.codigo,
               documentoPadreTitulo: doc.titulo,
               documentoPadreId: doc.id,
               esRegistro: true,
-              subcarpetaUrl: doc.downloadUrl ? (sharepointService?.generarEnlacesDocumentoSecundario ? sharepointService.generarEnlacesDocumentoSecundario(doc, reg).subcarpeta : '') : ''
+              subcarpetaUrl: ''
             };
 
             const rExtUpper = (regDoc.extension || '').toUpperCase();

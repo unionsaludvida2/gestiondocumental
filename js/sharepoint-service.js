@@ -407,6 +407,22 @@ export class DataService {
     if (!docPadre) {
       return { downloadUrl: '', sharepointUrl: '', subcarpeta: '', carpetaSub: '', nombreArchivo: '' };
     }
+
+    // PRIORIDAD ABSOLUTA: Consultar primero el mapa oficial del repositorio de OneDrive sin calcular rutas
+    const codSecundario = (docSecundario && docSecundario.codigo ? docSecundario.codigo : '').trim().toUpperCase();
+    if (this._ultimoOnedriveMap && codSecundario) {
+      const odDirecto = this.buscarEnOneDriveMap(this._ultimoOnedriveMap, codSecundario, docSecundario.titulo || '', true);
+      if (odDirecto && (odDirecto.downloadUrl || odDirecto.vinculoDescarga || odDirecto.sharepointUrl)) {
+        return {
+          downloadUrl: odDirecto.downloadUrl || odDirecto.vinculoDescarga || '',
+          sharepointUrl: odDirecto.sharepointUrl || odDirecto.vinculoEdicion || odDirecto.downloadUrl || '',
+          subcarpeta: '',
+          carpetaSub: '',
+          nombreArchivo: odDirecto.documento || odDirecto.titulo || ''
+        };
+      }
+    }
+
     const urlBasePadre = (docPadre.downloadUrl || docPadre.sharepointUrl || '').split('?')[0].trim();
     if (!urlBasePadre || !urlBasePadre.startsWith('http')) {
       return { downloadUrl: '', sharepointUrl: '', subcarpeta: '', carpetaSub: '', nombreArchivo: '' };
@@ -603,14 +619,20 @@ export class DataService {
         const repoMeta = await cacheService.obtenerColeccionConMeta('documentos_catalogo');
         const cachedDocs = await cacheService.obtenerDocumentos();
         if (Array.isArray(cachedDocs) && cachedDocs.length > 0) {
-          this.documentosEnMemoria = cachedDocs;
+          // Sanitización obligatoria: purgar residuos con prefijo _LISTA_ o ::
+          const validos = cachedDocs.filter(d => d && d.codigo && !d.codigo.startsWith('_') && !d.codigo.includes('::'));
+          if (validos.length !== cachedDocs.length) {
+            console.warn(`[DataService] 🧹 Detectados ${cachedDocs.length - validos.length} registros residuales obsoletos (_LISTA_). Purgando caché y forzando refresco limpio...`);
+            return await this.descargarCsvEnVivo(true);
+          }
+          this.documentosEnMemoria = validos;
           const ahora = Date.now();
           const edadMs = ahora - (repoMeta?.timestamp || 0);
           const TTL_DIARIO_MS = 24 * 60 * 60 * 1000; // 24 horas
 
           if (edadMs < TTL_DIARIO_MS) {
-            console.log(`[DataService] ⚡ Catálogo cargado desde caché persistente (${cachedDocs.length} docs, edad: ${Math.round(edadMs / 60000)} min).`);
-            return cachedDocs;
+            console.log(`[DataService] ⚡ Catálogo cargado desde caché persistente (${validos.length} docs, edad: ${Math.round(edadMs / 60000)} min).`);
+            return validos;
           }
 
           // Si superó 24h, devolver inmediatamente para renderizado a 0 ms y revalidar en segundo plano
@@ -1639,7 +1661,7 @@ export class DataService {
       let extraIdx = filas.length + 1;
       onedriveMap.forEach((od, cod) => {
         const codUpper = (cod || '').trim().toUpperCase();
-        if (codUpper.includes('::') || codUpper.startsWith('_LISTA_')) return;
+        if (codUpper.includes('::') || codUpper.startsWith('_')) return;
         if (codUpper && !codigosEnFilas.has(codUpper)) {
           // Si el código corresponde a un registro derivado (ej. FMT-GIC-016-1) y su padre existe, adjuntarlo a su padre
           const mSec = codUpper.match(/^([A-Z]{3,4}-[A-Z]{2,4}-\d{3,4})-(\d+)$/i);
@@ -1687,9 +1709,6 @@ export class DataService {
               sharepointUrl: od.sharepointUrl || '',
               downloadUrl: od.downloadUrl || od.sharepointUrl || ''
             };
-            const enlaces = this.generarEnlacesDocumentoSecundario(docPadre, registroObj);
-            if (!registroObj.downloadUrl) registroObj.downloadUrl = enlaces.downloadUrl;
-            if (!registroObj.sharepointUrl) registroObj.sharepointUrl = enlaces.sharepointUrl;
 
             const coincideYa = (r) => (r.codigo && r.codigo.toUpperCase() === codUpper) || (r.titulo && r.titulo.toLowerCase().trim() === registroObj.titulo.toLowerCase().trim());
             const idxExistente = docPadre.registrosDerivados.findIndex(coincideYa);
@@ -1868,22 +1887,14 @@ export class DataService {
       return `/api/descargar-pdf?codigo=${codEnc}&url=${urlEnc}&titulo=${titEnc}&esRegistro=${esReg}`;
     }
 
-    // Transformación nativa para SharePoint Online REST v2.0 (Microsoft Graph Drive API)
-    if (limpia.includes('/Documentos compartidos/')) {
-      try {
-        const idx = limpia.indexOf('/Documentos compartidos/');
-        const siteBase = limpia.substring(0, idx); // Ej: https://unionsaludvida.sharepoint.com/sites/INTRANET
-        const subpath = limpia.substring(idx + '/Documentos compartidos/'.length);
-        const subpathEncoded = encodeURI(decodeURI(subpath));
-
-        // Endpoint REST v2.0 oficial de SharePoint Online
-        return `${siteBase}/_api/v2.0/drive/root:/${subpathEncoded}:/content?format=pdf`;
-      } catch (e) {
-        console.warn('[sharepointService] Error construyendo URL REST v2.0 PDF:', e);
-      }
+    // Transformación para SharePoint Online en entorno web / GitHub Pages:
+    // Utilizar el vínculo directo oficial con download=1 para forzar la descarga sin exponer carpetas ni fallar con error REST
+    let urlDirecta = urlOriginal;
+    if (urlDirecta.includes('sharepoint.com') && !urlDirecta.includes('download=1')) {
+      const sep = urlDirecta.includes('?') ? '&' : '?';
+      urlDirecta = `${urlDirecta}${sep}download=1`;
     }
-
-    return urlOriginal;
+    return urlDirecta;
   }
 
   /**
@@ -1978,26 +1989,15 @@ export class DataService {
     }
 
     // 2. Entorno Producción / Web (GitHub Pages / Online):
-    // Para GARANTIZAR que el documento se abra SIEMPRE en una pestaña o página diferente
-    // sin reemplazar la aplicación de Gestión Documental ni perder el contexto de trabajo:
-    this.notificar(`📄 Generando y abriendo PDF de ${codigo} en nueva pestaña...`, 'info');
-
-    // Construir la URL directa a la API REST de SharePoint Online para conversión en tiempo real
-    let urlDestino = urlPdf;
-    const limpia = (doc.downloadUrl || doc.sharepointUrl || '').split('?')[0];
-    if (limpia.includes('/Documentos compartidos/')) {
-      try {
-        const idx = limpia.indexOf('/Documentos compartidos/');
-        const siteBase = limpia.substring(0, idx);
-        const subpath = limpia.substring(idx + '/Documentos compartidos/'.length);
-        const subpathEncoded = encodeURI(decodeURI(subpath));
-        urlDestino = `${siteBase}/_api/v2.0/drive/root:/${subpathEncoded}:/content?format=pdf`;
-      } catch (e) {
-        console.warn('[sharepointService] Error construyendo URL directa de SharePoint:', e);
-      }
+    // Descarga directa oficial desde SharePoint usando download=1 sin calcular rutas ni exponer carpetas
+    this.notificar(`📥 Descargando ${codigo}...`, 'info');
+    let urlDestino = doc.downloadUrl || doc.sharepointUrl || urlPdf;
+    if (urlDestino && urlDestino.includes('sharepoint.com') && !urlDestino.includes('download=1')) {
+      const sep = urlDestino.includes('?') ? '&' : '?';
+      urlDestino = `${urlDestino}${sep}download=1`;
     }
 
-    // Apertura en nueva pestaña garantizando una sola ventana (evita duplicación provocada por noopener)
+    // Apertura directa para descarga en el navegador del usuario
     window.open(urlDestino, '_blank', 'noopener,noreferrer');
     return true;
   }
@@ -2595,36 +2595,14 @@ export class DataService {
         }
       }
 
-      // Auto-generación de enlaces en la subcarpeta del documento base si faltan
-      if (docPadre && (!reg.downloadUrl || !reg.sharepointUrl)) {
-        const enlaces = this.generarEnlacesDocumentoSecundario(docPadre, reg);
-        reg.downloadUrl = reg.downloadUrl || enlaces.downloadUrl;
-        reg.sharepointUrl = reg.sharepointUrl || enlaces.sharepointUrl;
-        if (reg.downloadUrl || reg.sharepointUrl) {
-          reg.disponible = true;
-          reg.estado = 'DISPONIBLE';
-        }
-      }
-
-      // Normalización canónica para registros de FMT-GIC-016
-      if (codPadre === 'FMT-GIC-016' || (reg.codigo && reg.codigo.startsWith('FMT-GIC-016'))) {
-        const titLower = (reg.titulo || '').toLowerCase();
-        if ((titLower.includes('anticoagulados') && (titLower.includes('2026-1') || titLower.includes('1') || !titLower.includes('2026-2'))) && !titLower.includes('2026-2')) {
-          reg.codigo = 'FMT-GIC-016-1';
-          reg.titulo = 'Definición de criterios de formación anticoagulados 2026-1';
-        } else if (titLower.includes('anticoagulados') && (titLower.includes('2026-2') || titLower.includes('2'))) {
-          reg.codigo = 'FMT-GIC-016-2';
-          reg.titulo = 'Definición de criterios de formación anticoagulados 2026-2';
-        } else if (titLower.includes('asma') || titLower.includes('epoc')) {
-          reg.codigo = 'FMT-GIC-016-3';
-          reg.titulo = 'Definición de criterios de formación Asma y EPOC 2026';
-        }
-        if (docPadre) {
-          const enlaces = this.generarEnlacesDocumentoSecundario(docPadre, reg);
-          reg.downloadUrl = enlaces.downloadUrl;
-          reg.sharepointUrl = enlaces.sharepointUrl;
-          reg.disponible = true;
-          reg.estado = 'DISPONIBLE';
+      // Vincular directamente desde el mapa de OneDrive si faltan enlaces, sin calcular rutas sintéticas
+      if (!reg.downloadUrl || !reg.sharepointUrl) {
+        const odExacto = this.buscarEnOneDriveMap(this._ultimoOnedriveMap, reg.codigo, reg.titulo, true);
+        if (odExacto) {
+          reg.downloadUrl = odExacto.downloadUrl || odExacto.urlDescarga || '';
+          reg.sharepointUrl = odExacto.sharepointUrl || odExacto.urlEdicion || '';
+          reg.disponible = Boolean(reg.downloadUrl || reg.sharepointUrl);
+          reg.estado = reg.disponible ? 'DISPONIBLE' : 'NO DISPONIBLE';
         }
       }
 
