@@ -358,104 +358,6 @@ export class DataService {
    */
   sanitizarRegistrosLocales() {
     try {
-      const padreFmt = (this.documentosEnMemoria || []).find((d) => (d.codigo || '').toUpperCase() === 'FMT-GIC-016' && !d.esRegistro) || {
-        codigo: 'FMT-GIC-016',
-        titulo: 'Definición de criterios de formación',
-        extension: 'DOC',
-        formato: 'Word',
-        downloadUrl: 'https://unionsaludvida.sharepoint.com/sites/INTRANET/Documentos compartidos/DOCUMENTOS_INSTITUCIONALES/SISTEMAS_INFORMACION/GESTION DOCUMENTAL DE CALIDAD UT/Gestión documental de calidad Unión para la Salud Y la Vida SAS/Calidad/Gestión Integral de la calidad/Gestión Integral de Calidad/Formatos/FMT-GIC-016 Definición de criterios de formación.docx'
-      };
-
-      // Si el enlace de descarga o edición del padre apunta a la carpeta (sin extensión .docx), corregirlo al archivo .docx
-      if (padreFmt.downloadUrl && !/\.(docx|pdf|xlsx|doc|xls|csv)(\?|$)/i.test(padreFmt.downloadUrl)) {
-        padreFmt.downloadUrl = `${padreFmt.downloadUrl.replace(/\/?$/, '')}.docx`;
-      }
-      if (padreFmt.sharepointUrl && !/\.(docx|pdf|xlsx|doc|xls|csv)(\?|$)/i.test(padreFmt.sharepointUrl)) {
-        padreFmt.sharepointUrl = `${padreFmt.downloadUrl}?web=1`;
-      }
-      padreFmt.extension = 'DOC';
-      padreFmt.formato = 'Word';
-
-      // Sincronizar también el objeto base en this.documentosEnMemoria si existe
-      const docEnMem = (this.documentosEnMemoria || []).find((d) => (d.codigo || '').toUpperCase() === 'FMT-GIC-016' && !d.esRegistro);
-      if (docEnMem) {
-        if (docEnMem.downloadUrl && !/\.(docx|pdf|xlsx|doc|xls|csv)(\?|$)/i.test(docEnMem.downloadUrl)) {
-          docEnMem.downloadUrl = `${docEnMem.downloadUrl.replace(/\/?$/, '')}.docx`;
-        }
-        if (docEnMem.sharepointUrl && !/\.(docx|pdf|xlsx|doc|xls|csv)(\?|$)/i.test(docEnMem.sharepointUrl)) {
-          docEnMem.sharepointUrl = `${docEnMem.downloadUrl}?web=1`;
-        }
-        docEnMem.extension = 'DOC';
-        docEnMem.formato = 'Word';
-      }
-
-      const docsOficiales = [
-        {
-          id: 'FMT-GIC-016_REG_001',
-          codigo: 'FMT-GIC-016-1',
-          titulo: 'Definición de criterios de formación anticoagulados 2026-1',
-          formato: 'PDF',
-          extension: 'PDF',
-          version: '01',
-          disponible: true,
-          descargable: true,
-          subclase: 'Registro',
-          esRegistro: true,
-          documentoPadreCodigo: 'FMT-GIC-016',
-          proceso: 'Gestión Integral de Calidad',
-          carpeta: 'Formatos',
-          area: 'GIC',
-          areaNombre: 'Gestión Integral Calidad',
-          tipoProceso: 'Estratégicos',
-          modificacion: '2026-09-26 00:45:00'
-        },
-        {
-          id: 'FMT-GIC-016_REG_002',
-          codigo: 'FMT-GIC-016-2',
-          titulo: 'Definición de criterios de formación anticoagulados 2026-2',
-          formato: 'PDF',
-          extension: 'PDF',
-          version: '01',
-          disponible: true,
-          descargable: true,
-          subclase: 'Registro',
-          esRegistro: true,
-          documentoPadreCodigo: 'FMT-GIC-016',
-          proceso: 'Gestión Integral de Calidad',
-          carpeta: 'Formatos',
-          area: 'GIC',
-          areaNombre: 'Gestión Integral Calidad',
-          tipoProceso: 'Estratégicos',
-          modificacion: '2026-09-26 00:45:00'
-        },
-        {
-          id: 'FMT-GIC-016_REG_003',
-          codigo: 'FMT-GIC-016-3',
-          titulo: 'Definición de criterios de formación Asma y EPOC 2026',
-          formato: 'PDF',
-          extension: 'PDF',
-          version: '01',
-          disponible: true,
-          descargable: true,
-          subclase: 'Registro',
-          esRegistro: true,
-          documentoPadreCodigo: 'FMT-GIC-016',
-          proceso: 'Gestión Integral de Calidad',
-          carpeta: 'Formatos',
-          area: 'GIC',
-          areaNombre: 'Gestión Integral Calidad',
-          tipoProceso: 'Estratégicos',
-          modificacion: '2026-09-26 00:45:00'
-        }
-      ].map((docSec) => {
-        const enlaces = this.generarEnlacesDocumentoSecundario(padreFmt, docSec);
-        return {
-          ...docSec,
-          downloadUrl: enlaces.downloadUrl,
-          sharepointUrl: enlaces.sharepointUrl
-        };
-      });
-
       const rawLocal = localStorage.getItem('agy_sgc_documentos_creados');
       let creados = {};
       if (rawLocal) {
@@ -464,11 +366,12 @@ export class DataService {
       for (const k of Object.keys(creados)) {
         if (k.startsWith('REG_FMT-GIC-016') || k.startsWith('FMT-GIC-016')) {
           delete creados[k];
+        } else if (creados[k]?.esRegistro || creados[k]?.subclase === 'Registro') {
+          // Regla de Negocio: Los registros derivados no almacenan URLs estáticas directas
+          delete creados[k].downloadUrl;
+          delete creados[k].sharepointUrl;
         }
       }
-      docsOficiales.forEach((docOfi) => {
-        creados[docOfi.codigo] = { ...creados[docOfi.codigo], ...docOfi };
-      });
       localStorage.setItem('agy_sgc_documentos_creados', JSON.stringify(creados));
 
       const rawConf = localStorage.getItem('agy_sgc_conf_cache');
@@ -479,11 +382,11 @@ export class DataService {
             for (const k of Object.keys(confObj.documentosCreados)) {
               if (k.startsWith('REG_FMT-GIC-016') || k.startsWith('FMT-GIC-016')) {
                 delete confObj.documentosCreados[k];
+              } else if (confObj.documentosCreados[k]?.esRegistro || confObj.documentosCreados[k]?.subclase === 'Registro') {
+                delete confObj.documentosCreados[k].downloadUrl;
+                delete confObj.documentosCreados[k].sharepointUrl;
               }
             }
-            docsOficiales.forEach((docOfi) => {
-              confObj.documentosCreados[docOfi.codigo] = { ...confObj.documentosCreados[docOfi.codigo], ...docOfi };
-            });
             localStorage.setItem('agy_sgc_conf_cache', JSON.stringify(confObj));
           }
         } catch {}
@@ -494,28 +397,44 @@ export class DataService {
   }
 
   /**
-   * Genera de forma determinística la ruta de la subcarpeta y los vínculos automáticos para un documento secundario.
-   * Regla técnica: La subcarpeta se aloja en la carpeta del documento base y se llama exactamente como el padre (sin extensión).
+   * Genera de forma determinística la ruta de la subcarpeta y los vínculos dinámicos para un documento secundario.
+   * Regla de Negocio Institucional:
+   * Los documentos derivados NO tienen vínculos directos almacenados en archivos estáticos.
+   * Dependen única y exclusivamente de la ruta del archivo base y se encuentran dentro de una
+   * subcarpeta que tendrá el nombre similar al documento padre (ej. 'FMT-GIC-015 Definición de criterios de formación').
    */
   generarEnlacesDocumentoSecundario(docPadre, docSecundario) {
     if (!docPadre) {
-      return { downloadUrl: '', sharepointUrl: '', subcarpeta: '', nombreArchivo: '' };
+      return { downloadUrl: '', sharepointUrl: '', subcarpeta: '', carpetaSub: '', nombreArchivo: '' };
     }
     const urlBasePadre = (docPadre.downloadUrl || docPadre.sharepointUrl || '').split('?')[0].trim();
     if (!urlBasePadre || !urlBasePadre.startsWith('http')) {
-      return { downloadUrl: '', sharepointUrl: '', subcarpeta: '', nombreArchivo: '' };
+      return { downloadUrl: '', sharepointUrl: '', subcarpeta: '', carpetaSub: '', nombreArchivo: '' };
     }
 
     const lastSlash = urlBasePadre.lastIndexOf('/');
     const carpetaContenedora = urlBasePadre.substring(0, lastSlash);
     const archivoPadre = urlBasePadre.substring(lastSlash + 1);
     const nombrePadreSinExt = decodeURIComponent(archivoPadre).replace(/\.[^/.]+$/, '').trim();
-    const subcarpeta = `${carpetaContenedora}/${nombrePadreSinExt}`;
+
+    // 1. Determinar el nombre de la subcarpeta institucional del padre
+    const codPadre = (docPadre.codigo || '').trim().toUpperCase();
+    let subcarpeta = '';
+
+    // Si existe en el mapa de carpetas físicas indexadas de SharePoint/OneDrive
+    if (this._mapaCarpetasOneDrive && this._mapaCarpetasOneDrive.has(codPadre)) {
+      subcarpeta = this._mapaCarpetasOneDrive.get(codPadre).urlDescarga || this._mapaCarpetasOneDrive.get(codPadre).urlEdicion || '';
+    }
+
+    if (!subcarpeta) {
+      // Regla de Negocio: Subcarpeta en la misma ubicación del padre con nombre similar al documento padre
+      const nombreSubcarpeta = `${docPadre.codigo} ${docPadre.titulo || ''}`.trim() || nombrePadreSinExt;
+      subcarpeta = `${carpetaContenedora}/${nombreSubcarpeta}`;
+    }
 
     const rawExt = ((docSecundario && docSecundario.extension) || docPadre.extension || 'DOC').toUpperCase();
     const ext = (rawExt.includes('XLS') || rawExt.includes('CSV')) ? 'xlsx' : 'docx';
 
-    const codPadre = (docPadre.codigo || '').trim().toUpperCase();
     const codSec = ((docSecundario && docSecundario.codigo) || codPadre).trim().toUpperCase();
 
     let tit = ((docSecundario && (docSecundario.titulo || docSecundario.nombre)) || '').trim();
@@ -539,6 +458,71 @@ export class DataService {
       downloadUrl: downloadUrl,
       sharepointUrl: sharepointUrl
     };
+  }
+
+  /**
+   * Obtiene un documento por su código institucional
+   */
+  obtenerDocumentoPorCodigo(codigo) {
+    if (!codigo) return null;
+    const codUpper = codigo.trim().toUpperCase();
+    if (Array.isArray(this.documentosEnMemoria)) {
+      const d = this.documentosEnMemoria.find((doc) => (doc.codigo || '').toUpperCase() === codUpper && !doc.esRegistro);
+      if (d) return d;
+    }
+    if (typeof DOCUMENTOS_REALES !== 'undefined' && Array.isArray(DOCUMENTOS_REALES)) {
+      const d = DOCUMENTOS_REALES.find((doc) => (doc.codigo || '').toUpperCase() === codUpper && !doc.esRegistro);
+      if (d) return d;
+    }
+    const MAPA_RENOMBRES = { 'FMT-GIC-016': 'FMT-GIC-015', 'FMT-GIC-015': 'FMT-GIC-016' };
+    const alias = MAPA_RENOMBRES[codUpper];
+    if (alias) {
+      if (Array.isArray(this.documentosEnMemoria)) {
+        const d = this.documentosEnMemoria.find((doc) => (doc.codigo || '').toUpperCase() === alias && !doc.esRegistro);
+        if (d) return d;
+      }
+      if (typeof DOCUMENTOS_REALES !== 'undefined' && Array.isArray(DOCUMENTOS_REALES)) {
+        const d = DOCUMENTOS_REALES.find((doc) => (doc.codigo || '').toUpperCase() === alias && !doc.esRegistro);
+        if (d) return d;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Obtiene el documento base (padre) asociado a un documento derivado
+   */
+  obtenerDocumentoPadre(doc) {
+    if (!doc) return null;
+    let codPadre = (doc.documentoPadreCodigo || '').trim().toUpperCase();
+    if (!codPadre && doc.codigo) {
+      const m = (doc.codigo || '').match(/^([A-Z]{3,4}-[A-Z]{2,4}-\d{3,4})-\d+$/i);
+      if (m) codPadre = m[1].toUpperCase();
+    }
+    if (!codPadre) return null;
+    return this.obtenerDocumentoPorCodigo(codPadre);
+  }
+
+  /**
+   * Verifica si un documento tiene un archivo físico individual registrado en OneDrive con extensión válida
+   */
+  existeArchivoEnOneDrive(doc) {
+    if (!doc || !doc.codigo) return false;
+    const codUpper = (doc.codigo || '').trim().toUpperCase();
+    if (!this._ultimoOnedriveMap) return false;
+
+    const od = this._ultimoOnedriveMap.get(codUpper);
+    if (od && od.downloadUrl && /\.(docx|pdf|xlsx|doc|xls|csv)(\?|$)/i.test(od.downloadUrl)) {
+      return true;
+    }
+    if (doc.titulo) {
+      const tNorm = this.normalizarTexto(doc.titulo);
+      const odComp = this._ultimoOnedriveMap.get(`${codUpper}::${tNorm}`);
+      if (odComp && odComp.downloadUrl && /\.(docx|pdf|xlsx|doc|xls|csv)(\?|$)/i.test(odComp.downloadUrl)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /**
@@ -609,26 +593,38 @@ export class DataService {
   }
 
   /**
-   * Obtiene los documentos con estrategia Stale-While-Revalidate (IndexedDB + live sync)
-   * Renderizado instantáneo a 0 ms y revalidación asíncrona en segundo plano.
+   * Obtiene los documentos con estrategia Stale-While-Revalidate no volátil (IndexedDB + 24h TTL)
+   * Renderizado instantáneo a 0 ms y revalidación asíncrona en segundo plano diariamente o bajo demanda.
    */
   async obtenerDocumentos(forzarRefresco = false) {
-    // 1. Carga inmediata desde IndexedDB si no se fuerza refresco y no hay datos en memoria
-    if (!forzarRefresco && (!this.documentosEnMemoria || this.documentosEnMemoria.length === 0)) {
+    // 1. Carga inmediata desde IndexedDB si no se fuerza refresco
+    if (!forzarRefresco) {
       try {
+        const repoMeta = await cacheService.obtenerColeccionConMeta('documentos_catalogo');
         const cachedDocs = await cacheService.obtenerDocumentos();
         if (Array.isArray(cachedDocs) && cachedDocs.length > 0) {
           this.documentosEnMemoria = cachedDocs;
-          console.log(`[DataService] ⚡ Catálogo cargado instantáneamente desde IndexedDB (${cachedDocs.length} docs).`);
-          
-          // Revalidar en segundo plano sin congelar la UI
-          this.descargarCsvEnVivo(false).then((freshDocs) => {
-            if (freshDocs && freshDocs.length > 0) {
-              this.documentosEnMemoria = freshDocs;
-              cacheService.guardarDocumentos(freshDocs);
-              window.dispatchEvent(new CustomEvent('agy_docs_updated', { detail: freshDocs }));
-            }
-          }).catch(() => { });
+          const ahora = Date.now();
+          const edadMs = ahora - (repoMeta?.timestamp || 0);
+          const TTL_DIARIO_MS = 24 * 60 * 60 * 1000; // 24 horas
+
+          if (edadMs < TTL_DIARIO_MS) {
+            console.log(`[DataService] ⚡ Catálogo cargado desde caché persistente (${cachedDocs.length} docs, edad: ${Math.round(edadMs / 60000)} min).`);
+            return cachedDocs;
+          }
+
+          // Si superó 24h, devolver inmediatamente para renderizado a 0 ms y revalidar en segundo plano
+          console.log(`[DataService] 🔄 Caché documental diaria vencida (>24h). Revalidando en segundo plano...`);
+          setTimeout(() => {
+            this.descargarCsvEnVivo(true).then((freshDocs) => {
+              if (freshDocs && freshDocs.length > 0) {
+                this.documentosEnMemoria = freshDocs;
+                cacheService.guardarDocumentos(freshDocs);
+                cacheService.guardarColeccion('documentos_catalogo', { total: freshDocs.length });
+                window.dispatchEvent(new CustomEvent('agy_docs_updated', { detail: freshDocs }));
+              }
+            }).catch(() => {});
+          }, 100);
 
           return cachedDocs;
         }
@@ -642,6 +638,7 @@ export class DataService {
       if (liveDocs && liveDocs.length > 0) {
         this.documentosEnMemoria = liveDocs;
         cacheService.guardarDocumentos(liveDocs);
+        cacheService.guardarColeccion('documentos_catalogo', { total: liveDocs.length });
         return liveDocs;
       }
     } catch (e) {
@@ -655,6 +652,7 @@ export class DataService {
     return this.documentosEnMemoria;
   }
 
+
   /**
    * Descarga en vivo Biblioteca (Google Sheets) y REPOSITORIO_DOCUMENTAL.csv (OneDrive) y los fusiona
    */
@@ -663,11 +661,12 @@ export class DataService {
     const queryOD = `?_t=${timestamp}${forzarRefresco ? '&forzar=true' : ''}`;
     const queryGS = `?_t=${timestamp}${forzarRefresco ? '&forzar=true' : ''}`;
     const esLocal = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+    let jsonObjRepositorio = null;
     let textoOneDrive = null;
     let textoGoogleSheets = null;
 
-    // 1. Descargar REPOSITORIO_DOCUMENTAL.csv (OneDrive / SharePoint)
-    // En entorno local se consulta el proxy acelerador /api/repositorio; en GitHub Pages se omite para evitar latencia 404
+    // 1. Descargar catálogo estructurado (repositorio.dat / /api/repositorio) o REPOSITORIO_DOCUMENTAL.csv
+    // En entorno local se consulta el proxy /api/repositorio; en GitHub Pages o red estática se descarga repositorio.dat
     if (esLocal) {
       try {
         const responseOD = await fetch(`/api/repositorio${queryOD}`, {
@@ -678,7 +677,12 @@ export class DataService {
 
         if (responseOD.ok) {
           const txt = await responseOD.text();
-          if (txt && (txt.includes(';') || txt.includes(',')) && !txt.includes('<!DOCTYPE html')) {
+          if (txt && txt.trim().startsWith('{')) {
+            try {
+              jsonObjRepositorio = JSON.parse(txt);
+              cacheService.guardarRepositorio(jsonObjRepositorio);
+            } catch {}
+          } else if (txt && (txt.includes(';') || txt.includes(',')) && !txt.includes('<!DOCTYPE html')) {
             textoOneDrive = txt;
           }
         }
@@ -687,8 +691,25 @@ export class DataService {
       }
     }
 
-    // Consulta directa a la ruta oficial de OneDrive en la nube si no se obtuvo por proxy local
-    if (!textoOneDrive) {
+    // Consulta estática directa a repositorio.dat si no se obtuvo por proxy
+    if (!jsonObjRepositorio && !textoOneDrive) {
+      try {
+        const respDat = await fetch(`repositorio.dat${queryOD}`, {
+          cache: 'no-cache',
+          signal: AbortSignal.timeout ? AbortSignal.timeout(3000) : undefined
+        });
+        if (respDat.ok) {
+          const txtDat = await respDat.text();
+          if (txtDat && txtDat.trim().startsWith('{')) {
+            jsonObjRepositorio = JSON.parse(txtDat);
+            cacheService.guardarRepositorio(jsonObjRepositorio);
+          }
+        }
+      } catch (eDat) {}
+    }
+
+    // Consulta directa a la ruta oficial de OneDrive en la nube si no se obtuvo por proxy local ni repositorio.dat
+    if (!jsonObjRepositorio && !textoOneDrive) {
       let rutaCloud = 'https://unionsaludvida-my.sharepoint.com/:x:/p/plantillas/IQCctVunBodCQq97XWMPrue7AaIRpd-pVgSUuZrMBWBcA2A?e=revQbX&download=1';
       try {
         const savedRoutes = localStorage.getItem('agy_sgc_custom_routes');
@@ -714,21 +735,35 @@ export class DataService {
       } catch (eCloud) {}
     }
 
-    // Fallback estático en caso de red aislada
-    if (!textoOneDrive) {
+    // Consulta de contingencia vía Google Apps Script (proxy en la nube con CORS habilitado para GitHub Pages)
+    if (!jsonObjRepositorio && !textoOneDrive) {
       try {
-        const respLocal = await fetch(`REPOSITORIO_DOCUMENTAL.csv${queryOD}`, {
+        const urlGasOD = `https://script.google.com/macros/s/AKfycbx4-82Ls3Zu5gdzXlAhezZ6ew9tnAece8xSDMQ8QmXcu7UCnMxwqB48ISG_LwNDUgMiQQ/exec?action=repositorio&_t=${timestamp}`;
+        const respGasOD = await fetch(urlGasOD, {
           cache: 'no-cache',
-          signal: AbortSignal.timeout ? AbortSignal.timeout(3000) : undefined
+          signal: AbortSignal.timeout ? AbortSignal.timeout(8000) : undefined
         });
-        if (respLocal.ok) {
-          const txtLocal = await respLocal.text();
-          if (txtLocal && (txtLocal.includes(';') || txtLocal.includes(',')) && !txtLocal.includes('<!DOCTYPE html')) {
-            textoOneDrive = txtLocal;
+        if (respGasOD.ok) {
+          const txtGasOD = await respGasOD.text();
+          if (txtGasOD && (txtGasOD.includes(';') || txtGasOD.includes(',')) && !txtGasOD.includes('<!DOCTYPE html')) {
+            textoOneDrive = txtGasOD;
+            console.log('[DataService] ✅ Catálogo de OneDrive descargado en vivo vía proxy en la nube (CORS habilitado).');
           }
         }
-      } catch (e) {}
+      } catch (eGasOD) {}
     }
+
+    // Fallback de contingencia: Caché web temporal/persistente del usuario (IndexedDB)
+    if (!jsonObjRepositorio && !textoOneDrive) {
+      try {
+        const repoCacheWeb = await cacheService.obtenerRepositorio();
+        if (repoCacheWeb && repoCacheWeb.documentos && repoCacheWeb.documentos.length > 0) {
+          jsonObjRepositorio = repoCacheWeb;
+          console.log(`[DataService] ⚡ Recuperado catálogo estructurado desde almacenamiento web local del usuario (${repoCacheWeb.documentos.length} docs).`);
+        }
+      } catch (eWebCache) {}
+    }
+
 
     // 2. Descargar Biblioteca (Google Sheets - SSOT Maestra)
     // En entorno local se consulta el proxy /api/biblioteca; en GitHub Pages se conecta directo a la nube
@@ -791,9 +826,51 @@ export class DataService {
       } catch (eGas) {}
     }
 
-    // 3. Parsear mapa técnico de OneDrive (9 columnas)
-    const onedriveMap = textoOneDrive ? this.parsearOneDriveMap(textoOneDrive) : new Map();
+    // 3. Parsear mapa técnico de OneDrive indexado a <1ms (prioridad estructurada repositorio.dat)
+    let onedriveMap = new Map();
+    if (jsonObjRepositorio) {
+      onedriveMap = this.parsearRepositorioDat(jsonObjRepositorio);
+    } else if (textoOneDrive) {
+      onedriveMap = this.parsearOneDriveMap(textoOneDrive);
+      try {
+        const docsArray = [];
+        onedriveMap.forEach((v, k) => {
+          if (!k.includes('::') && !k.startsWith('_LISTA_')) {
+            docsArray.push({
+              codigo: v.codigo || k,
+              titulo: v.nombre || v.titulo || '',
+              extension: v.extension || '',
+              formato: v.formato || '',
+              carpeta: v.carpeta || '',
+              proceso: v.carpeta || '',
+              tipoDocumento: v.tipoDoc || '',
+              vinculoEdicion: v.urlEdicion || '',
+              vinculoDescarga: v.urlDescarga || '',
+              sharepointUrl: v.urlEdicion || v.urlDescarga || '',
+              downloadUrl: v.urlDescarga || v.urlEdicion || '',
+              disponible: true
+            });
+          }
+        });
+        if (docsArray.length > 0) {
+          cacheService.guardarRepositorio({
+            version: '1.0',
+            empresa: 'Unión para la salud y la vida S.A.S.',
+            ultimaActualizacion: new Date().toISOString(),
+            total: docsArray.length,
+            documentos: docsArray
+          });
+          console.log(`[DataService] 💾 Guardado repositorio en almacenamiento web local del usuario (${docsArray.length} docs).`);
+        }
+      } catch (eSave) {}
+    } else {
+      const repoPersistente = await cacheService.obtenerRepositorio();
+      if (repoPersistente) {
+        onedriveMap = this.parsearRepositorioDat(repoPersistente);
+      }
+    }
     this._ultimoOnedriveMap = onedriveMap;
+
 
     // 4. Si tenemos Google Sheets, parsear híbrido
     if (textoGoogleSheets) {
@@ -832,40 +909,96 @@ export class DataService {
       });
 
       // Incorporar también registros de onedriveMap que no estén en DOCUMENTOS_REALES
-      const codigosReales = new Set(DOCUMENTOS_REALES.map((d) => (d.codigo || '').toUpperCase()));
+      const codigosReales = new Set(fusionados.map((d) => (d.codigo || '').toUpperCase()));
       onedriveMap.forEach((od, cod) => {
-        if (!codigosReales.has(cod)) {
-          fusionados.push({
-            id: cod,
-            codigo: cod,
-            titulo: od.titulo || cod,
-            formato: od.formato || 'Word',
-            extension: od.extension || 'DOC',
-            estado: 'DISPONIBLE',
-            disponible: true,
-            descargable: true,
-            permisoOperativo: true,
-            permisoAdministrativo: true,
-            permisoDirectivo: true,
-            estadoDocumento: 'Activo',
-            tipoProceso: od.tipoProceso || 'Estratégicos',
-            area: od.area || 'Gestión Integral Calidad',
-            proceso: od.proceso || 'Gestión Integral de Calidad',
-            carpeta: od.carpeta || od.proceso || 'Formatos',
-            tipoDocumento: od.tipoDocumento || 'Formato',
-            modificacion: od.modificacion || 'N/A',
-            version: '01',
-            vigencia: '25/9/2026',
-            tiempoRetencion: '5 Años',
-            lugar: 'Archivo Digital',
-            fechaVencimiento: '',
-            tipoCambio: 'Creación del documento',
-            descripcion: `${od.tipoDocumento || 'Formato'} para ${od.area || 'Calidad'}.`,
-            sharepointUrl: od.sharepointUrl,
-            downloadUrl: od.downloadUrl
-          });
+        if (!cod || cod.startsWith('_LISTA_') || cod.includes('::') || Array.isArray(od) || !od || typeof od !== 'object') return;
+        const codUpper = cod.toUpperCase();
+        if (codigosReales.has(codUpper)) return;
+
+        // Si es documento secundario/derivado, asociar a su documento padre
+        const mSec = codUpper.match(/^([A-Z]{3,4}-[A-Z]{2,4}-\d{3,4})-(\d+)$/i);
+        if (mSec) {
+          const codPadre = mSec[1];
+          const padre = fusionados.find((d) => (d.codigo || '').toUpperCase() === codPadre);
+          if (padre) {
+            padre.registrosDerivados = padre.registrosDerivados || [];
+            const regObj = {
+              id: `${codUpper}_REG`,
+              codigo: codUpper,
+              titulo: od.titulo || codUpper,
+              formato: od.formato || 'Word',
+              extension: od.extension || 'DOC',
+              estado: 'DISPONIBLE',
+              disponible: true,
+              descargable: true,
+              permisoOperativo: true,
+              permisoAdministrativo: true,
+              permisoDirectivo: true,
+              estadoDocumento: 'Activo',
+              tipoProceso: padre.tipoProceso,
+              area: padre.area,
+              areaNombre: padre.areaNombre || padre.area,
+              proceso: padre.proceso,
+              carpeta: padre.carpeta || padre.proceso,
+              tipoDocumento: 'Registro',
+              subclase: 'Registro',
+              esRegistro: true,
+              documentoPadreCodigo: codPadre,
+              modificacion: od.modificacion || 'N/A',
+              version: '01',
+              vigencia: padre.vigencia || '01/08/2026',
+              tiempoRetencion: padre.tiempoRetencion || '5 Años',
+              lugar: 'Archivo Digital',
+              fechaVencimiento: '',
+              tipoCambio: 'Creación del documento',
+              descripcion: `Registro Derivado de ${codPadre}.`,
+              sharepointUrl: od.sharepointUrl,
+              downloadUrl: od.downloadUrl
+            };
+            const idxExistente = padre.registrosDerivados.findIndex((r) => (r.codigo || '').toUpperCase() === codUpper);
+            if (idxExistente >= 0) {
+              padre.registrosDerivados[idxExistente] = { ...padre.registrosDerivados[idxExistente], ...regObj };
+            } else {
+              padre.registrosDerivados.push(regObj);
+            }
+            padre.registrosDerivados = this._deduplicarRegistros(padre.registrosDerivados);
+            codigosReales.add(codUpper);
+            return;
+          }
         }
+
+        codigosReales.add(codUpper);
+        fusionados.push({
+          id: codUpper,
+          codigo: codUpper,
+          titulo: od.titulo || codUpper,
+          formato: od.formato || 'Word',
+          extension: od.extension || 'DOC',
+          estado: 'DISPONIBLE',
+          disponible: true,
+          descargable: true,
+          permisoOperativo: true,
+          permisoAdministrativo: true,
+          permisoDirectivo: true,
+          estadoDocumento: 'Activo',
+          tipoProceso: od.tipoProceso || 'Estratégicos',
+          area: od.area || 'Gestión Integral Calidad',
+          proceso: od.proceso || 'Gestión Integral de Calidad',
+          carpeta: od.carpeta || od.proceso || 'Formatos',
+          tipoDocumento: od.tipoDocumento || 'Formato',
+          modificacion: od.modificacion || 'N/A',
+          version: '01',
+          vigencia: '25/9/2026',
+          tiempoRetencion: '5 Años',
+          lugar: 'Archivo Digital',
+          fechaVencimiento: '',
+          tipoCambio: 'Creación del documento',
+          descripcion: `${od.tipoDocumento || 'Formato'} para ${od.area || 'Calidad'}.`,
+          sharepointUrl: od.sharepointUrl,
+          downloadUrl: od.downloadUrl
+        });
       });
+
 
       fusionados = this.incorporarDocumentosCreados(fusionados, onedriveMap);
       this.documentosEnMemoria = fusionados;
@@ -959,13 +1092,21 @@ export class DataService {
         if (m) extRaw = '.' + m[1].toLowerCase();
       }
 
-      // Ignorar filas que correspondan a carpetas o subdirectorios de SharePoint (sin extensión de archivo)
+      // Ignorar filas que correspondan a carpetas o subdirectorios de SharePoint (sin extensión de archivo), pero almacenarlas como mapa de carpetas
       const tieneExtValida = Boolean(
         extRaw ||
         (vinculoDescarga && /\.(docx|pdf|xlsx|doc|xls|csv)(\?|$)/i.test(vinculoDescarga)) ||
         (valores[1] && /\.(docx|pdf|xlsx|doc|xls|csv)$/i.test(valores[1].trim()))
       );
       if (!tieneExtValida) {
+        this._mapaCarpetasOneDrive = this._mapaCarpetasOneDrive || new Map();
+        const codUpper = codigo.toUpperCase();
+        this._mapaCarpetasOneDrive.set(codUpper, {
+          codigo: codUpper,
+          nombreCarpeta: valores[1] || '',
+          urlEdicion: vinculoEdicion,
+          urlDescarga: vinculoDescarga
+        });
         continue;
       }
 
@@ -1094,48 +1235,86 @@ export class DataService {
   }
 
   /**
-   * Busca de forma resiliente un archivo en el mapa de OneDrive considerando código y nombre único diferencial
+   * Parsea el catálogo estructurado JSON (repositorio.dat / /api/repositorio)
+   * creando el mapa de indexación inmediata a <1 ms para documentos base y secundarios.
+   */
+  parsearRepositorioDat(jsonObj) {
+    const mapa = new Map();
+    if (!jsonObj) return mapa;
+    const items = Array.isArray(jsonObj) ? jsonObj : (jsonObj.documentos || []);
+
+    for (const item of items) {
+      if (!item || !item.codigo) continue;
+      const codUpper = item.codigo.trim().toUpperCase();
+      const itemOD = {
+        codigo: item.codigo,
+        titulo: item.titulo || item.documento || '',
+        extension: item.extension || '',
+        formato: item.formato || 'Word',
+        tipoProceso: item.tipoProceso || '',
+        area: item.area || item.carpeta || '',
+        proceso: item.proceso || item.carpeta || '',
+        carpeta: item.carpeta || '',
+        tipoDocumento: item.tipoDocumento || '',
+        modificacion: item.modificacion || '',
+        sharepointUrl: item.sharepointUrl || item.vinculoEdicion || item.vinculoDescarga || '',
+        downloadUrl: item.downloadUrl || item.vinculoDescarga || item.vinculoEdicion || ''
+      };
+
+      if (!mapa.has(codUpper)) {
+        mapa.set(codUpper, itemOD);
+      }
+      const tNorm = this.normalizarTexto(itemOD.titulo);
+      if (tNorm) {
+        mapa.set(`${codUpper}::${tNorm}`, itemOD);
+      }
+      const claveLista = `_LISTA_${codUpper}`;
+      if (!mapa.has(claveLista)) {
+        mapa.set(claveLista, []);
+      }
+      mapa.get(claveLista).push(itemOD);
+    }
+
+    return mapa;
+  }
+
+  /**
+   * Busca de forma directa y oficial un archivo en el mapa de OneDrive.
+   * POLÍTICA INSTITUCIONAL ACTUALIZADA:
+   * El repositorio contiene los vínculos oficiales de TODOS los documentos (tanto base como secundarios).
+   * NO se calculan rutas.
    */
   buscarEnOneDriveMap(onedriveMap, codigo, titulo = '', esRegistro = false) {
-    if (!onedriveMap || !codigo || esRegistro) return null;
+    if (!onedriveMap || !codigo) return null;
     const codUpper = (codigo || '').trim().toUpperCase();
     const tNorm = this.normalizarTexto(titulo);
-    const itemBaseOD = onedriveMap.get(codUpper);
-    const titBaseODNorm = itemBaseOD ? this.normalizarTexto(itemBaseOD.titulo) : '';
 
+    // 1. Coincidencia exacta por código oficial (aplica tanto para base FMT-GIC-015 como derivado FMT-GIC-015-3)
+    if (onedriveMap.has(codUpper)) {
+      return onedriveMap.get(codUpper);
+    }
+
+    // 2. Coincidencia compuesta código::título normalizado
     if (tNorm) {
       const claveCompuesta = `${codUpper}::${tNorm}`;
       if (onedriveMap.has(claveCompuesta)) {
-        const item = onedriveMap.get(claveCompuesta);
-        if (esRegistro && titBaseODNorm && this.normalizarTexto(item.titulo) === titBaseODNorm) {
-          return null;
-        }
-        return item;
+        return onedriveMap.get(claveCompuesta);
       }
       const lista = onedriveMap.get(`_LISTA_${codUpper}`);
       if (Array.isArray(lista) && lista.length > 0) {
-        const exacto = lista.find((it) => {
-          const itNorm = this.normalizarTexto(it.titulo);
-          if (esRegistro && titBaseODNorm && itNorm === titBaseODNorm) return false;
-          return itNorm === tNorm;
-        });
+        const exacto = lista.find((it) => this.normalizarTexto(it.titulo) === tNorm);
         if (exacto) return exacto;
         const parcial = lista.find((it) => {
           const itNorm = this.normalizarTexto(it.titulo);
-          if (esRegistro && titBaseODNorm && itNorm === titBaseODNorm) return false;
           return itNorm.includes(tNorm) || tNorm.includes(itNorm);
         });
         if (parcial) return parcial;
       }
     }
 
-    if (esRegistro) {
-      // Un registro derivado NUNCA debe asociarse al archivo del formato base padre
-      return null;
-    }
-
-    return onedriveMap.get(codUpper) || null;
+    return null;
   }
+
 
   /**
    * Procesa la hoja de Google Sheets (Biblioteca) y combina los metadatos y vínculos técnicos de OneDrive
@@ -1390,11 +1569,17 @@ export class DataService {
           registroObj.tipoProceso = docPadre.tipoProceso;
           registroObj.documentoPadreCodigo = docPadre.codigo;
 
-          // Generación automática y determinística de vínculos: para documentos secundarios LA RUTA SE CALCULA
-          const enlacesAuto = this.generarEnlacesDocumentoSecundario(docPadre, registroObj);
-          registroObj.downloadUrl = enlacesAuto.downloadUrl;
-          registroObj.sharepointUrl = enlacesAuto.sharepointUrl;
-          registroObj.disponible = Boolean(enlacesAuto.downloadUrl || enlacesAuto.sharepointUrl);
+          // POLÍTICA INSTITUCIONAL ACTUALIZADA:
+          // Todos los documentos secundarios y base tienen sus vínculos oficiales directos en el repositorio.
+          // NO se calculan rutas. Se toma directamente el enlace de OneDrive/SharePoint indexado.
+          if (!registroObj.downloadUrl && !registroObj.sharepointUrl) {
+            const odDirecto = this.buscarEnOneDriveMap(onedriveMap, registroObj.codigo, registroObj.titulo);
+            if (odDirecto) {
+              registroObj.downloadUrl = odDirecto.downloadUrl;
+              registroObj.sharepointUrl = odDirecto.sharepointUrl;
+            }
+          }
+          registroObj.disponible = Boolean(registroObj.downloadUrl || registroObj.sharepointUrl);
           registroObj.estado = registroObj.disponible ? 'DISPONIBLE' : 'NO DISPONIBLE';
 
           const coincideYa = (r) => {
@@ -1423,14 +1608,19 @@ export class DataService {
       if (mapaDocsBase.has(codP)) {
         const docPadre = mapaDocsBase.get(codP);
         docPadre.registrosDerivados = docPadre.registrosDerivados || [];
-        const enlacesAuto = this.generarEnlacesDocumentoSecundario(docPadre, registroObj);
-        registroObj.downloadUrl = enlacesAuto.downloadUrl;
-        registroObj.sharepointUrl = enlacesAuto.sharepointUrl;
-        registroObj.disponible = Boolean(enlacesAuto.downloadUrl || enlacesAuto.sharepointUrl);
+        if (!registroObj.downloadUrl && !registroObj.sharepointUrl) {
+          const odDirecto = this.buscarEnOneDriveMap(onedriveMap, registroObj.codigo, registroObj.titulo);
+          if (odDirecto) {
+            registroObj.downloadUrl = odDirecto.downloadUrl;
+            registroObj.sharepointUrl = odDirecto.sharepointUrl;
+          }
+        }
+        registroObj.disponible = Boolean(registroObj.downloadUrl || registroObj.sharepointUrl);
         registroObj.estado = registroObj.disponible ? 'DISPONIBLE' : 'NO DISPONIBLE';
         docPadre.registrosDerivados.push(registroObj);
         docPadre.registrosDerivados = this._deduplicarRegistros(docPadre.registrosDerivados);
       } else {
+
         const docBaseSintetico = {
           ...registroObj,
           id: codP,
@@ -1729,11 +1919,14 @@ export class DataService {
    * sin abrir páginas en blanco ni visores en el navegador.
    */
   async descargarDocumentoComoPdf(doc) {
+    if (!doc) return false;
+
     const urlPdf = this.obtenerUrlDescargaPdf(doc);
     if (!urlPdf || urlPdf === '#' || urlPdf === '') {
-      alert(`El documento ${doc.codigo || ''} no tiene enlace de descarga disponible.`);
+      alert(`El documento ${doc.codigo || ''} no tiene enlace de descarga disponible en el repositorio.`);
       return false;
     }
+
 
     const codigo = (doc.codigo || 'DOC').trim();
     const titulo = (doc.titulo || 'documento').trim();
@@ -1831,12 +2024,16 @@ export class DataService {
     }
 
     // Documentos con prefijo FMT (Word o Excel) y hojas de cálculo: Descarga nativa editable original
-    const url = doc.downloadUrl || doc.sharepointUrl;
+    let url = doc.downloadUrl || doc.sharepointUrl;
     if (url && url !== '#' && url !== '') {
+      if (url.includes('sharepoint.com') && !url.includes('download=1')) {
+        const sep = url.includes('?') ? '&' : '?';
+        url = `${url}${sep}download=1`;
+      }
       window.open(url, '_blank', 'noopener,noreferrer');
       return true;
     } else {
-      alert(`El documento ${doc.codigo} no tiene enlace de descarga disponible.`);
+      alert(`El documento ${doc.codigo} no tiene enlace de descarga disponible en el repositorio.`);
       return false;
     }
   }
@@ -1860,6 +2057,7 @@ export class DataService {
       alert(`El documento ${doc.codigo} no tiene enlace de edición configurado.`);
     }
   }
+
 
   abrirEnSharePoint(doc) {
     this.abrirEnEdicion(doc);
@@ -1947,6 +2145,29 @@ export class DataService {
 
   obtenerUrlCarpetaUbicacion(doc) {
     if (!doc) return null;
+
+    const esDerivado = Boolean(
+      doc.esRegistro === true ||
+      doc.documentoPadreCodigo ||
+      (doc.id && String(doc.id).includes('_REG_')) ||
+      (doc.codigo && /^[A-Z]{3,4}-[A-Z]{2,4}-\d{3,4}-\d+$/i.test(doc.codigo))
+    );
+
+    // REGLA DE NEGOCIO: Los documentos derivados se encuentran dentro de una subcarpeta
+    // que depende exclusivamente de la ruta del documento base y cuyo nombre es similar al documento padre.
+    if (esDerivado) {
+      if (doc.subcarpetaUrl && doc.subcarpetaUrl.startsWith('http')) {
+        return doc.subcarpetaUrl;
+      }
+      const docPadre = this.obtenerDocumentoPadre(doc);
+      if (docPadre) {
+        const enlaces = this.generarEnlacesDocumentoSecundario(docPadre, doc);
+        if (enlaces && enlaces.subcarpeta) {
+          return enlaces.subcarpeta;
+        }
+      }
+    }
+
     const url = (doc.sharepointUrl || doc.downloadUrl || '').trim();
     if (url && url.startsWith('http') && (url.includes('/Documentos compartidos/') || url.includes('/Shared Documents/'))) {
       try {
@@ -1979,7 +2200,7 @@ export class DataService {
 
   obtenerRutaLegible(doc) {
     if (!doc) return 'No se encuentra disponible';
-    const url = (doc.sharepointUrl || doc.downloadUrl || '').trim();
+    const url = (doc.sharepointUrl || doc.downloadUrl || this.obtenerUrlCarpetaUbicacion(doc) || '').trim();
     if (url && url.startsWith('http') && (url.includes('/Documentos compartidos/') || url.includes('/Shared Documents/'))) {
       try {
         const decoded = decodeURIComponent(url.split('?')[0]);
@@ -1988,9 +2209,10 @@ export class DataService {
         if (idx !== -1) {
           const fullRel = decoded.substring(idx + marker.length);
           const lastSlash = fullRel.lastIndexOf('/');
-          if (lastSlash > 0) {
+          if (/\.(docx|pdf|xlsx|doc|xls|csv)$/i.test(fullRel) && lastSlash > 0) {
             return fullRel.substring(0, lastSlash);
           }
+          return fullRel;
         }
       } catch (e) {
         console.warn('[sharepointService] Error extrayendo ruta de URL:', e);
@@ -2073,6 +2295,15 @@ export class DataService {
             regSpUrl = '';
             regDlUrl = '';
           }
+          let spUrlFinal = regSpUrl;
+          let dlUrlFinal = regDlUrl;
+          if (!spUrlFinal && !dlUrlFinal && mapOD) {
+            const odDirecto = this.buscarEnOneDriveMap(mapOD, codUpper, docObj.titulo);
+            if (odDirecto) {
+              dlUrlFinal = odDirecto.downloadUrl;
+              spUrlFinal = odDirecto.sharepointUrl;
+            }
+          }
           const docCorregido = {
             ...docObj,
             id: docObj.id || `${codUpper}_REG_${Date.now()}`,
@@ -2087,18 +2318,12 @@ export class DataService {
             tipoProceso: base.tipoProceso,
             formato: formatoSec,
             extension: extSec,
-            sharepointUrl: regSpUrl,
-            downloadUrl: regDlUrl,
-            disponible: Boolean(regDlUrl || regSpUrl),
-            estado: (regDlUrl || regSpUrl) ? 'DISPONIBLE' : 'NO DISPONIBLE'
+            sharepointUrl: spUrlFinal,
+            downloadUrl: dlUrlFinal,
+            disponible: Boolean(dlUrlFinal || spUrlFinal),
+            estado: (dlUrlFinal || spUrlFinal) ? 'DISPONIBLE' : 'NO DISPONIBLE'
           };
 
-          // La ruta de los documentos secundarios SE CALCULA SIEMPRE de forma determinística a partir del documento padre
-          const enlaces = this.generarEnlacesDocumentoSecundario(base, docCorregido);
-          docCorregido.downloadUrl = enlaces.downloadUrl;
-          docCorregido.sharepointUrl = enlaces.sharepointUrl;
-          docCorregido.disponible = Boolean(enlaces.downloadUrl || enlaces.sharepointUrl);
-          docCorregido.estado = docCorregido.disponible ? 'DISPONIBLE' : 'NO DISPONIBLE';
 
           const coincideReg = (r) => {
             if (docObj.id && r.id === docObj.id) return true;

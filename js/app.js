@@ -11,11 +11,11 @@
  * - Modo Edición: Desbloqueo Automático para Acceso Total y Contraseña Personal para Directivos y Administrativos
  */
 
-import { sharepointService, determinarEstrategiaDescarga, esDocumentoFMT } from './sharepoint-service.js?v=11.6.86';
-import { filterEngine } from './filters.js?v=11.6.86';
-import { modalManager } from './modal.js?v=11.6.86';
-import { analyticsManager } from './analytics.js?v=11.6.86';
-import { staffService } from './staff-service.js?v=11.6.86';
+import { sharepointService, determinarEstrategiaDescarga, esDocumentoFMT } from './sharepoint-service.js?v=11.6.87';
+import { filterEngine } from './filters.js?v=11.6.87';
+import { modalManager } from './modal.js?v=11.6.87';
+import { analyticsManager } from './analytics.js?v=11.6.87';
+import { staffService } from './staff-service.js?v=11.6.87';
 
 const STORAGE_KEY_EDIT_MODE = 'agy_sgc_edit_mode';
 const STORAGE_KEY_FAVORITES = 'agy_sgc_favorites';
@@ -1737,13 +1737,14 @@ class AppController {
             disponible: reg.disponible !== false,
             descargable: reg.descargable !== false,
             estado: reg.estado || 'DISPONIBLE',
-            sharepointUrl: reg.sharepointUrl || d.sharepointUrl,
-            downloadUrl: reg.downloadUrl || d.downloadUrl,
-            carpetaSharepointUrl: reg.carpetaSharepointUrl || d.carpetaSharepointUrl,
+            sharepointUrl: reg.sharepointUrl || '',
+            downloadUrl: reg.downloadUrl || '',
+            carpetaSharepointUrl: reg.carpetaSharepointUrl || '',
             documentoPadreCodigo: d.codigo,
             documentoPadreTitulo: d.titulo,
             documentoPadreId: d.id,
-            esRegistro: true
+            esRegistro: true,
+            subcarpetaUrl: d.downloadUrl ? (sharepointService?.generarEnlacesDocumentoSecundario ? sharepointService.generarEnlacesDocumentoSecundario(d, reg).subcarpeta : '') : ''
           };
         }
       }
@@ -1980,13 +1981,14 @@ class AppController {
               disponible: reg.disponible !== false,
               descargable: reg.descargable !== false,
               estado: reg.estado || 'DISPONIBLE',
-              sharepointUrl: reg.sharepointUrl || doc.sharepointUrl,
-              downloadUrl: reg.downloadUrl || doc.downloadUrl,
-              carpetaSharepointUrl: reg.carpetaSharepointUrl || doc.carpetaSharepointUrl,
+              sharepointUrl: reg.sharepointUrl || '',
+              downloadUrl: reg.downloadUrl || '',
+              carpetaSharepointUrl: reg.carpetaSharepointUrl || '',
               documentoPadreCodigo: doc.codigo,
               documentoPadreTitulo: doc.titulo,
               documentoPadreId: doc.id,
-              esRegistro: true
+              esRegistro: true,
+              subcarpetaUrl: doc.downloadUrl ? (sharepointService?.generarEnlacesDocumentoSecundario ? sharepointService.generarEnlacesDocumentoSecundario(doc, reg).subcarpeta : '') : ''
             };
 
             const rExtUpper = (regDoc.extension || '').toUpperCase();

@@ -269,24 +269,24 @@ def sanitizar_evento_auditoria(ev):
         ev['documentoPadreCodigo'] = ev.get('documentoPadreCodigo') or m.group(1)
         return ev
 
-    # 2. Curación inteligente para registros creados históricamente bajo FMT-GIC-016
-    if cod == 'FMT-GIC-016' or 'fmt-gic-016' in det:
+    # 2. Curación inteligente para registros creados históricamente bajo FMT-GIC-016 / FMT-GIC-015
+    if cod in ('FMT-GIC-016', 'FMT-GIC-015') or 'fmt-gic-016' in det or 'fmt-gic-015' in det:
         if '2026-1' in tit or '2026-1' in det:
             ev['esRegistro'] = True
-            ev['documentoPadreCodigo'] = 'FMT-GIC-016'
-            ev['documentoCodigo'] = 'FMT-GIC-016-1'
+            ev['documentoPadreCodigo'] = 'FMT-GIC-015'
+            ev['documentoCodigo'] = 'FMT-GIC-015-1'
         elif '2026-2' in tit or '2026-2' in det:
             ev['esRegistro'] = True
-            ev['documentoPadreCodigo'] = 'FMT-GIC-016'
-            ev['documentoCodigo'] = 'FMT-GIC-016-2'
+            ev['documentoPadreCodigo'] = 'FMT-GIC-015'
+            ev['documentoCodigo'] = 'FMT-GIC-015-2'
         elif 'asma' in tit or 'asma' in det:
             ev['esRegistro'] = True
-            ev['documentoPadreCodigo'] = 'FMT-GIC-016'
-            ev['documentoCodigo'] = 'FMT-GIC-016-3'
+            ev['documentoPadreCodigo'] = 'FMT-GIC-015'
+            ev['documentoCodigo'] = 'FMT-GIC-015-3'
         elif 'anticoagula' in tit or 'anticoagula' in det:
             ev['esRegistro'] = True
-            ev['documentoPadreCodigo'] = 'FMT-GIC-016'
-            ev['documentoCodigo'] = 'FMT-GIC-016-4'
+            ev['documentoPadreCodigo'] = 'FMT-GIC-015'
+            ev['documentoCodigo'] = 'FMT-GIC-015-2'
     return ev
 
 
@@ -367,6 +367,86 @@ def sanitizar_conf(conf_dict):
     return conf_dict
 
 
+
+def generar_repositorio_dat(raw_csv_bytes=None):
+    """
+    Convierte los datos CSV de OneDrive (desde memoria o archivo temporal) a un formato
+    estructurado JSON (repositorio.dat) optimizado para acceso a <1ms y consumo directo de la aplicación web.
+    No requiere ni genera REPOSITORIO_DOCUMENTAL.csv en la carpeta del repositorio.
+    """
+    dat_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'repositorio.dat')
+
+    try:
+        import csv
+        import io
+
+        rows = []
+        if raw_csv_bytes and len(raw_csv_bytes) > 0:
+            csv_text = raw_csv_bytes.decode('utf-8-sig', errors='replace')
+            reader = csv.reader(io.StringIO(csv_text), delimiter=';')
+            rows = [r for r in reader if r and len(r) >= 2]
+        elif os.path.exists(dat_path):
+            with open(dat_path, 'rb') as f:
+                d = f.read()
+                CACHE['repo_json'] = {'data': d, 'ts': time.time(), 'obj': json.loads(d.decode('utf-8'))}
+            return d
+
+        if not rows:
+            return None
+
+        items = []
+        for r in rows[1:]:
+            if not r or not r[0].strip():
+                continue
+            codigo = r[0].strip()
+            documento = r[1].strip() if len(r) > 1 else ''
+            extension = r[2].strip() if len(r) > 2 else ''
+            carpeta = r[3].strip() if len(r) > 3 else ''
+            tipo_doc = r[4].strip() if len(r) > 4 else ''
+            mod = r[5].strip() if len(r) > 5 else ''
+            edicion = r[6].strip() if len(r) > 6 else ''
+            descarga = r[7].strip() if len(r) > 7 else ''
+
+            ext_clean = extension.lstrip('.').lower()
+            formato = 'Word' if ext_clean in ['docx', 'doc'] else ('Excel' if ext_clean in ['xlsx', 'xls', 'csv'] else ('PDF' if ext_clean == 'pdf' else ext_clean.upper()))
+
+            items.append({
+                'codigo': codigo,
+                'titulo': documento,
+                'documento': documento,
+                'extension': extension,
+                'formato': formato,
+                'carpeta': carpeta,
+                'proceso': carpeta,
+                'tipoDocumento': tipo_doc,
+                'modificacion': mod,
+                'vinculoEdicion': edicion,
+                'vinculoDescarga': descarga,
+                'sharepointUrl': edicion or descarga,
+                'downloadUrl': descarga or edicion,
+                'disponible': bool(descarga or edicion)
+            })
+
+        res_obj = {
+            'version': '1.0',
+            'empresa': 'Unión para la salud y la vida S.A.S.',
+            'ultimaActualizacion': time.strftime('%Y-%m-%dT%H:%M:%SZ'),
+            'total': len(items),
+            'documentos': items
+        }
+
+        json_bytes = json.dumps(res_obj, ensure_ascii=False, indent=2).encode('utf-8')
+        with open(dat_path, 'wb') as f:
+            f.write(json_bytes)
+
+        CACHE['repo_json'] = {'data': json_bytes, 'ts': time.time(), 'obj': res_obj}
+        print(f"[Server.py] [OK] repositorio.dat actualizado en memoria y disco ({len(items)} documentos sin depender de CSV local).")
+        return json_bytes
+    except Exception as e:
+        print("[Server.py] Error generando repositorio.dat:", e)
+        return None
+
+
 def _trigger_background_repo_sync():
     if CACHE['repo']['fetching']:
         return
@@ -374,7 +454,7 @@ def _trigger_background_repo_sync():
 
     def _worker():
         try:
-            # 1. Prioridad #1: Descargar directamente REPOSITORIO_DOCUMENTAL.csv desde OneDrive / SharePoint
+            # 1. Prioridad #1: Descargar directamente stream desde OneDrive / SharePoint en memoria
             try:
                 cj = http.cookiejar.CookieJar()
                 opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cj))
@@ -384,12 +464,8 @@ def _trigger_background_repo_sync():
                 if len(d) > 100 and (b';' in d or b',' in d):
                     CACHE['repo']['data'] = d
                     CACHE['repo']['ts'] = time.time()
-                    try:
-                        with open("REPOSITORIO_DOCUMENTAL.csv", "wb") as f:
-                            f.write(d)
-                        print(f"[Server.py] ✅ REPOSITORIO_DOCUMENTAL.csv de OneDrive sincronizado ({len(d)} bytes).")
-                    except Exception as e_write:
-                        print("[Server.py] Error al escribir REPOSITORIO_DOCUMENTAL.csv:", e_write)
+                    print(f"[Server.py] [OK] Stream de OneDrive recibido en memoria ({len(d)} bytes). Procesando a repositorio.dat...")
+                    generar_repositorio_dat(raw_csv_bytes=d)
                     return
             except Exception as e_od:
                 print("[Server.py] Error descargando OneDrive CSV:", e_od)
@@ -410,6 +486,7 @@ def _trigger_background_repo_sync():
 
     t = threading.Thread(target=_worker, daemon=True)
     t.start()
+
 
 
 def _trigger_background_biblioteca_sync():
@@ -731,8 +808,12 @@ class LiveOneDriveHandler(http.server.SimpleHTTPRequestHandler):
                 es_excel = limpia_url.endswith('.xlsx') or limpia_url.endswith('.xls')
 
                 if es_fmt or es_excel:
+                    target_url = url_original
+                    if 'download=1' not in target_url:
+                        sep = '&' if '?' in target_url else '?'
+                        target_url = f"{target_url}{sep}download=1"
                     self.send_response(302)
-                    self.send_header('Location', url_original)
+                    self.send_header('Location', target_url)
                     self.send_header('Access-Control-Allow-Origin', '*')
                     self.end_headers()
                     return
@@ -778,36 +859,72 @@ class LiveOneDriveHandler(http.server.SimpleHTTPRequestHandler):
                 return
 
         # 1. Endpoint catálogo documental (Respuesta instantánea a <1ms desde caché)
-        if self.path.startswith('/api/repositorio') or self.path.startswith('/api/documentos'):
-            data = CACHE['repo']['data']
-            if data is None and os.path.exists("REPOSITORIO_DOCUMENTAL.csv"):
+        if self.path.startswith('/api/repositorio') or self.path.startswith('/api/documentos') or self.path.startswith('/repositorio.dat'):
+            quiere_csv = 'formato=csv' in self.path or 'format=csv' in self.path
+
+            # Si el cliente solicita formato CSV expresamente
+            if quiere_csv:
+                data = CACHE['repo']['data']
+                if data is None and os.path.exists("repositorio.dat"):
+                    try:
+                        with open("repositorio.dat", "rb") as f:
+                            dat_raw = f.read()
+                            # Extraer o servir datos
+                            CACHE['repo']['data'] = dat_raw
+                            CACHE['repo']['ts'] = time.time()
+                    except Exception:
+                        pass
+
+                if CACHE['repo']['data'] is None or (time.time() - CACHE['repo']['ts'] > 90) or 'forzar=true' in self.path:
+                    _trigger_background_repo_sync()
+
+                if data and len(data) > 0:
+                    self.send_response(200)
+                    self.send_header('Content-Type', 'text/csv; charset=utf-8')
+                    self.send_header('Content-Length', str(len(data)))
+                    self.send_header('Access-Control-Allow-Origin', '*')
+                    self.end_headers()
+                    self.wfile.write(data)
+                    return
+
+            # Por defecto: Respuesta estructurada en JSON de alta velocidad (<1ms) desde repositorio.dat
+            dat_bytes = None
+            if CACHE.get('repo_json') and CACHE['repo_json'].get('data'):
+                dat_bytes = CACHE['repo_json']['data']
+            elif os.path.exists('repositorio.dat'):
                 try:
-                    with open("REPOSITORIO_DOCUMENTAL.csv", "rb") as f:
-                        data = f.read()
-                        CACHE['repo']['data'] = data
-                        CACHE['repo']['ts'] = time.time()
+                    with open('repositorio.dat', 'rb') as f:
+                        dat_bytes = f.read()
+                        CACHE['repo_json'] = {'data': dat_bytes, 'ts': time.time()}
                 except Exception:
                     pass
 
-            # Refrescar en background si tiene más de 90 segundos o si es la primera vez
-            if CACHE['repo']['data'] is None or (time.time() - CACHE['repo']['ts'] > 90) or 'forzar=true' in self.path:
+            if dat_bytes is None:
+                dat_bytes = generar_repositorio_dat()
+
+            # Refrescar en background si tiene más de 90 segundos o si se fuerza refresco
+            ts_repo = CACHE.get('repo_json', {}).get('ts', 0)
+            if ts_repo == 0 or (time.time() - ts_repo > 90) or 'forzar=true' in self.path:
                 _trigger_background_repo_sync()
 
-            if data and len(data) > 0:
+            if dat_bytes and len(dat_bytes) > 0:
                 self.send_response(200)
-                self.send_header('Content-Type', 'text/csv; charset=utf-8')
-                self.send_header('Content-Length', str(len(data)))
+                self.send_header('Content-Type', 'application/json; charset=utf-8')
+                self.send_header('Content-Length', str(len(dat_bytes)))
+                self.send_header('Cache-Control', 'public, max-age=86400')
                 self.send_header('Access-Control-Allow-Origin', '*')
                 self.end_headers()
-                self.wfile.write(data)
+                self.wfile.write(dat_bytes)
                 return
 
             self.send_response(200)
-            self.send_header('Content-Type', 'text/csv; charset=utf-8')
-            self.send_header('Content-Length', '0')
+            self.send_header('Content-Type', 'application/json; charset=utf-8')
+            self.send_header('Content-Length', '2')
             self.send_header('Access-Control-Allow-Origin', '*')
             self.end_headers()
+            self.wfile.write(b'{}')
             return
+
 
         # 1.1 Endpoint Biblioteca Google Sheets
         if self.path.startswith('/api/biblioteca'):
@@ -1314,7 +1431,9 @@ if __name__ == '__main__':
     httpd = ThreadedHTTPServer(server_address, LiveOneDriveHandler)
     print(f"Servidor iniciado en http://localhost:{port}/ y http://127.0.0.1:{port}/")
     sys.stdout.flush()
-    # Disparar sincronizaciones en segundo plano con la nube
+    # Disparar sincronizaciones en segundo plano con la nube y estructurar repositorio
+    generar_repositorio_dat()
+    _trigger_background_repo_sync()
     _trigger_background_auditoria_sync()
     _trigger_background_config_sync()
     _trigger_background_historico_sync()

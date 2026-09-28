@@ -72,6 +72,20 @@ function doGet(e) {
         .setMimeType(ContentService.MimeType.JSON);
     }
 
+    // 4.1 Obtener REPOSITORIO_DOCUMENTAL en vivo desde OneDrive (CORS Proxy para GitHub Pages)
+    if (action === 'repositorio' || action === 'onedrive') {
+      try {
+        const urlOD = 'https://unionsaludvida-my.sharepoint.com/:x:/p/plantillas/IQCctVunBodCQq97XWMPrue7AaIRpd-pVgSUuZrMBWBcA2A?e=revQbX&download=1';
+        const respOD = UrlFetchApp.fetch(urlOD, { muteHttpExceptions: true, followRedirects: true });
+        const txtOD = respOD.getContentText();
+        return ContentService.createTextOutput(txtOD)
+          .setMimeType(ContentService.MimeType.TEXT);
+      } catch (errOD) {
+        return ContentService.createTextOutput(JSON.stringify({ status: 'error', message: errOD.toString() }))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
+    }
+
     // 4.5 Backup Completo Consolidado (Para snapshots automáticos de GitHub Actions y auditoría)
     if (action === 'backup_completo' || action === 'backup') {
       const docs = obtenerDocumentosDeSheet();

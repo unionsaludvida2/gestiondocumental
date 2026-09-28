@@ -989,6 +989,33 @@ export class StaffService {
 
     let textoCsv = null;
 
+    // 0. Política de Caché No Volátil (IndexedDB): Carga instantánea a 0 ms
+    // Permanece hasta que el usuario borre los datos del navegador y se revalida diariamente (24h TTL)
+    if (!forzar) {
+      try {
+        const cachedMeta = await cacheService.obtenerColeccionConMeta('empleados');
+        if (cachedMeta && Array.isArray(cachedMeta.datos) && cachedMeta.datos.length > 0) {
+          this.empleados = cachedMeta.datos;
+          const ahora = Date.now();
+          const edadMs = ahora - (cachedMeta.timestamp || 0);
+          const TTL_DIARIO_MS = 24 * 60 * 60 * 1000; // 24 horas
+
+          // Si la caché tiene menos de 24 horas, retornar inmediatamente sin petición de red
+          if (edadMs < TTL_DIARIO_MS) {
+            console.log(`[StaffService] ⚡ Colaboradores activos cargados desde caché persistente (${this.empleados.length} colaboradores, edad: ${Math.round(edadMs / 60000)} min).`);
+            return this.empleados;
+          }
+
+          // Si tiene más de 24 horas, usar la copia existente de inmediato y refrescar en segundo plano
+          console.log(`[StaffService] 🔄 Caché diaria vencida (>24h). Revalidando colaboradores en segundo plano...`);
+          setTimeout(() => this.sincronizarEmpleados(true).catch(() => {}), 100);
+          return this.empleados;
+        }
+      } catch (eMeta) {
+        console.warn('[StaffService] Error leyendo caché IndexedDB:', eMeta);
+      }
+    }
+
     // 1. Probar ruta oficial de OneDrive / Cloud si está configurada
     if (rutas?.empleadosCsv && rutas.empleadosCsv.startsWith('http')) {
       try {

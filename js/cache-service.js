@@ -113,9 +113,9 @@ class CacheService {
   }
 
   /**
-   * Obtiene una colección estructurada desde IndexedDB
+   * Obtiene una colección estructurada con sus metadatos (timestamp, meta) desde IndexedDB
    */
-  async obtenerColeccion(clave) {
+  async obtenerColeccionConMeta(clave) {
     if (!clave) return null;
     const idbListo = await this.init();
 
@@ -127,7 +127,7 @@ class CacheService {
           const req = store.get(clave);
           req.onsuccess = () => {
             const res = req.result;
-            resolve(res ? res.datos : null);
+            resolve(res ? { datos: res.datos, timestamp: res.timestamp, fecha: res.fecha, meta: res.meta } : null);
           };
           req.onerror = () => resolve(null);
         } catch (e) {
@@ -139,9 +139,86 @@ class CacheService {
     // Fallback localStorage
     try {
       const raw = localStorage.getItem(`idb_fallback_${clave}`);
-      if (raw) return JSON.parse(raw);
+      if (raw) {
+        const datos = JSON.parse(raw);
+        const ts = parseInt(localStorage.getItem(`idb_fallback_${clave}_ts`) || '0', 10);
+        return { datos, timestamp: ts };
+      }
     } catch { }
     return null;
+  }
+
+  /**
+   * Obtiene una colección estructurada desde IndexedDB
+   */
+  async obtenerColeccion(clave) {
+    const res = await this.obtenerColeccionConMeta(clave);
+    return res ? res.datos : null;
+  }
+
+
+  /**
+   * Patrón Stale-While-Revalidate no volátil con TTL en IndexedDB:
+   * 1. Si existe en IndexedDB y el TTL (por defecto 24 horas = 86,400,000 ms) está vigente, entrega inmediata a 0 ms.
+   * 2. Si existe pero expiró, entrega inmediata a 0 ms y revalida de forma asíncrona en segundo plano sin congelar la interfaz.
+   * 3. Si no existe o se fuerza refresco, consulta la red, persiste en IndexedDB y retorna los datos.
+   */
+  async obtenerOConsultarCachePersistente(clave, fetcher, ttlMs = 86400000, forzar = false) {
+    const cached = await this.obtenerColeccionConMeta(clave);
+    const ahora = Date.now();
+    const esValida = cached && cached.datos && (ahora - (cached.timestamp || 0) < ttlMs);
+
+    if (esValida && !forzar) {
+      return cached.datos;
+    }
+
+    if (cached && cached.datos && !forzar) {
+      // Revalidación asíncrona en segundo plano (Stale-While-Revalidate)
+      if (typeof fetcher === 'function') {
+        setTimeout(async () => {
+          try {
+            const nuevosDatos = await fetcher();
+            if (nuevosDatos) {
+              await this.guardarColeccion(clave, nuevosDatos);
+              if (typeof window !== 'undefined') {
+                window.dispatchEvent(new CustomEvent(`agy_cache_actualizada_${clave}`, { detail: nuevosDatos }));
+              }
+            }
+          } catch (eReval) {
+            console.warn(`[CacheService] Revalidación en segundo plano falló para ${clave}:`, eReval);
+          }
+        }, 50);
+      }
+      return cached.datos;
+    }
+
+    // Si no está en caché o se solicitó refresco forzado
+    if (typeof fetcher === 'function') {
+      const nuevosDatos = await fetcher();
+      if (nuevosDatos) {
+        await this.guardarColeccion(clave, nuevosDatos);
+        return nuevosDatos;
+      }
+    }
+
+    return cached ? cached.datos : null;
+  }
+
+  /**
+   * Guarda el catálogo estructurado de repositorio documental en IndexedDB (no volátil)
+   */
+  async guardarRepositorio(datos, meta = {}) {
+    return this.guardarColeccion('repositorio_documental', datos, {
+      total: Array.isArray(datos) ? datos.length : (datos?.total || 0),
+      ...meta
+    });
+  }
+
+  /**
+   * Obtiene el catálogo estructurado de repositorio documental desde IndexedDB
+   */
+  async obtenerRepositorio() {
+    return this.obtenerColeccion('repositorio_documental');
   }
 
   /**

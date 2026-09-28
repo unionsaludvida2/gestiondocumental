@@ -3,9 +3,9 @@
  * Unión para la salud y la vida S.A.S.
  */
 
-import { sharepointService, determinarEstrategiaDescarga, esDocumentoFMT } from './sharepoint-service.js?v=11.6.85';
-import { staffService } from './staff-service.js?v=11.6.85';
-import { filterEngine } from './filters.js?v=11.6.85';
+import { sharepointService, determinarEstrategiaDescarga, esDocumentoFMT } from './sharepoint-service.js?v=11.6.87';
+import { staffService } from './staff-service.js?v=11.6.87';
+import { filterEngine } from './filters.js?v=11.6.87';
 
 const STORAGE_KEY_USER_PROFILE = 'agy_user_profile';
 
@@ -170,9 +170,8 @@ export class ModalManager {
             <form id="form-pwd-edicion" autocomplete="off" onsubmit="return false;" style="display: flex; flex-direction: column; gap: 10px;">
               <!-- Trampa invisible de autofill -->
               <input type="text" name="fake_user_edit" style="position: absolute; opacity: 0; pointer-events: none; width: 0; height: 0; left: -9999px;" tabindex="-1" autocomplete="username" />
-              ${
-                !sesion
-                  ? `
+              ${!sesion
+        ? `
                   <div class="form-group" style="margin-bottom: 0;">
                     <label for="input-doc-edit" style="font-size: 0.82rem; font-weight: 600; color: #334155; display: block; margin-bottom: 4px;">Documento de Identidad:</label>
                     <input 
@@ -187,8 +186,8 @@ export class ModalManager {
                     />
                   </div>
                   `
-                  : ''
-              }
+        : ''
+      }
               <div class="form-group" style="margin-bottom: 0;">
                 <label for="input-pwd-edit" style="font-size: 0.82rem; font-weight: 600; color: #334155; display: block; margin-bottom: 4px;">Contraseña de Usuario:</label>
                 <input 
@@ -352,24 +351,22 @@ export class ModalManager {
           <button type="button" class="doc-drawer-tab-btn active" data-tab="ficha">
             <span>📋</span> Ficha Técnica
           </button>
-          ${
-            !doc.esRegistro && (esDocumentoFMT(doc.codigo) || (Array.isArray(doc.registrosDerivados) && doc.registrosDerivados.length > 0))
-              ? `
+          ${!doc.esRegistro && (esDocumentoFMT(doc.codigo) || (Array.isArray(doc.registrosDerivados) && doc.registrosDerivados.length > 0))
+        ? `
               <button type="button" class="doc-drawer-tab-btn" data-tab="registros">
                 <span>📂</span> Registros Derivados (${(doc.registrosDerivados || []).length})
               </button>
               `
-              : ''
-          }
+        : ''
+      }
           <button type="button" class="doc-drawer-tab-btn" data-tab="historial">
             <span>🕒</span> Historial & Versiones (${historialReal.length || 1})
           </button>
         </div>
 
         <!-- Encabezado Fijo de Registros Derivados (Excluido de la barra de desplazamiento) -->
-        ${
-          !doc.esRegistro && (esDocumentoFMT(doc.codigo) || (Array.isArray(doc.registrosDerivados) && doc.registrosDerivados.length > 0))
-            ? `
+        ${!doc.esRegistro && (esDocumentoFMT(doc.codigo) || (Array.isArray(doc.registrosDerivados) && doc.registrosDerivados.length > 0))
+        ? `
             <div class="doc-drawer-registros-fixed-header" id="drawer-registros-fixed-header" style="display: none;">
               <div class="drawer-registros-header-box">
                 <div style="flex: 1; min-width: 200px;">
@@ -383,8 +380,8 @@ export class ModalManager {
               </div>
             </div>
             `
-            : ''
-        }
+        : ''
+      }
 
         <!-- Contenido Desplazable -->
         <div class="doc-drawer-body">
@@ -401,9 +398,8 @@ export class ModalManager {
             </div>
 
             <!-- Banner Notificación de Registros Derivados en Ficha Técnica -->
-            ${
-              Array.isArray(doc.registrosDerivados) && doc.registrosDerivados.length > 0
-                ? `
+            ${Array.isArray(doc.registrosDerivados) && doc.registrosDerivados.length > 0
+        ? `
                 <div class="drawer-registros-alert-box" style="background: linear-gradient(135deg, #eff6ff 0%, #f0fdf4 100%); border: 1.5px solid #93c5fd; border-radius: 10px; padding: 12px 14px; display: flex; align-items: center; justify-content: space-between; gap: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
                   <div style="display: flex; align-items: center; gap: 10px;">
                     <span style="font-size: 1.5rem;">📂</span>
@@ -422,8 +418,8 @@ export class ModalManager {
                   </button>
                 </div>
                 `
-                : ''
-            }
+        : ''
+      }
 
             <!-- Grid de Metadatos -->
             <div class="doc-metadata-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
@@ -470,60 +466,56 @@ export class ModalManager {
             </div>
 
             <!-- Accesos a SharePoint y Ubicación (Exclusivo Modo Edición) -->
-            ${
-              modoEdicion
-                ? (() => {
-                    const tieneEnlace = Boolean(
-                      (doc.sharepointUrl && doc.sharepointUrl.startsWith('http') && doc.sharepointUrl !== '#' && doc.sharepointUrl !== 'N/A') ||
-                      (doc.downloadUrl && doc.downloadUrl.startsWith('http') && doc.downloadUrl !== '#' && doc.downloadUrl !== 'N/A')
-                    );
-                    const rutaTexto = sharepointService.obtenerRutaLegible(doc);
-                    return `
+            ${modoEdicion
+        ? (() => {
+          const tieneEnlace = Boolean(
+            (doc.sharepointUrl && doc.sharepointUrl.startsWith('http') && doc.sharepointUrl !== '#' && doc.sharepointUrl !== 'N/A') ||
+            (doc.downloadUrl && doc.downloadUrl.startsWith('http') && doc.downloadUrl !== '#' && doc.downloadUrl !== 'N/A')
+          );
+          const rutaTexto = sharepointService.obtenerRutaLegible(doc);
+          return `
                     <div style="background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px;">
                       <div style="font-size: 0.76rem; font-weight: 700; color: #475569; display: flex; align-items: center; justify-content: space-between;">
                         <span>📁 Ubicación en Repositorio</span>
-                        ${
-                          tieneEnlace && rutaTexto !== 'No se encuentra disponible'
-                            ? `
+                        ${tieneEnlace && rutaTexto !== 'No se encuentra disponible'
+              ? `
                             <button type="button" class="btn-drawer-folder" id="btn-drawer-open-folder" style="border:none; background:transparent; color:var(--primary); font-size:0.75rem; font-weight:700; cursor:pointer; text-decoration:underline;">
                               Abrir carpeta ↗
                             </button>
                             `
-                            : `
+              : `
                             <span style="font-size: 0.72rem; color: #dc2626; font-weight: 700;">
                               No disponible
                             </span>
                             `
-                        }
+            }
                       </div>
                       <div style="font-size: 0.78rem; color: ${tieneEnlace && rutaTexto !== 'No se encuentra disponible' ? '#1e293b' : '#dc2626'}; font-family: monospace; word-break: break-all; font-weight: ${tieneEnlace && rutaTexto !== 'No se encuentra disponible' ? 'normal' : '600'};">
                         ${rutaTexto}
                       </div>
                     </div>
                     `;
-                  })()
-                : ''
-            }
+        })()
+        : ''
+      }
 
-            ${
-              doc.descargable === false
-                ? `
+            ${doc.descargable === false
+        ? `
                 <div style="background: #fffbeb; border: 1.5px solid #fde68a; border-radius: 8px; padding: 10px 12px; font-size: 0.78rem; color: #92400e; line-height: 1.4;">
                   🔒 <strong>Descarga restringida:</strong> Para modificar el archivo original en SharePoint, activa el <strong>Modo Edición</strong> con tu contraseña institucional.
                 </div>
                 `
-                : ''
-            }
+        : ''
+      }
 
-            ${
-              estrategiaDescarga.esPdf
-                ? `
+            ${estrategiaDescarga.esPdf
+        ? `
                 <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-left: 4px solid #c0392b; border-radius: 6px; padding: 9px 12px; font-size: 0.76rem; color: #334155; line-height: 1.4;">
                   📄 <strong>Copia Oficial Controlada:</strong> La descarga entrega el documento en <strong>formato PDF</strong> (ISO 9001). La edición del archivo original Word en SharePoint está reservada al <strong>Modo Edición</strong> mediante el botón <em>✏️ SharePoint</em>.
                 </div>
                 `
-                : ''
-            }
+        : ''
+      }
           </div>
 
           <!-- PESTAÑA: HISTORIAL & VERSIONES -->
@@ -534,51 +526,50 @@ export class ModalManager {
             </div>
 
             <div class="version-timeline">
-              ${
-                historialReal && historialReal.length > 0
-                  ? historialReal
-                      .map((h, idx) => {
-                        const esActual = idx === 0;
-                        const badgeColor =
-                          h.tipoEvento === 'CREACION'
-                            ? '#059669'
-                            : h.tipoEvento === 'ELIMINACION'
-                            ? '#dc2626'
-                            : h.tipoEvento === 'CAMBIO_VERSION'
-                            ? '#2563eb'
-                            : h.tipoEvento === 'CAMBIO_RUTA'
-                            ? '#d97706'
-                            : '#7c3aed';
+              ${historialReal && historialReal.length > 0
+        ? historialReal
+          .map((h, idx) => {
+            const esActual = idx === 0;
+            const badgeColor =
+              h.tipoEvento === 'CREACION'
+                ? '#059669'
+                : h.tipoEvento === 'ELIMINACION'
+                  ? '#dc2626'
+                  : h.tipoEvento === 'CAMBIO_VERSION'
+                    ? '#2563eb'
+                    : h.tipoEvento === 'CAMBIO_RUTA'
+                      ? '#d97706'
+                      : '#7c3aed';
 
-                        const fechaEfectiva = (() => {
-                          if (h.tipoEvento === 'EDICION_SHAREPOINT' && h.fechaModificacionActual && h.fechaModificacionActual !== 'N/A' && h.fechaModificacionActual !== 'Sincronizado') {
-                            return staffService.formatearFechaHora(h.fechaModificacionActual);
-                          }
-                          return staffService.formatearFechaHora(h.fechaHora || h.fechaModificacionActual || doc.modificacion || 'Sincronizado');
-                        })();
+            const fechaEfectiva = (() => {
+              if (h.tipoEvento === 'EDICION_SHAREPOINT' && h.fechaModificacionActual && h.fechaModificacionActual !== 'N/A' && h.fechaModificacionActual !== 'Sincronizado') {
+                return staffService.formatearFechaHora(h.fechaModificacionActual);
+              }
+              return staffService.formatearFechaHora(h.fechaHora || h.fechaModificacionActual || doc.modificacion || 'Sincronizado');
+            })();
 
-                        const descripcionHito = (() => {
-                          if (h.tipoEvento === 'EDICION_SHAREPOINT') {
-                            if (h.fechaModificacionPrevia && h.fechaModificacionActual && h.fechaModificacionPrevia !== 'N/A' && h.fechaModificacionPrevia !== h.fechaModificacionActual) {
-                              return `Edición en SharePoint: Previa [${staffService.formatearFechaHora(h.fechaModificacionPrevia)}] ➔ Actual [${staffService.formatearFechaHora(h.fechaModificacionActual)}]`;
-                            }
-                            if (h.detalle && h.detalle.trim() && h.detalle.trim().toLowerCase() !== 'creacion del documento') {
-                              return h.detalle.trim();
-                            }
-                            if (h.fechaModificacionActual && h.fechaModificacionActual !== 'N/A') {
-                              return `Fecha de modificación en SharePoint: ${staffService.formatearFechaHora(h.fechaModificacionActual)}`;
-                            }
-                            return 'Edición y sincronización de documento en repositorio SharePoint.';
-                          }
-                          if (h.tipoEvento === 'CREACION') {
-                            return h.detalle && h.detalle.trim() ? h.detalle.trim() : (tipoCambio || 'Creación inicial del documento en repositorio institucional.');
-                          }
-                          return h.detalle && h.detalle.trim() ? h.detalle.trim() : (tipoCambio || 'Registro de trazabilidad y control de cambios.');
-                        })();
+            const descripcionHito = (() => {
+              if (h.tipoEvento === 'EDICION_SHAREPOINT') {
+                if (h.fechaModificacionPrevia && h.fechaModificacionActual && h.fechaModificacionPrevia !== 'N/A' && h.fechaModificacionPrevia !== h.fechaModificacionActual) {
+                  return `Edición en SharePoint: Previa [${staffService.formatearFechaHora(h.fechaModificacionPrevia)}] ➔ Actual [${staffService.formatearFechaHora(h.fechaModificacionActual)}]`;
+                }
+                if (h.detalle && h.detalle.trim() && h.detalle.trim().toLowerCase() !== 'creacion del documento') {
+                  return h.detalle.trim();
+                }
+                if (h.fechaModificacionActual && h.fechaModificacionActual !== 'N/A') {
+                  return `Fecha de modificación en SharePoint: ${staffService.formatearFechaHora(h.fechaModificacionActual)}`;
+                }
+                return 'Edición y sincronización de documento en repositorio SharePoint.';
+              }
+              if (h.tipoEvento === 'CREACION') {
+                return h.detalle && h.detalle.trim() ? h.detalle.trim() : (tipoCambio || 'Creación inicial del documento en repositorio institucional.');
+              }
+              return h.detalle && h.detalle.trim() ? h.detalle.trim() : (tipoCambio || 'Registro de trazabilidad y control de cambios.');
+            })();
 
-                        const vItem = staffService.formatearVersion(h.versionNueva || doc.version || '01');
+            const vItem = staffService.formatearVersion(h.versionNueva || doc.version || '01');
 
-                        return `
+            return `
                           <div class="timeline-item ${esActual ? 'current' : ''}">
                             <div class="timeline-dot ${esActual ? '' : 'past'}" style="${esActual ? `background: ${badgeColor}; border-color: ${badgeColor};` : ''}"></div>
                             <div class="timeline-content">
@@ -600,9 +591,9 @@ export class ModalManager {
                             </div>
                           </div>
                         `;
-                      })
-                      .join('')
-                  : `
+          })
+          .join('')
+        : `
                     <div class="timeline-item current">
                       <div class="timeline-dot"></div>
                       <div class="timeline-content">
@@ -616,34 +607,33 @@ export class ModalManager {
                       </div>
                     </div>
                   `
-              }
+      }
             </div>
           </div>
 
           <!-- PESTAÑA: REGISTROS DERIVADOS -->
-          ${
-            !doc.esRegistro && (esDocumentoFMT(doc.codigo) || (Array.isArray(doc.registrosDerivados) && doc.registrosDerivados.length > 0))
-              ? `
+          ${!doc.esRegistro && (esDocumentoFMT(doc.codigo) || (Array.isArray(doc.registrosDerivados) && doc.registrosDerivados.length > 0))
+        ? `
               <div class="drawer-tab-content" id="drawer-tab-registros" style="display: none; flex-direction: column; gap: 10px;">
                 ${(Array.isArray(doc.registrosDerivados) && doc.registrosDerivados.length > 0) ? `
                   <div class="drawer-registros-list" style="display: flex; flex-direction: column; gap: 10px;">
                     ${(() => {
-                      const busqueda = filterEngine?.removerTildes ? filterEngine.removerTildes(filterEngine.estado.busqueda || '') : '';
-                      const palabras = busqueda ? busqueda.split(/\s+/).filter(Boolean) : [];
-                      let cantCoincidentes = 0;
+            const busqueda = filterEngine?.removerTildes ? filterEngine.removerTildes(filterEngine.estado.busqueda || '') : '';
+            const palabras = busqueda ? busqueda.split(/\s+/).filter(Boolean) : [];
+            let cantCoincidentes = 0;
 
-                      const evaluados = doc.registrosDerivados.map((reg) => {
-                        if (palabras.length === 0) return { reg, coincide: true };
-                        const textoReg = filterEngine.removerTildes(`${reg.codigo || ''} ${reg.titulo || ''} ${reg.documento || ''} ${reg.descripcion || ''} ${reg.extension || ''}`);
-                        const textoDoc = filterEngine.removerTildes(`${doc.codigo || ''} ${doc.titulo || ''}`);
-                        const textoCombinado = `${textoDoc} ${textoReg}`;
-                        const coincide = palabras.every(p => textoReg.includes(p)) || palabras.every(p => textoCombinado.includes(p));
-                        if (coincide) cantCoincidentes++;
-                        return { reg, coincide };
-                      });
+            const evaluados = doc.registrosDerivados.map((reg) => {
+              if (palabras.length === 0) return { reg, coincide: true };
+              const textoReg = filterEngine.removerTildes(`${reg.codigo || ''} ${reg.titulo || ''} ${reg.documento || ''} ${reg.descripcion || ''} ${reg.extension || ''}`);
+              const textoDoc = filterEngine.removerTildes(`${doc.codigo || ''} ${doc.titulo || ''}`);
+              const textoCombinado = `${textoDoc} ${textoReg}`;
+              const coincide = palabras.every(p => textoReg.includes(p)) || palabras.every(p => textoCombinado.includes(p));
+              if (coincide) cantCoincidentes++;
+              return { reg, coincide };
+            });
 
-                      const hayFiltro = palabras.length > 0 && cantCoincidentes > 0 && cantCoincidentes < doc.registrosDerivados.length;
-                      const bannerHtml = hayFiltro ? `
+            const hayFiltro = palabras.length > 0 && cantCoincidentes > 0 && cantCoincidentes < doc.registrosDerivados.length;
+            const bannerHtml = hayFiltro ? `
                         <div class="drawer-filtro-banner" style="display: flex; justify-content: space-between; align-items: center; background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; padding: 7px 12px; border-radius: 8px; font-size: 0.76rem; font-weight: 600; margin-bottom: 2px;">
                           <span>🔍 Mostrando ${cantCoincidentes} de ${doc.registrosDerivados.length} registros coincidentes</span>
                           <button type="button" class="btn-drawer-toggle-todos-reg" style="background: #2563eb; color: #ffffff; border: none; border-radius: 5px; padding: 3px 9px; font-size: 0.72rem; font-weight: 700; cursor: pointer;">
@@ -652,13 +642,13 @@ export class ModalManager {
                         </div>
                       ` : '';
 
-                      const cardsHtml = evaluados.map(({ reg, coincide }) => {
-                        const esXls = (reg.extension && reg.extension.toUpperCase().includes('XLS')) || reg.formato === 'Excel';
-                        const rExt = esXls ? 'XLS' : 'PDF';
-                        const rBadgeClass = esXls ? 'badge-xls' : 'badge-pdf';
-                        const esCoincidente = (doc.registroCoincidente && (doc.registroCoincidente.id === reg.id || doc.registroCoincidente.titulo === reg.titulo)) || (palabras.length > 0 && coincide);
-                        const estaOculto = hayFiltro && !coincide;
-                        return `
+            const cardsHtml = evaluados.map(({ reg, coincide }) => {
+              const esXls = (reg.extension && reg.extension.toUpperCase().includes('XLS')) || reg.formato === 'Excel';
+              const rExt = esXls ? 'XLS' : 'PDF';
+              const rBadgeClass = esXls ? 'badge-xls' : 'badge-pdf';
+              const esCoincidente = (doc.registroCoincidente && (doc.registroCoincidente.id === reg.id || doc.registroCoincidente.titulo === reg.titulo)) || (palabras.length > 0 && coincide);
+              const estaOculto = hayFiltro && !coincide;
+              return `
                           <div class="drawer-registro-card ${esCoincidente ? 'registro-coincidente-active' : ''} ${estaOculto ? 'drawer-reg-filtrado-oculto' : ''}" style="display: ${estaOculto ? 'none' : 'flex'}; border: 1.5px solid ${esCoincidente ? '#f59e0b' : '#cbd5e1'}; border-radius: 8px; padding: 12px; background: ${esCoincidente ? '#fffbeb' : '#ffffff'}; flex-direction: column; gap: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
                             <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;">
                               <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
@@ -671,58 +661,58 @@ export class ModalManager {
                               <span style="font-size: 0.73rem; color: #64748b;">${staffService.formatearFechaHora(reg.modificacion)}</span>
                               <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
                                 ${modoEdicion
-                                  ? `
+                  ? `
                                   ${puedeGestionarCatalogo
-                                    ? `
+                    ? `
                                     <button type="button" class="btn btn-secondary btn-reg-meta" data-reg-id="${reg.id || reg.codigo}" style="width: 28px; height: 28px; padding: 0; font-size: 0.82rem; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; background: #e0f2fe; color: #0369a1; border: 1.5px solid #bae6fd; border-radius: 6px;" title="Modificar metadatos del registro">
                                       <span>⚙️</span>
                                     </button>
                                     `
-                                    : ''
-                                  }
+                    : ''
+                  }
                                   ${reg.disponible
-                                    ? `
+                    ? `
                                     ${reg.descargable === false
-                                      ? `<button type="button" class="btn btn-secondary" disabled style="width: 28px; height: 28px; padding: 0; font-size: 0.82rem; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; border-radius: 6px; color:#92400e; background:#fef3c7; cursor:not-allowed;" title="Descarga restringida"><span>🔒</span></button>`
-                                      : `
+                      ? `<button type="button" class="btn btn-secondary" disabled style="width: 28px; height: 28px; padding: 0; font-size: 0.82rem; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; border-radius: 6px; color:#92400e; background:#fef3c7; cursor:not-allowed;" title="Descarga restringida"><span>🔒</span></button>`
+                      : `
                                       <button type="button" class="btn btn-secondary btn-reg-download" data-reg-id="${reg.id || reg.codigo}" style="width: 28px; height: 28px; padding: 0; font-size: 0.82rem; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; border-radius: 6px;" title="Descargar registro en PDF">
                                         <span>📥</span>
                                       </button>
                                       `
-                                    }
+                    }
                                     <button type="button" class="btn btn-primary btn-reg-edit" data-reg-id="${reg.id || reg.codigo}" style="width: 28px; height: 28px; padding: 0; font-size: 0.82rem; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; border-radius: 6px;" title="Editar registro en SharePoint">
                                       <span>✏️</span>
                                     </button>
                                     `
-                                    : `<span style="width: 28px; height: 28px; font-size: 0.80rem; color: #94a3b8; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center;" title="Sin archivo individual asociado en SharePoint">📄</span>`
-                                  }
+                    : `<span style="width: 28px; height: 28px; font-size: 0.80rem; color: #94a3b8; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center;" title="Sin archivo individual asociado en SharePoint">📄</span>`
+                  }
                                   ${puedeGestionarCatalogo
-                                    ? `
+                    ? `
                                     <button type="button" class="btn btn-secondary btn-reg-delete" data-reg-id="${reg.id || reg.codigo}" style="width: 28px; height: 28px; padding: 0; font-size: 0.80rem; font-weight: 600; color: #dc2626; border: 1px solid #fecaca; background: #fff5f5; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center;" title="Retirar este registro derivado">
                                       <span>🗑️</span>
                                     </button>
                                     `
-                                    : ''
-                                  }
+                    : ''
+                  }
                                   `
-                                  : !reg.disponible
-                                    ? `<button class="btn btn-disabled" disabled style="padding: 4px 8px; font-size: 0.72rem;" title="Registro no disponible en SharePoint">No Disponible</button>`
-                                    : reg.descargable === false
-                                      ? `<button type="button" class="btn btn-secondary" disabled style="padding: 4px 8px; font-size: 0.72rem; color:#92400e; background:#fef3c7; border: 1px solid #fcd34d; cursor:not-allowed;" title="Descarga restringida">🔒 Bloqueado</button>`
-                                      : `
+                  : !reg.disponible
+                    ? `<button class="btn btn-disabled" disabled style="padding: 4px 8px; font-size: 0.72rem;" title="Registro no disponible en SharePoint">No Disponible</button>`
+                    : reg.descargable === false
+                      ? `<button type="button" class="btn btn-secondary" disabled style="padding: 4px 8px; font-size: 0.72rem; color:#92400e; background:#fef3c7; border: 1px solid #fcd34d; cursor:not-allowed;" title="Descarga restringida">🔒 Bloqueado</button>`
+                      : `
                                       <button type="button" class="btn btn-primary btn-reg-download" data-reg-id="${reg.id || reg.codigo}" style="padding: 4px 10px; font-size: 0.74rem; font-weight: 700; display: inline-flex; align-items: center; gap: 4px; border-radius: 6px;" title="Descargar registro en PDF">
                                         <span>📥</span> Descargar
                                       </button>
                                       `
-                                }
+                }
                               </div>
                             </div>
                           </div>
                         `;
-                      }).join('');
+            }).join('');
 
-                      return bannerHtml + cardsHtml;
-                    })()}
+            return bannerHtml + cardsHtml;
+          })()}
                   </div>
                 ` : `
                   <div style="text-align: center; padding: 28px 16px; background: #ffffff; border: 1.5px dashed #cbd5e1; border-radius: 8px; color: #64748b;">
@@ -740,45 +730,43 @@ export class ModalManager {
                 `}
               </div>
               `
-              : ''
-          }
+        : ''
+      }
 
         </div>
 
         <!-- Pie de Acciones del Drawer -->
         <div class="doc-drawer-footer" style="display: grid; grid-template-columns: ${modoEdicion ? (puedeGestionarCatalogo ? '1fr 1fr 1fr' : '1fr 1fr') : '1fr'}; gap: 8px; padding: 12px 18px; border-top: 1px solid #e2e8f0; background: #ffffff; align-items: center;">
-          ${
-            modoEdicion
-              ? `
+          ${modoEdicion
+        ? `
               <button type="button" class="btn" id="btn-drawer-edit-sp" style="height: 40px; border-radius: 8px; font-size: 0.76rem; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 0 8px; background: #1f4260; color: #ffffff; border: 1px solid #16334c; cursor: pointer; transition: all 0.2s ease; ${!doc.disponible ? 'opacity: 0.5; cursor: not-allowed;' : ''}" ${!doc.disponible ? 'disabled' : ''} title="Editar documento en SharePoint">
                 <span style="font-size: 0.95rem;">✏️</span>
                 <span>SharePoint</span>
               </button>
-              ${
-                puedeGestionarCatalogo
-                  ? `
+              ${puedeGestionarCatalogo
+          ? `
                   <button type="button" class="btn" id="btn-drawer-edit-meta" style="height: 40px; border-radius: 8px; font-size: 0.76rem; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 0 8px; background: #e0f2fe; color: #0369a1; border: 1.5px solid #bae6fd; cursor: pointer; transition: all 0.2s ease;" title="Editar Ficha Técnica / Metadatos">
                     <span style="font-size: 0.95rem;">⚙️</span>
                     <span>Metadatos</span>
                   </button>
                   `
-                  : ''
-              }
+          : ''
+        }
               <button type="button" class="btn" id="btn-drawer-download" style="height: 40px; border-radius: 8px; font-size: 0.76rem; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 0 8px; background: #ecfdf5; color: #047857; border: 1.5px solid #a7f3d0; cursor: pointer; transition: all 0.2s ease; ${!doc.disponible ? 'opacity: 0.5; cursor: not-allowed;' : ''}" ${!doc.disponible ? 'disabled' : ''} title="Descargar documento">
                 <span style="font-size: 0.95rem;">📥</span>
                 <span>Descargar</span>
               </button>
               `
-              : !doc.disponible
-              ? `<button class="btn btn-disabled" disabled style="grid-column: 1 / -1; width:100%; font-size:0.85rem; font-weight:700; height:40px; border-radius: 8px;">DOCUMENTO NO DISPONIBLE</button>`
-              : doc.descargable === false
-              ? `<button type="button" class="btn btn-secondary" id="btn-drawer-blocked" style="grid-column: 1 / -1; width:100%; font-size:0.85rem; font-weight:700; color:#92400e; background:#fef3c7; border-color:#f59e0b; height:40px; border-radius: 8px;">🔒 DESCARGA RESTRINGIDA</button>`
-              : `
+        : !doc.disponible
+          ? `<button class="btn btn-disabled" disabled style="grid-column: 1 / -1; width:100%; font-size:0.85rem; font-weight:700; height:40px; border-radius: 8px;">DOCUMENTO NO DISPONIBLE</button>`
+          : doc.descargable === false
+            ? `<button type="button" class="btn btn-secondary" id="btn-drawer-blocked" style="grid-column: 1 / -1; width:100%; font-size:0.85rem; font-weight:700; color:#92400e; background:#fef3c7; border-color:#f59e0b; height:40px; border-radius: 8px;">🔒 DESCARGA RESTRINGIDA</button>`
+            : `
               <button type="button" class="btn btn-primary" id="btn-drawer-download" style="grid-column: 1 / -1; width:100%; background-color: var(--primary); font-size:0.88rem; font-weight:700; display:inline-flex; align-items:center; justify-content:center; gap:6px; height:40px; border-radius: 8px;" title="Descargar documento">
                 <span>DESCARGAR 📥</span>
               </button>
               `
-          }
+      }
         </div>
 
       </aside>
@@ -832,7 +820,7 @@ export class ModalManager {
       btn.addEventListener('click', async (e) => {
         e.stopPropagation();
         const regId = btn.getAttribute('data-reg-id');
-        const reg = (doc.registrosDerivados || []).find((r) => (r.id && r.id === regId) || (r.codigo && r.codigo === regId) || (regId === 'undefined' && r.codigo === 'FMT-GIC-016-2'));
+        const reg = (doc.registrosDerivados || []).find((r) => (r.id && r.id === regId) || (r.codigo && r.codigo === regId) || (regId === 'undefined' && r.codigo === 'FMT-GIC-015-2'));
         if (reg && onDescargar) {
           if (!reg.downloadUrl || reg.downloadUrl === doc.downloadUrl || reg.downloadUrl === '#') {
             if (window.__agyApp) window.__agyApp.mostrarToast(`📄 El registro "${reg.titulo}" no tiene un archivo individual cargado en SharePoint.`, 'info');
@@ -856,7 +844,7 @@ export class ModalManager {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
         const regId = btn.getAttribute('data-reg-id');
-        const reg = (doc.registrosDerivados || []).find((r) => (r.id && r.id === regId) || (r.codigo && r.codigo === regId) || (regId === 'undefined' && r.codigo === 'FMT-GIC-016-2'));
+        const reg = (doc.registrosDerivados || []).find((r) => (r.id && r.id === regId) || (r.codigo && r.codigo === regId) || (regId === 'undefined' && r.codigo === 'FMT-GIC-015-2'));
         if (reg && onEditarSharePoint) {
           if (!reg.sharepointUrl || reg.sharepointUrl === doc.sharepointUrl || reg.sharepointUrl === '#') {
             if (window.__agyApp) window.__agyApp.mostrarToast(`📄 El registro "${reg.titulo}" no tiene un archivo individual cargado en SharePoint para editar.`, 'info');
@@ -876,7 +864,7 @@ export class ModalManager {
           return;
         }
         const regId = btn.getAttribute('data-reg-id');
-        const reg = (doc.registrosDerivados || []).find((r) => (r.id && r.id === regId) || (r.codigo && r.codigo === regId) || (regId === 'undefined' && r.codigo === 'FMT-GIC-016-2'));
+        const reg = (doc.registrosDerivados || []).find((r) => (r.id && r.id === regId) || (r.codigo && r.codigo === regId) || (regId === 'undefined' && r.codigo === 'FMT-GIC-015-2'));
         if (reg) {
           this.abrirModalEditarDocumento(reg, {
             docPadre: doc,
@@ -901,7 +889,7 @@ export class ModalManager {
           return;
         }
         const regId = btn.getAttribute('data-reg-id');
-        const reg = (doc.registrosDerivados || []).find((r) => (r.id && r.id === regId) || (r.codigo && r.codigo === regId) || (regId === 'undefined' && r.codigo === 'FMT-GIC-016-2'));
+        const reg = (doc.registrosDerivados || []).find((r) => (r.id && r.id === regId) || (r.codigo && r.codigo === regId) || (regId === 'undefined' && r.codigo === 'FMT-GIC-015-2'));
         if (reg) {
           this.abrirModalEliminarDocumento(reg, {
             onConfirmar: async (motivo, borradoFisico) => {
@@ -1097,9 +1085,8 @@ export class ModalManager {
             <button type="button" class="settings-tab-btn ${activeTab === 'preferencias' ? 'active' : ''}" data-tab="preferencias">
               <span>🎨</span> Preferencias
             </button>
-            ${
-              esAdmin
-                ? `
+            ${esAdmin
+        ? `
                   <button type="button" class="settings-tab-btn ${activeTab === 'perfiles' ? 'active' : ''}" data-tab="perfiles">
                     <span>👤</span> Perfiles
                   </button>
@@ -1107,17 +1094,16 @@ export class ModalManager {
                     <span>🏷️</span> Tablas Maestras
                   </button>
                 `
-                : ''
-            }
-            ${
-              !esOperativo
-                ? `
+        : ''
+      }
+            ${!esOperativo
+        ? `
                 <button type="button" class="settings-tab-btn ${activeTab === 'sincronizar' ? 'active' : ''}" data-tab="sincronizar">
                   <span>🔄</span> Sincronizar
                 </button>
                 `
-                : ''
-            }
+        : ''
+      }
             <a href="reglas_de_negocio.html" target="_blank" class="settings-tab-btn" style="text-decoration: none; color: inherit; display: inline-flex; align-items: center; gap: 6px;" title="Abrir portal interactivo de Reglas de Negocio y SSOT">
               <span>📘</span> Reglas SSOT
             </a>
@@ -1127,9 +1113,8 @@ export class ModalManager {
           <div class="modal-body" style="padding: 0; overflow-y: auto; flex: 1; display: flex; flex-direction: column;">
             
             <!-- PESTAÑA: PERFILES (ASIGNACIÓN Y GESTIÓN DE PERFILES DE EMPLEADOS) - EXCLUSIVO ACCESO TOTAL -->
-            ${
-              esAdmin
-                ? `
+            ${esAdmin
+        ? `
                 <div class="settings-tab-content" id="tab-content-perfiles" style="display: ${activeTab === 'perfiles' ? 'flex' : 'none'}; flex-direction: column; gap: 8px; padding: 14px 18px;">
                   <!-- Buscador y Selector de Empleados Activos -->
                   <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 14px;">
@@ -1417,8 +1402,8 @@ export class ModalManager {
                   </div>
                 </div>
                 `
-                : ''
-            }
+        : ''
+      }
 
             <!-- PESTAÑA: PREFERENCIAS (DISEÑO Y FILTROS POR DEFECTO DEL CATÁLOGO) -->
             <div class="settings-tab-content" id="tab-content-preferencias" style="display: ${activeTab === 'preferencias' ? 'flex' : 'none'}; flex-direction: column; gap: 14px; padding: 18px 22px;">
@@ -1553,9 +1538,8 @@ export class ModalManager {
               </div>
 
               <!-- Bloque 2: Configuración de Rutas de Archivos (Exclusivo para Acceso Total / Administrador) -->
-              ${
-                esAdmin
-                  ? `
+              ${esAdmin
+        ? `
                   <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px;">
                     <div style="display: flex; justify-content: space-between; align-items: center;">
                       <div>
@@ -1644,8 +1628,8 @@ export class ModalManager {
                     <div id="routes-save-msg" style="display: none; font-size: 0.76rem; font-weight: 600;"></div>
                   </div>
                   `
-                  : ''
-              }
+        : ''
+      }
             </div>
 
           </div>
@@ -1859,19 +1843,17 @@ export class ModalManager {
               </td>
               <td style="padding: 6px 8px; text-align: right; white-space: nowrap;">
                 <div style="display: inline-flex; align-items: center; justify-content: flex-end; gap: 6px;">
-                  ${
-                    estaBloqueado && esAdmin
-                      ? `<button type="button" class="btn-unlock-inline-user" data-doc="${u.identificacion}" style="background: #dc2626; color: #ffffff; border: none; border-radius: 4px; padding: 3px 8px; font-size: 0.70rem; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 3px; box-shadow: 0 1px 3px rgba(220,38,38,0.3);" title="Desbloquear usuario por Superadministrador"><span>🔓</span> Desbloquear</button>`
-                      : ''
-                  }
+                  ${estaBloqueado && esAdmin
+              ? `<button type="button" class="btn-unlock-inline-user" data-doc="${u.identificacion}" style="background: #dc2626; color: #ffffff; border: none; border-radius: 4px; padding: 3px 8px; font-size: 0.70rem; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 3px; box-shadow: 0 1px 3px rgba(220,38,38,0.3);" title="Desbloquear usuario por Superadministrador"><span>🔓</span> Desbloquear</button>`
+              : ''
+            }
                   <button type="button" class="btn-save-inline-profile" data-doc="${u.identificacion}" style="display: none; background: #16a34a; color: #ffffff; border: none; border-radius: 4px; padding: 3px 8px; font-size: 0.72rem; font-weight: 700; cursor: pointer; align-items: center; gap: 4px; box-shadow: 0 1px 3px rgba(22,163,74,0.3);" title="Confirmar y guardar cambio de perfil">
                     <span>💾</span> Guardar
                   </button>
-                  ${
-                    tieneEspecial
-                      ? `<button type="button" class="btn-remove-special-profile" data-doc="${u.identificacion}" title="Quitar perfil especial y restaurar perfil base" style="background: none; border: none; color: #dc2626; cursor: pointer; font-size: 0.95rem; padding: 2px 4px;">🗑️</button>`
-                      : `<span class="tag-base-profile" style="color:#94a3b8; font-size:0.72rem;">Base</span>`
-                  }
+                  ${tieneEspecial
+              ? `<button type="button" class="btn-remove-special-profile" data-doc="${u.identificacion}" title="Quitar perfil especial y restaurar perfil base" style="background: none; border: none; color: #dc2626; cursor: pointer; font-size: 0.95rem; padding: 2px 4px;">🗑️</button>`
+              : `<span class="tag-base-profile" style="color:#94a3b8; font-size:0.72rem;">Base</span>`
+            }
                 </div>
               </td>
             </tr>
@@ -2564,7 +2546,7 @@ export class ModalManager {
         // Guardar preferencia
         try {
           localStorage.setItem('usv_vista_catalogo', nuevaVista);
-        } catch {}
+        } catch { }
 
         const colab = staffService.obtenerSesionActiva() || staffService.obtenerUsuarioRecordado();
         if (colab && colab.identificacion) {
@@ -2733,7 +2715,7 @@ export class ModalManager {
         try {
           await staffService.inicializar();
           await sharepointService.obtenerDocumentos(true);
-        } catch {}
+        } catch { }
       });
 
       this.modalContainer.querySelector('#btn-reset-routes')?.addEventListener('click', () => {
@@ -3776,9 +3758,9 @@ export class ModalManager {
               </div>
 
               <p style="font-size: 0.82rem; color: #64748b;">
-                ${esRestablecimiento 
-                  ? 'Define tu <strong>nueva contraseña personal</strong> para actualizar tu acceso.'
-                  : 'Define tu <strong>contraseña personal</strong> para acceder al sistema.'}
+                ${esRestablecimiento
+          ? 'Define tu <strong>nueva contraseña personal</strong> para actualizar tu acceso.'
+          : 'Define tu <strong>contraseña personal</strong> para acceder al sistema.'}
               </p>
 
               <form id="form-create-password" style="display: flex; flex-direction: column; gap: 10px;">
@@ -4003,7 +3985,7 @@ export class ModalManager {
           if (lastSlash > 0) {
             folderUrl = urlLimpia.substring(0, lastSlash);
           }
-        } catch {}
+        } catch { }
       }
 
       if (!folderUrl || folderUrl === '#') return;
@@ -4429,7 +4411,7 @@ export class ModalManager {
         const padre = formatosBase.find((d) => (d.codigo || '').toUpperCase() === (codPadre || '').toUpperCase());
         const subcarpetaNombre = padre ? `${padre.codigo} ${padre.titulo}` : '';
         const tituloDoc = inputTitulo ? inputTitulo.value.trim() : '';
-        const enlaceSecundario = (padre && sharepointService.generarEnlacesDocumentoSecundario) 
+        const enlaceSecundario = (padre && sharepointService.generarEnlacesDocumentoSecundario)
           ? sharepointService.generarEnlacesDocumentoSecundario(padre, { codigo: cod, titulo: tituloDoc, extension: 'docx' })
           : null;
 
@@ -4496,7 +4478,7 @@ export class ModalManager {
       const tieneEnlace = Boolean(
         docExistente &&
         ((docExistente.sharepointUrl && docExistente.sharepointUrl.trim() !== '' && docExistente.sharepointUrl !== '#') ||
-         (docExistente.downloadUrl && docExistente.downloadUrl.trim() !== '' && docExistente.downloadUrl !== '#'))
+          (docExistente.downloadUrl && docExistente.downloadUrl.trim() !== '' && docExistente.downloadUrl !== '#'))
       );
 
       const containerBadge = document.getElementById('nd-disp-badge-container');
@@ -4651,8 +4633,8 @@ export class ModalManager {
       if (padre) {
         inputCodigo.value = (sharepointService.calcularSiguienteCodigoRegistro ? sharepointService.calcularSiguienteCodigoRegistro(padre) : padre.codigo);
         if (inputArea) {
-          const areaMatch = areasMaestras.find((a) => 
-            (a.nombre || '').toLowerCase() === (padre.areaNombre || padre.area || '').toLowerCase() || 
+          const areaMatch = areasMaestras.find((a) =>
+            (a.nombre || '').toLowerCase() === (padre.areaNombre || padre.area || '').toLowerCase() ||
             (a.sigla || '').toUpperCase() === (padre.area || '').toUpperCase()
           );
           if (areaMatch) inputArea.value = areaMatch.nombre;
@@ -4778,8 +4760,8 @@ export class ModalManager {
       const vigenciaInput = document.getElementById('nd-vigencia')?.value.trim();
       const tiempoRetencion = document.getElementById('nd-tiempo-retencion')?.value.trim() || '5 Años';
       const lugar = document.getElementById('nd-lugar')?.value.trim() || 'Oficina central y sede';
-      const tipoCambio = esRegistroDoc 
-        ? `Registro derivado de ${codigo}` 
+      const tipoCambio = esRegistroDoc
+        ? `Registro derivado de ${codigo}`
         : (document.getElementById('nd-tipo-cambio')?.value.trim() || 'Creación del documento');
       const permOp = document.getElementById('nd-perm-op').checked;
       const permAdm = document.getElementById('nd-perm-adm').checked;
@@ -4796,8 +4778,8 @@ export class ModalManager {
       // Garantizar que un registro derivado siempre tenga el sufijo consecutivo -N
       if (esRegistroDoc && docPadreRef) {
         if (!/-(\d+)$/.test(codigo) || codigo === (docPadreRef.codigo || '').toUpperCase()) {
-          codigo = sharepointService.calcularSiguienteCodigoRegistro 
-            ? sharepointService.calcularSiguienteCodigoRegistro(docPadreRef) 
+          codigo = sharepointService.calcularSiguienteCodigoRegistro
+            ? sharepointService.calcularSiguienteCodigoRegistro(docPadreRef)
             : `${docPadreRef.codigo}-1`;
         }
       }
