@@ -292,7 +292,20 @@ export class FilterEngine {
 
     if (categoriaExcluida !== 'areas' && this.estado.areas.size > 0) {
       const areasNorm = new Set(Array.from(this.estado.areas).map((a) => this.removerTildes(a)));
-      filtrados = filtrados.filter((doc) => areasNorm.has(this.removerTildes(doc.area)));
+      filtrados = filtrados.filter((doc) => {
+        const aDoc = this.removerTildes(doc.area);
+        const aDocNombre = this.removerTildes(doc.areaNombre);
+        if (areasNorm.has(aDoc) || areasNorm.has(aDocNombre)) return true;
+        for (const fArea of areasNorm) {
+          if (fArea.includes('financiera') && (aDoc.includes('financiera') || aDoc === 'gfi' || aDoc === 'gad')) return true;
+          if (fArea.includes('medica') && (aDoc.includes('medica') || aDoc === 'gmd')) return true;
+          if (fArea.includes('calidad') && (aDoc.includes('calidad') || aDoc === 'gic')) return true;
+          if (fArea.includes('talento') && (aDoc.includes('talento') || aDoc === 'gth' || aDoc === 'ghu')) return true;
+          if (fArea.includes('tecnologia') && (aDoc.includes('tecnologia') || aDoc === 'gti' || aDoc === 'tic')) return true;
+          if (fArea.includes('auditoria') && (aDoc.includes('auditoria') || aDoc === 'gau' || aDoc === 'aud')) return true;
+        }
+        return false;
+      });
     }
 
     if (categoriaExcluida !== 'procesos' && this.estado.procesos.size > 0) {

@@ -1,25 +1,9 @@
 {
   "version": "1.0",
   "empresa": "Unión para la salud y la vida S.A.S.",
-  "ultimaActualizacion": "2026-09-28T13:51:57Z",
-  "total": 245,
+  "ultimaActualizacion": "2026-10-08T08:19:22Z",
+  "total": 247,
   "documentos": [
-    {
-      "codigo": "Capacitación",
-      "titulo": "Inicial Aplicativo Inspektor -ANA VENURIS CARDONA-20260928_093513-Grabación de la reunión.mp4",
-      "documento": "Inicial Aplicativo Inspektor -ANA VENURIS CARDONA-20260928_093513-Grabación de la reunión.mp4",
-      "extension": ".mp4",
-      "formato": "MP4",
-      "carpeta": "Constitucion Legal",
-      "proceso": "Constitucion Legal",
-      "tipoDocumento": "",
-      "modificacion": "2026-09-28T13:14:35",
-      "vinculoEdicion": "https://unionsaludvida.sharepoint.com/sites/INTRANET/Documentos compartidos/DOCUMENTOS_INSTITUCIONALES/DIRECCION_ADMIN_FINAN/COORD_GESTION_HUMANA/ARCHIVOS_COORD_GH/GESTION CALIDAD -GH/Gestion del talento humano/DOCUMENTOS UNION PARA LA SALUD Y LA VIDA/CONSTITUCION LEGAL/PROVEEDORES ANTECEDENTES/INSPEKTOR Risk Consultin/Capacitación Inicial Aplicativo Inspektor  - ANA VENURIS CARDONA-20260928_093513-Grabación de la reunión.mp4?web=1",
-      "vinculoDescarga": "https://unionsaludvida.sharepoint.com/sites/INTRANET/Documentos compartidos/DOCUMENTOS_INSTITUCIONALES/DIRECCION_ADMIN_FINAN/COORD_GESTION_HUMANA/ARCHIVOS_COORD_GH/GESTION CALIDAD -GH/Gestion del talento humano/DOCUMENTOS UNION PARA LA SALUD Y LA VIDA/CONSTITUCION LEGAL/PROVEEDORES ANTECEDENTES/INSPEKTOR Risk Consultin/Capacitación Inicial Aplicativo Inspektor  - ANA VENURIS CARDONA-20260928_093513-Grabación de la reunión.mp4",
-      "sharepointUrl": "https://unionsaludvida.sharepoint.com/sites/INTRANET/Documentos compartidos/DOCUMENTOS_INSTITUCIONALES/DIRECCION_ADMIN_FINAN/COORD_GESTION_HUMANA/ARCHIVOS_COORD_GH/GESTION CALIDAD -GH/Gestion del talento humano/DOCUMENTOS UNION PARA LA SALUD Y LA VIDA/CONSTITUCION LEGAL/PROVEEDORES ANTECEDENTES/INSPEKTOR Risk Consultin/Capacitación Inicial Aplicativo Inspektor  - ANA VENURIS CARDONA-20260928_093513-Grabación de la reunión.mp4?web=1",
-      "downloadUrl": "https://unionsaludvida.sharepoint.com/sites/INTRANET/Documentos compartidos/DOCUMENTOS_INSTITUCIONALES/DIRECCION_ADMIN_FINAN/COORD_GESTION_HUMANA/ARCHIVOS_COORD_GH/GESTION CALIDAD -GH/Gestion del talento humano/DOCUMENTOS UNION PARA LA SALUD Y LA VIDA/CONSTITUCION LEGAL/PROVEEDORES ANTECEDENTES/INSPEKTOR Risk Consultin/Capacitación Inicial Aplicativo Inspektor  - ANA VENURIS CARDONA-20260928_093513-Grabación de la reunión.mp4",
-      "disponible": true
-    },
     {
       "codigo": "Capacitación",
       "titulo": "Inicial Aplicativo Inspektor -ANA VENURIS CARDONA-20260928_104443-Grabación de la reunión.mp4",
@@ -29,11 +13,27 @@
       "carpeta": "Constitucion Legal",
       "proceso": "Constitucion Legal",
       "tipoDocumento": "",
-      "modificacion": "2026-09-28T13:14:35",
+      "modificacion": "2026-09-28T13:13:00",
       "vinculoEdicion": "https://unionsaludvida.sharepoint.com/sites/INTRANET/Documentos compartidos/DOCUMENTOS_INSTITUCIONALES/DIRECCION_ADMIN_FINAN/COORD_GESTION_HUMANA/ARCHIVOS_COORD_GH/GESTION CALIDAD -GH/Gestion del talento humano/DOCUMENTOS UNION PARA LA SALUD Y LA VIDA/CONSTITUCION LEGAL/PROVEEDORES ANTECEDENTES/INSPEKTOR Risk Consultin/Capacitación Inicial Aplicativo Inspektor  - ANA VENURIS CARDONA-20260928_104443-Grabación de la reunión.mp4?web=1",
       "vinculoDescarga": "https://unionsaludvida.sharepoint.com/sites/INTRANET/Documentos compartidos/DOCUMENTOS_INSTITUCIONALES/DIRECCION_ADMIN_FINAN/COORD_GESTION_HUMANA/ARCHIVOS_COORD_GH/GESTION CALIDAD -GH/Gestion del talento humano/DOCUMENTOS UNION PARA LA SALUD Y LA VIDA/CONSTITUCION LEGAL/PROVEEDORES ANTECEDENTES/INSPEKTOR Risk Consultin/Capacitación Inicial Aplicativo Inspektor  - ANA VENURIS CARDONA-20260928_104443-Grabación de la reunión.mp4",
       "sharepointUrl": "https://unionsaludvida.sharepoint.com/sites/INTRANET/Documentos compartidos/DOCUMENTOS_INSTITUCIONALES/DIRECCION_ADMIN_FINAN/COORD_GESTION_HUMANA/ARCHIVOS_COORD_GH/GESTION CALIDAD -GH/Gestion del talento humano/DOCUMENTOS UNION PARA LA SALUD Y LA VIDA/CONSTITUCION LEGAL/PROVEEDORES ANTECEDENTES/INSPEKTOR Risk Consultin/Capacitación Inicial Aplicativo Inspektor  - ANA VENURIS CARDONA-20260928_104443-Grabación de la reunión.mp4?web=1",
       "downloadUrl": "https://unionsaludvida.sharepoint.com/sites/INTRANET/Documentos compartidos/DOCUMENTOS_INSTITUCIONALES/DIRECCION_ADMIN_FINAN/COORD_GESTION_HUMANA/ARCHIVOS_COORD_GH/GESTION CALIDAD -GH/Gestion del talento humano/DOCUMENTOS UNION PARA LA SALUD Y LA VIDA/CONSTITUCION LEGAL/PROVEEDORES ANTECEDENTES/INSPEKTOR Risk Consultin/Capacitación Inicial Aplicativo Inspektor  - ANA VENURIS CARDONA-20260928_104443-Grabación de la reunión.mp4",
+      "disponible": true
+    },
+    {
+      "codigo": "Capacitación",
+      "titulo": "Inicial Aplicativo Inspektor -ANA VENURIS CARDONA-20260928_093513-Grabación de la reunión.mp4",
+      "documento": "Inicial Aplicativo Inspektor -ANA VENURIS CARDONA-20260928_093513-Grabación de la reunión.mp4",
+      "extension": ".mp4",
+      "formato": "MP4",
+      "carpeta": "Constitucion Legal",
+      "proceso": "Constitucion Legal",
+      "tipoDocumento": "",
+      "modificacion": "2026-09-28T13:12:49",
+      "vinculoEdicion": "https://unionsaludvida.sharepoint.com/sites/INTRANET/Documentos compartidos/DOCUMENTOS_INSTITUCIONALES/DIRECCION_ADMIN_FINAN/COORD_GESTION_HUMANA/ARCHIVOS_COORD_GH/GESTION CALIDAD -GH/Gestion del talento humano/DOCUMENTOS UNION PARA LA SALUD Y LA VIDA/CONSTITUCION LEGAL/PROVEEDORES ANTECEDENTES/INSPEKTOR Risk Consultin/Capacitación Inicial Aplicativo Inspektor  - ANA VENURIS CARDONA-20260928_093513-Grabación de la reunión.mp4?web=1",
+      "vinculoDescarga": "https://unionsaludvida.sharepoint.com/sites/INTRANET/Documentos compartidos/DOCUMENTOS_INSTITUCIONALES/DIRECCION_ADMIN_FINAN/COORD_GESTION_HUMANA/ARCHIVOS_COORD_GH/GESTION CALIDAD -GH/Gestion del talento humano/DOCUMENTOS UNION PARA LA SALUD Y LA VIDA/CONSTITUCION LEGAL/PROVEEDORES ANTECEDENTES/INSPEKTOR Risk Consultin/Capacitación Inicial Aplicativo Inspektor  - ANA VENURIS CARDONA-20260928_093513-Grabación de la reunión.mp4",
+      "sharepointUrl": "https://unionsaludvida.sharepoint.com/sites/INTRANET/Documentos compartidos/DOCUMENTOS_INSTITUCIONALES/DIRECCION_ADMIN_FINAN/COORD_GESTION_HUMANA/ARCHIVOS_COORD_GH/GESTION CALIDAD -GH/Gestion del talento humano/DOCUMENTOS UNION PARA LA SALUD Y LA VIDA/CONSTITUCION LEGAL/PROVEEDORES ANTECEDENTES/INSPEKTOR Risk Consultin/Capacitación Inicial Aplicativo Inspektor  - ANA VENURIS CARDONA-20260928_093513-Grabación de la reunión.mp4?web=1",
+      "downloadUrl": "https://unionsaludvida.sharepoint.com/sites/INTRANET/Documentos compartidos/DOCUMENTOS_INSTITUCIONALES/DIRECCION_ADMIN_FINAN/COORD_GESTION_HUMANA/ARCHIVOS_COORD_GH/GESTION CALIDAD -GH/Gestion del talento humano/DOCUMENTOS UNION PARA LA SALUD Y LA VIDA/CONSTITUCION LEGAL/PROVEEDORES ANTECEDENTES/INSPEKTOR Risk Consultin/Capacitación Inicial Aplicativo Inspektor  - ANA VENURIS CARDONA-20260928_093513-Grabación de la reunión.mp4",
       "disponible": true
     },
     {
@@ -594,6 +594,22 @@
       "vinculoDescarga": "https://unionsaludvida.sharepoint.com/sites/INTRANET/Documentos compartidos/DOCUMENTOS_INSTITUCIONALES/SISTEMAS_INFORMACION/GESTION DOCUMENTAL DE CALIDAD UT/Gestión documental de calidad Unión para la Salud Y la Vida SAS/Apoyo/Gestión Financiera/Gestión Financiera y Contable/Formatos/FMT-GFI-003 Formulario de Vinculación de Proveedores.docx",
       "sharepointUrl": "https://unionsaludvida.sharepoint.com/sites/INTRANET/Documentos compartidos/DOCUMENTOS_INSTITUCIONALES/SISTEMAS_INFORMACION/GESTION DOCUMENTAL DE CALIDAD UT/Gestión documental de calidad Unión para la Salud Y la Vida SAS/Apoyo/Gestión Financiera/Gestión Financiera y Contable/Formatos/FMT-GFI-003 Formulario de Vinculación de Proveedores.docx?web=1",
       "downloadUrl": "https://unionsaludvida.sharepoint.com/sites/INTRANET/Documentos compartidos/DOCUMENTOS_INSTITUCIONALES/SISTEMAS_INFORMACION/GESTION DOCUMENTAL DE CALIDAD UT/Gestión documental de calidad Unión para la Salud Y la Vida SAS/Apoyo/Gestión Financiera/Gestión Financiera y Contable/Formatos/FMT-GFI-003 Formulario de Vinculación de Proveedores.docx",
+      "disponible": true
+    },
+    {
+      "codigo": "FMT-GFI-004",
+      "titulo": "Formato entrega en efectivo caja menor.xlsx",
+      "documento": "Formato entrega en efectivo caja menor.xlsx",
+      "extension": ".xlsx",
+      "formato": "Excel",
+      "carpeta": "Gestión Financiera y Contable",
+      "proceso": "Gestión Financiera y Contable",
+      "tipoDocumento": "",
+      "modificacion": "2026-10-07T21:01:26",
+      "vinculoEdicion": "https://unionsaludvida.sharepoint.com/sites/INTRANET/Documentos compartidos/DOCUMENTOS_INSTITUCIONALES/SISTEMAS_INFORMACION/GESTION DOCUMENTAL DE CALIDAD UT/Gestión documental de calidad Unión para la Salud Y la Vida SAS/Apoyo/Gestión Financiera/Gestión Financiera y Contable/Formatos/FMT-GFI-004 Formato entrega en efectivo caja menor.xlsx?web=1",
+      "vinculoDescarga": "https://unionsaludvida.sharepoint.com/sites/INTRANET/Documentos compartidos/DOCUMENTOS_INSTITUCIONALES/SISTEMAS_INFORMACION/GESTION DOCUMENTAL DE CALIDAD UT/Gestión documental de calidad Unión para la Salud Y la Vida SAS/Apoyo/Gestión Financiera/Gestión Financiera y Contable/Formatos/FMT-GFI-004 Formato entrega en efectivo caja menor.xlsx",
+      "sharepointUrl": "https://unionsaludvida.sharepoint.com/sites/INTRANET/Documentos compartidos/DOCUMENTOS_INSTITUCIONALES/SISTEMAS_INFORMACION/GESTION DOCUMENTAL DE CALIDAD UT/Gestión documental de calidad Unión para la Salud Y la Vida SAS/Apoyo/Gestión Financiera/Gestión Financiera y Contable/Formatos/FMT-GFI-004 Formato entrega en efectivo caja menor.xlsx?web=1",
+      "downloadUrl": "https://unionsaludvida.sharepoint.com/sites/INTRANET/Documentos compartidos/DOCUMENTOS_INSTITUCIONALES/SISTEMAS_INFORMACION/GESTION DOCUMENTAL DE CALIDAD UT/Gestión documental de calidad Unión para la Salud Y la Vida SAS/Apoyo/Gestión Financiera/Gestión Financiera y Contable/Formatos/FMT-GFI-004 Formato entrega en efectivo caja menor.xlsx",
       "disponible": true
     },
     {
@@ -2485,6 +2501,22 @@
       "disponible": true
     },
     {
+      "codigo": "FMT-GTH-075",
+      "titulo": "Plan de inducción y entrenamiento especialistas.xlsx",
+      "documento": "Plan de inducción y entrenamiento especialistas.xlsx",
+      "extension": ".xlsx",
+      "formato": "Excel",
+      "carpeta": "Induccion",
+      "proceso": "Induccion",
+      "tipoDocumento": "",
+      "modificacion": "2026-09-28T14:21:23",
+      "vinculoEdicion": "https://unionsaludvida.sharepoint.com/sites/INTRANET/Documentos compartidos/DOCUMENTOS_INSTITUCIONALES/DIRECCION_ADMIN_FINAN/COORD_GESTION_HUMANA/ARCHIVOS_COORD_GH/GESTION CALIDAD -GH/Gestion del talento humano/DOCUMENTOS UNION PARA LA SALUD Y LA VIDA/INDUCCION/FMT-GTH-075 Plan de inducción y entrenamiento especialistas.xlsx?web=1",
+      "vinculoDescarga": "https://unionsaludvida.sharepoint.com/sites/INTRANET/Documentos compartidos/DOCUMENTOS_INSTITUCIONALES/DIRECCION_ADMIN_FINAN/COORD_GESTION_HUMANA/ARCHIVOS_COORD_GH/GESTION CALIDAD -GH/Gestion del talento humano/DOCUMENTOS UNION PARA LA SALUD Y LA VIDA/INDUCCION/FMT-GTH-075 Plan de inducción y entrenamiento especialistas.xlsx",
+      "sharepointUrl": "https://unionsaludvida.sharepoint.com/sites/INTRANET/Documentos compartidos/DOCUMENTOS_INSTITUCIONALES/DIRECCION_ADMIN_FINAN/COORD_GESTION_HUMANA/ARCHIVOS_COORD_GH/GESTION CALIDAD -GH/Gestion del talento humano/DOCUMENTOS UNION PARA LA SALUD Y LA VIDA/INDUCCION/FMT-GTH-075 Plan de inducción y entrenamiento especialistas.xlsx?web=1",
+      "downloadUrl": "https://unionsaludvida.sharepoint.com/sites/INTRANET/Documentos compartidos/DOCUMENTOS_INSTITUCIONALES/DIRECCION_ADMIN_FINAN/COORD_GESTION_HUMANA/ARCHIVOS_COORD_GH/GESTION CALIDAD -GH/Gestion del talento humano/DOCUMENTOS UNION PARA LA SALUD Y LA VIDA/INDUCCION/FMT-GTH-075 Plan de inducción y entrenamiento especialistas.xlsx",
+      "disponible": true
+    },
+    {
       "codigo": "FMT-GTI-001",
       "titulo": "Autorizacion de recursos tecnológicos.docx",
       "documento": "Autorizacion de recursos tecnológicos.docx",
@@ -2653,7 +2685,7 @@
       "carpeta": "Gestión Integral de Calidad",
       "proceso": "Gestión Integral de Calidad",
       "tipoDocumento": "",
-      "modificacion": "2026-08-28T23:06:01",
+      "modificacion": "2026-09-29T16:55:39",
       "vinculoEdicion": "https://unionsaludvida.sharepoint.com/sites/INTRANET/Documentos compartidos/DOCUMENTOS_INSTITUCIONALES/SISTEMAS_INFORMACION/GESTION DOCUMENTAL DE CALIDAD UT/Gestión documental de calidad Unión para la Salud Y la Vida SAS/Calidad/Gestión Integral de la calidad/Gestión Integral de Calidad/Instructivos/INS-GIC-005 Instructivo de acceso a la plataforma virtual de educación.docx?web=1",
       "vinculoDescarga": "https://unionsaludvida.sharepoint.com/sites/INTRANET/Documentos compartidos/DOCUMENTOS_INSTITUCIONALES/SISTEMAS_INFORMACION/GESTION DOCUMENTAL DE CALIDAD UT/Gestión documental de calidad Unión para la Salud Y la Vida SAS/Calidad/Gestión Integral de la calidad/Gestión Integral de Calidad/Instructivos/INS-GIC-005 Instructivo de acceso a la plataforma virtual de educación.docx",
       "sharepointUrl": "https://unionsaludvida.sharepoint.com/sites/INTRANET/Documentos compartidos/DOCUMENTOS_INSTITUCIONALES/SISTEMAS_INFORMACION/GESTION DOCUMENTAL DE CALIDAD UT/Gestión documental de calidad Unión para la Salud Y la Vida SAS/Calidad/Gestión Integral de la calidad/Gestión Integral de Calidad/Instructivos/INS-GIC-005 Instructivo de acceso a la plataforma virtual de educación.docx?web=1",

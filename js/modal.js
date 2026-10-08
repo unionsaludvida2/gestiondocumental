@@ -3,9 +3,9 @@
  * Unión para la salud y la vida S.A.S.
  */
 
-import { sharepointService, determinarEstrategiaDescarga, esDocumentoFMT } from './sharepoint-service.js?v=11.6.92';
-import { staffService } from './staff-service.js?v=11.6.92';
-import { filterEngine } from './filters.js?v=11.6.92';
+import { sharepointService, determinarEstrategiaDescarga, esDocumentoFMT, normalizarAreaDoc } from './sharepoint-service.js?v=11.6.94';
+import { staffService } from './staff-service.js?v=11.6.94';
+import { filterEngine } from './filters.js?v=11.6.94';
 
 const STORAGE_KEY_USER_PROFILE = 'agy_user_profile';
 
@@ -4248,8 +4248,8 @@ export class ModalManager {
               </div>
             </div>
 
-            <!-- Fila 2: Nombre / Título del Documento y Versión -->
-            <div style="display: grid; grid-template-columns: 3fr 1fr; gap: 12px;">
+            <!-- Fila 2: Nombre / Título del Documento, Versión y Formato -->
+            <div style="display: grid; grid-template-columns: 2.2fr 1fr 1.1fr; gap: 12px;">
               <div>
                 <label id="nd-label-titulo" style="display: block; font-size: 0.78rem; font-weight: 700; color: #1e293b; margin-bottom: 4px;">
                   ${esRegistro ? 'Nombre / Título Diferencial del Registro *' : 'Nombre / Título del Documento *'}
@@ -4261,6 +4261,17 @@ export class ModalManager {
                   Versión <span style="color: #dc2626;">*</span>
                 </label>
                 <input type="text" id="nd-version" class="form-input" value="v01" required style="width: 100%; height: 38px; font-weight: 700; text-align: center; color: var(--primary, #376c95);" />
+              </div>
+              <div>
+                <label style="display: block; font-size: 0.78rem; font-weight: 700; color: var(--brand-navy, #1f4260); margin-bottom: 4px;">
+                  Formato de Archivo <span style="color: #dc2626;">*</span>
+                </label>
+                <select id="nd-formato" class="form-input" style="width: 100%; height: 38px; font-weight: 600;">
+                  <option value="AUTO" selected>Auto (Detectar)</option>
+                  <option value="Excel">📊 Excel (.xlsx)</option>
+                  <option value="Word">📄 Word (.docx)</option>
+                  <option value="PDF">📑 PDF (.pdf)</option>
+                </select>
               </div>
             </div>
 
@@ -4802,17 +4813,45 @@ export class ModalManager {
       btnSave.disabled = true;
       btnSave.innerHTML = `<span>⏳</span> ${esRegistroDoc ? 'Guardando registro...' : 'Guardando documento...'}`;
 
-      const formatoHeredado = docPadreRef?.formato || (prefijoSigla === 'FMT' ? 'Word' : 'PDF');
-      const extensionHeredada = docPadreRef?.extension || (formatoHeredado === 'Excel' ? 'XLS' : (formatoHeredado === 'Word' ? 'DOC' : 'PDF'));
+      const formatoSelectVal = document.getElementById('nd-formato')?.value || 'AUTO';
+      const titLimpio = titulo.toLowerCase().trim();
+      let formatoEfectivo = 'Word';
+      let extensionEfectiva = 'DOC';
+
+      if (formatoSelectVal === 'Excel' || titLimpio.endsWith('.xlsx') || titLimpio.endsWith('.xls')) {
+        formatoEfectivo = 'Excel';
+        extensionEfectiva = 'XLS';
+      } else if (formatoSelectVal === 'PDF' || titLimpio.endsWith('.pdf')) {
+        formatoEfectivo = 'PDF';
+        extensionEfectiva = 'PDF';
+      } else if (formatoSelectVal === 'Word' || titLimpio.endsWith('.docx') || titLimpio.endsWith('.doc')) {
+        formatoEfectivo = 'Word';
+        extensionEfectiva = 'DOC';
+      } else {
+        // Auto-detección inteligente
+        if (docPadreRef) {
+          formatoEfectivo = docPadreRef.formato || 'PDF';
+          extensionEfectiva = docPadreRef.extension || (formatoEfectivo === 'Excel' ? 'XLS' : (formatoEfectivo === 'Word' ? 'DOC' : 'PDF'));
+        } else if (titLimpio.includes('excel') || titLimpio.includes('calculo') || titLimpio.includes('.xlsx') || titLimpio.includes('.xls')) {
+          formatoEfectivo = 'Excel';
+          extensionEfectiva = 'XLS';
+        } else {
+          formatoEfectivo = (prefijoSigla === 'FMT' ? 'Word' : 'PDF');
+          extensionEfectiva = (formatoEfectivo === 'Word' ? 'DOC' : 'PDF');
+        }
+      }
 
       let enlacesSecundarios = null;
       if (esRegistroDoc && docPadreRef && sharepointService.generarEnlacesDocumentoSecundario) {
         enlacesSecundarios = sharepointService.generarEnlacesDocumentoSecundario(docPadreRef, {
           codigo: codigo,
           titulo: titulo,
-          extension: extensionHeredada
+          extension: extensionEfectiva
         });
       }
+
+      // Normalización canónica de Área para compatibilidad total con filtros activos
+      const areaCanon = normalizarAreaDoc(areaNombre || areaSigla, codigo);
 
       const nuevoDocumentoObj = {
         codigo: codigo,
@@ -4821,14 +4860,15 @@ export class ModalManager {
         subclase: esRegistroDoc ? 'Registro' : 'Base',
         esRegistro: esRegistroDoc,
         documentoPadreCodigo: esRegistroDoc ? (docPadreRef?.codigo || codPadre) : undefined,
-        formato: formatoHeredado,
-        extension: extensionHeredada,
+        formato: formatoEfectivo,
+        extension: extensionEfectiva,
         version: version,
         consecutivo: consecutivoNum,
         tipoDocumento: esRegistroDoc ? 'Registro' : prefijoSigla,
         tipoDocumentoNombre: tipoDocNombre,
-        area: areaSigla,
-        areaNombre: areaNombre,
+        area: areaCanon,
+        areaNombre: areaCanon,
+        areaSigla: areaSigla,
         tipoProceso: tipoProceso,
         proceso: proceso,
         carpeta: proceso,
@@ -4905,6 +4945,22 @@ export class ModalManager {
 
     document.getElementById('btn-nuevo-doc-close')?.addEventListener('click', () => this.cerrarModal());
     document.getElementById('btn-nuevo-doc-cancel')?.addEventListener('click', () => this.cerrarModal());
+
+    const inputTit = document.getElementById('nd-titulo');
+    const selectFmt = document.getElementById('nd-formato');
+    if (inputTit && selectFmt) {
+      inputTit.addEventListener('input', () => {
+        const val = inputTit.value.toLowerCase().trim();
+        if (val.endsWith('.xlsx') || val.endsWith('.xls') || val.includes('excel')) {
+          selectFmt.value = 'Excel';
+        } else if (val.endsWith('.pdf')) {
+          selectFmt.value = 'PDF';
+        } else if (val.endsWith('.docx') || val.endsWith('.doc')) {
+          selectFmt.value = 'Word';
+        }
+      });
+    }
+
     setTimeout(() => document.getElementById('nd-titulo')?.focus(), 100);
   }
 

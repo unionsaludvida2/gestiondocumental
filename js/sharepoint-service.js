@@ -911,7 +911,7 @@ export class DataService {
       if (rawCreados) {
         const objCreados = JSON.parse(rawCreados);
         Object.entries(objCreados).forEach(([cCode, cDoc]) => {
-          if (cDoc && cDoc.codigo && (cDoc.downloadUrl || cDoc.sharepointUrl)) {
+          if (cDoc && cDoc.codigo) {
             const codNorm = cDoc.codigo.trim().toUpperCase();
             if (!onedriveMap.has(codNorm)) {
               onedriveMap.set(codNorm, {
@@ -920,8 +920,8 @@ export class DataService {
                 titulo: cDoc.titulo || '',
                 extension: cDoc.extension || '',
                 formato: cDoc.formato || '',
-                carpeta: cDoc.carpeta || '',
-                proceso: cDoc.proceso || '',
+                carpeta: cDoc.carpeta || cDoc.proceso || '',
+                proceso: cDoc.proceso || cDoc.carpeta || '',
                 tipoDoc: cDoc.tipoDocumento || '',
                 urlEdicion: cDoc.sharepointUrl || '',
                 urlDescarga: cDoc.downloadUrl || cDoc.sharepointUrl || '',
@@ -2321,19 +2321,24 @@ export class DataService {
         );
         const estaDisponible = (docObj.disponible !== false && tieneEnlaceActivo) || Boolean(od && tieneEnlaceActivo);
 
+        const areaNormalizadaOficial = normalizarAreaDoc(od?.area || docObj.area || docObj.areaNombre || 'Gestión Integral Calidad', codUpper);
+        const titLower = (docObj.titulo || docObj.nombre || od?.titulo || '').toLowerCase();
+        const esExcelCreated = (od?.formato === 'Excel') || (docObj.formato === 'Excel') || (od?.extension && od.extension.toUpperCase().includes('XLS')) || (docObj.extension && docObj.extension.toUpperCase().includes('XLS')) || titLower.endsWith('.xlsx') || titLower.endsWith('.xls') || titLower.includes('excel');
+
         nuevosParaAgregar.push({
           id: codUpper,
           codigo: codUpper,
           titulo: (docObj.titulo || docObj.nombre || od?.titulo || 'Documento Institucional').replace(/\.(docx|pdf|xlsx|doc|xls|csv)$/i, '').trim(),
           version: docObj.version || '01',
           estado: estaDisponible ? 'DISPONIBLE' : 'NO DISPONIBLE',
-          area: od?.area || docObj.area || 'Gestión Integral Calidad',
+          area: areaNormalizadaOficial,
+          areaNombre: areaNormalizadaOficial,
           tipoProceso: od?.tipoProceso || docObj.tipoProceso || 'Estratégicos',
           proceso: od?.proceso || docObj.proceso || 'Gestión Integral de Calidad',
           carpeta: od?.carpeta || docObj.carpeta || 'N/A',
           tipoDocumento: od?.tipoDocumento || docObj.tipoDocumento || 'Instructivo',
-          formato: od?.formato || docObj.formato || 'Word',
-          extension: od?.extension || docObj.extension || 'DOC',
+          formato: esExcelCreated ? 'Excel' : (od?.formato || docObj.formato || 'Word'),
+          extension: esExcelCreated ? 'XLS' : (od?.extension || docObj.extension || 'DOC'),
           tiempoVigencia: docObj.tiempoVigencia || '5 Años',
           descargable: docObj.descargable !== false,
           disponible: estaDisponible,
@@ -2386,13 +2391,23 @@ export class DataService {
     );
     const estaDisponible = (nuevoDoc.disponible !== false) && tieneEnlaceActivo;
 
-    const esExcelSec = (nuevoDoc.formato === 'Excel' || docPadre?.formato === 'Excel' || (nuevoDoc.extension && nuevoDoc.extension.toUpperCase().includes('XLS')));
+    const titDocLower = (nuevoDoc.titulo || nuevoDoc.nombre || '').toLowerCase().trim();
+    const esExcelDoc = (
+      nuevoDoc.formato === 'Excel' || 
+      docPadre?.formato === 'Excel' || 
+      (nuevoDoc.extension && nuevoDoc.extension.toUpperCase().includes('XLS')) ||
+      titDocLower.endsWith('.xlsx') ||
+      titDocLower.endsWith('.xls') ||
+      titDocLower.includes('excel')
+    );
     const formatoEfectivo = esRegistro 
-      ? (esExcelSec ? 'Excel' : 'PDF')
-      : (nuevoDoc.formato || docPadre?.formato || (esDocumentoFMT(codUpper) ? 'Word' : 'PDF'));
+      ? (esExcelDoc ? 'Excel' : 'PDF')
+      : (esExcelDoc ? 'Excel' : (nuevoDoc.formato || docPadre?.formato || (esDocumentoFMT(codUpper) ? 'Word' : 'PDF')));
     const extensionEfectiva = esRegistro
-      ? (esExcelSec ? 'XLS' : 'PDF')
-      : (nuevoDoc.extension || docPadre?.extension || (formatoEfectivo === 'Excel' ? 'XLS' : (formatoEfectivo === 'Word' ? 'DOC' : 'PDF')));
+      ? (esExcelDoc ? 'XLS' : 'PDF')
+      : (esExcelDoc ? 'XLS' : (nuevoDoc.extension || docPadre?.extension || (formatoEfectivo === 'Excel' ? 'XLS' : (formatoEfectivo === 'Word' ? 'DOC' : 'PDF'))));
+
+    const areaNormalizada = normalizarAreaDoc(nuevoDoc.area || nuevoDoc.areaNombre || docPadre?.area || '', codUpper);
 
     const docNormalizado = {
       id: esRegistro ? `${codUpper}_REG_${Date.now()}` : codUpper,
@@ -2400,7 +2415,9 @@ export class DataService {
       titulo: nuevoDoc.titulo || nuevoDoc.nombre || 'Nuevo Documento',
       version: nuevoDoc.version || '01',
       estado: estaDisponible ? 'DISPONIBLE' : 'NO DISPONIBLE',
-      area: nuevoDoc.area || docPadre?.area || 'Gestión Integral Calidad',
+      area: areaNormalizada,
+      areaNombre: areaNormalizada,
+      areaSigla: nuevoDoc.areaSigla || '',
       tipoProceso: nuevoDoc.tipoProceso || docPadre?.tipoProceso || 'Estratégicos',
       proceso: nuevoDoc.proceso || docPadre?.proceso || 'Gestión Integral de Calidad',
       carpeta: nuevoDoc.carpeta || docPadre?.carpeta || 'N/A',
@@ -2530,7 +2547,10 @@ export class DataService {
 
     // Persistir catálogo en caché IndexedDB inmediatamente (Optimistic Cache Update)
     if (cacheService && cacheService.guardarDocumentos) {
-      cacheService.guardarDocumentos(this.documentosEnMemoria);
+      await cacheService.guardarDocumentos(this.documentosEnMemoria);
+      if (cacheService.guardarColeccion) {
+        await cacheService.guardarColeccion('documentos_catalogo', { total: this.documentosEnMemoria.length, timestamp: Date.now() });
+      }
     }
 
     return { exito: true, documento: docNormalizado };
