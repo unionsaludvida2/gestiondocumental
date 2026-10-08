@@ -1,0 +1,55 @@
+name: Respaldo Diario Automatizado de Datos SGC
+
+on:
+  schedule:
+    # Ejecución automática diaria a las 04:00 UTC (11:00 PM hora de Colombia)
+    - cron: '0 4 * * *'
+  workflow_dispatch: # Permite disparo manual desde la pestaña Actions en GitHub
+
+permissions:
+  contents: write
+
+jobs:
+  backup-datos:
+    runs-on: ubuntu-latest
+    name: Capturar Snapshot de Usuarios, Auditoría y Catálogo
+    steps:
+      - name: Checkout del Repositorio
+        uses: actions/checkout@v4
+
+      - name: Crear carpeta de respaldos si no existe
+        run: |
+          mkdir -p backups/snapshots
+
+      - name: Consultar Snapshot Consolidado desde Google Apps Script
+        run: |
+          FECHA_HOY=$(date +'%Y-%m-%d')
+          URL_GAS="https://script.google.com/macros/s/AKfycbx4-82Ls3Zu5gdzXlAhezZ6ew9tnAece8xSDMQ8QmXcu7UCnMxwqB48ISG_LwNDUgMiQQ/exec?action=backup_completo"
+          
+          echo "Consultando backup completo desde Google Apps Script..."
+          curl -sL "$URL_GAS" -o backup_temp.json
+
+          # Validar que el archivo contenga JSON válido con status ok
+          if grep -q '"status":"ok"' backup_temp.json; then
+            echo "✅ Snapshot obtenido exitosamente."
+            mv backup_temp.json "backups/snapshots/backup_${FECHA_HOY}.json"
+            cp "backups/snapshots/backup_${FECHA_HOY}.json" "backups/snapshot_latest.json"
+          else
+            echo "⚠️ La respuesta de Google Apps Script no fue válida o no retornó status ok. Omitiendo commit para evitar sobreescritura errónea."
+            rm -f backup_temp.json
+            exit 0
+          fi
+
+      - name: Comprometer y Publicar Respaldo
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          
+          if [ -n "$(git status --porcelain backups/)" ]; then
+            git add backups/
+            git commit -m "chore(backup): Snapshot diario consolidado de datos [skip ci]"
+            git push
+            echo "✅ Respaldo diario archivado y versionado en GitHub."
+          else
+            echo "ℹ️ No se detectaron cambios en el snapshot del día de hoy."
+          fi

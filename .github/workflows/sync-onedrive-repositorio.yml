@@ -1,0 +1,121 @@
+name: Sincronización Automática OneDrive a Repositorio
+
+on:
+  schedule:
+    # Ejecutar cada 30 minutos automáticamente
+    - cron: '*/30 * * * *'
+  workflow_dispatch: # Disparo manual en 1 clic desde la pestaña Actions en GitHub
+  push:
+    paths:
+      - '.github/workflows/sync-onedrive-repositorio.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  sync-onedrive:
+    name: Sincronizar REPOSITORIO_DOCUMENTAL de OneDrive a repositorio.dat
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout del repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Descargar CSV de OneDrive y generar repositorio.dat
+        run: |
+          python - << 'EOF'
+          import urllib.request
+          import http.cookiejar
+          import csv
+          import io
+          import json
+          import os
+          import time
+
+          ONEDRIVE_CSV_URL = (
+              "https://unionsaludvida-my.sharepoint.com/:x:/p/plantillas/"
+              "IQCctVunBodCQq97XWMPrue7AaIRpd-pVgSUuZrMBWBcA2A?e=revQbX&download=1"
+          )
+
+          cj = http.cookiejar.CookieJar()
+          opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cj))
+          opener.addheaders = [('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)')]
+
+          print("Conectando con archivo REPOSITORIO_DOCUMENTAL de OneDrive...")
+          with opener.open(ONEDRIVE_CSV_URL, timeout=30) as resp:
+              raw_bytes = resp.read()
+
+          if len(raw_bytes) < 100:
+              raise ValueError("Respuesta de OneDrive vacía o insuficiente")
+
+          csv_text = raw_bytes.decode('utf-8-sig', errors='replace')
+          if 'Código' not in csv_text and ';' not in csv_text:
+              raise ValueError("El archivo recibido de OneDrive no tiene formato CSV válido")
+
+          reader = csv.reader(io.StringIO(csv_text), delimiter=';')
+          rows = [r for r in reader if r and len(r) >= 2]
+
+          items = []
+          for r in rows[1:]:
+              if not r or not r[0].strip():
+                  continue
+              codigo = r[0].strip()
+              documento = r[1].strip() if len(r) > 1 else ''
+              extension = r[2].strip() if len(r) > 2 else ''
+              carpeta = r[3].strip() if len(r) > 3 else ''
+              tipo_doc = r[4].strip() if len(r) > 4 else ''
+              mod = r[5].strip() if len(r) > 5 else ''
+              edicion = r[6].strip() if len(r) > 6 else ''
+              descarga = r[7].strip() if len(r) > 7 else ''
+
+              ext_clean = extension.lstrip('.').lower()
+              formato = 'Word' if ext_clean in ['docx', 'doc'] else ('Excel' if ext_clean in ['xlsx', 'xls', 'csv'] else ('PDF' if ext_clean == 'pdf' else ext_clean.upper()))
+
+              items.append({
+                  'codigo': codigo,
+                  'titulo': documento,
+                  'documento': documento,
+                  'extension': extension,
+                  'formato': formato,
+                  'carpeta': carpeta,
+                  'proceso': carpeta,
+                  'tipoDocumento': tipo_doc,
+                  'modificacion': mod,
+                  'vinculoEdicion': edicion,
+                  'vinculoDescarga': descarga,
+                  'sharepointUrl': edicion or descarga,
+                  'downloadUrl': descarga or edicion,
+                  'disponible': bool(descarga or edicion)
+              })
+
+          res_obj = {
+              'version': '1.0',
+              'empresa': 'Unión para la salud y la vida S.A.S.',
+              'ultimaActualizacion': time.strftime('%Y-%m-%dT%H:%M:%SZ'),
+              'total': len(items),
+              'documentos': items
+          }
+
+          with open('repositorio.dat', 'w', encoding='utf-8') as f:
+              json.dump(res_obj, f, ensure_ascii=False, indent=2)
+
+          print(f"✅ repositorio.dat generado exitosamente con {len(items)} documentos.")
+          EOF
+
+      - name: Confirmar y Publicar repositorio.dat en GitHub
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          
+          if [ -n "$(git status --porcelain repositorio.dat)" ]; then
+            git add repositorio.dat
+            git commit -m "chore(sync): Sincronizar repositorio.dat con OneDrive [skip ci]"
+            git push
+            echo "✅ repositorio.dat actualizado y publicado en GitHub Pages."
+          else
+            echo "ℹ️ No hay cambios pendientes en repositorio.dat."
+          fi
