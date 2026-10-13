@@ -6,7 +6,7 @@
  * exportación del Listado Maestro y Auditoría de Actividad en pestañas separadas.
  */
 
-import { staffService } from './staff-service.js?v=11.6.95';
+import { staffService } from './staff-service.js?v=11.6.96';
 
 export class AnalyticsManager {
 

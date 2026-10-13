@@ -11,6 +11,12 @@ import sys
 import json
 import base64
 import re
+import ssl
+
+try:
+    SSL_CONTEXT = ssl._create_unverified_context()
+except Exception:
+    SSL_CONTEXT = None
 
 try:
     if hasattr(sys.stdout, 'reconfigure'):
@@ -558,7 +564,10 @@ def _trigger_background_repo_sync():
             # 1. Prioridad #1: Descargar directamente stream desde OneDrive / SharePoint en memoria
             try:
                 cj = http.cookiejar.CookieJar()
-                opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cj))
+                opener = urllib.request.build_opener(
+                    urllib.request.HTTPSHandler(context=SSL_CONTEXT) if SSL_CONTEXT else urllib.request.HTTPSHandler(),
+                    urllib.request.HTTPCookieProcessor(cj)
+                )
                 opener.addheaders = [('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)')]
                 with opener.open(ONEDRIVE_CSV_URL, timeout=15) as resp:
                     d = resp.read()
@@ -574,7 +583,7 @@ def _trigger_background_repo_sync():
             # 2. Fallback: Google Sheets si OneDrive no responde
             try:
                 req = urllib.request.Request(GOOGLE_SHEETS_CSV_URL, headers={'User-Agent': 'Mozilla/5.0'})
-                with urllib.request.urlopen(req, timeout=8) as resp:
+                with urllib.request.urlopen(req, timeout=8, context=SSL_CONTEXT) as resp:
                     d = resp.read()
                 if len(d) > 100 and (b',' in d or b';' in d):
                     CACHE['repo']['data'] = d
@@ -598,7 +607,7 @@ def _trigger_background_biblioteca_sync():
     def _worker():
         try:
             req = urllib.request.Request(GOOGLE_SHEETS_CSV_URL, headers={'User-Agent': 'Mozilla/5.0'})
-            with urllib.request.urlopen(req, timeout=12) as resp:
+            with urllib.request.urlopen(req, timeout=12, context=SSL_CONTEXT) as resp:
                 d = resp.read()
             if len(d) > 100 and (b',' in d or b';' in d):
                 CACHE['biblioteca']['data'] = d
@@ -621,7 +630,10 @@ def _trigger_background_empleados_sync():
     def _worker():
         try:
             cj = http.cookiejar.CookieJar()
-            opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cj))
+            opener = urllib.request.build_opener(
+                urllib.request.HTTPSHandler(context=SSL_CONTEXT) if SSL_CONTEXT else urllib.request.HTTPSHandler(),
+                urllib.request.HTTPCookieProcessor(cj)
+            )
             opener.addheaders = [('User-Agent', 'Mozilla/5.0')]
             resp = opener.open(ONEDRIVE_EMPLEADOS_URL, timeout=10)
             d = resp.read()
@@ -649,7 +661,7 @@ def _trigger_background_config_sync():
                 GOOGLE_SCRIPT_CONF_URL,
                 headers={'User-Agent': 'Mozilla/5.0'}
             )
-            with urllib.request.urlopen(req_g, timeout=8) as resp:
+            with urllib.request.urlopen(req_g, timeout=8, context=SSL_CONTEXT) as resp:
                 data = resp.read()
             if len(data) > 0 and data.strip().startswith(b'{'):
                 cloud_conf = json.loads(data.decode('utf-8'))
@@ -723,7 +735,7 @@ def _trigger_background_historico_sync():
 
             # 2. Consultar Google Apps Script (?action=historico)
             req = urllib.request.Request(f"{GOOGLE_SCRIPT_CONF_URL}?action=historico", headers={'User-Agent': 'Mozilla/5.0'})
-            with urllib.request.urlopen(req, timeout=20) as resp:
+            with urllib.request.urlopen(req, timeout=20, context=SSL_CONTEXT) as resp:
                 data = resp.read()
             if len(data) > 0 and data.strip().startswith(b'{'):
                 cloud_data = json.loads(data.decode('utf-8'))
@@ -771,7 +783,7 @@ def _trigger_background_auditoria_sync():
             # 1. Consultar Google Apps Script (?action=auditoria)
             try:
                 req = urllib.request.Request(f"{GOOGLE_SCRIPT_CONF_URL}?action=auditoria", headers={'User-Agent': 'Mozilla/5.0'})
-                with urllib.request.urlopen(req, timeout=12) as resp:
+                with urllib.request.urlopen(req, timeout=12, context=SSL_CONTEXT) as resp:
                     raw = resp.read()
                     if raw and raw.strip().startswith(b'{'):
                         cloud_data = json.loads(raw.decode('utf-8'))
@@ -782,7 +794,7 @@ def _trigger_background_auditoria_sync():
             if not cloud_data or not isinstance(cloud_data, dict) or not cloud_data.get('registroAuditoria'):
                 try:
                     req_d = urllib.request.Request(GOOGLE_DRIVE_AUDITORIA_URL, headers={'User-Agent': 'Mozilla/5.0'})
-                    with urllib.request.urlopen(req_d, timeout=12) as resp_d:
+                    with urllib.request.urlopen(req_d, timeout=12, context=SSL_CONTEXT) as resp_d:
                         raw_d = resp_d.read()
                         if raw_d and raw_d.strip().startswith(b'{'):
                             cloud_data = json.loads(raw_d.decode('utf-8'))
@@ -792,7 +804,7 @@ def _trigger_background_auditoria_sync():
             local_evs = local_data.get('registroAuditoria') or []
             cloud_evs = (cloud_data.get('registroAuditoria') or []) if isinstance(cloud_data, dict) else []
 
-            # Pre-sanitizar y fusionar
+            # Pre-sanitizar y fusionar (Append-Only inmutable: jamás descarta eventos)
             sanitized_local = [sanitizar_evento_auditoria(e) for e in local_evs if isinstance(e, dict)]
             sanitized_cloud = [sanitizar_evento_auditoria(e) for e in cloud_evs if isinstance(e, dict)]
 
@@ -822,10 +834,10 @@ def _trigger_background_auditoria_sync():
             CACHE['auditoria']['ts'] = time.time()
             print(f"[Server.py] ✅ auditoria.dat sincronizado con Google Drive ({len(merged_list)} registros totales, sin límite).")
 
-            # Reparar Google Drive con eventos saneados
-            aud_data_cloud = {**res_obj, 'accion': 'guardar_auditoria', 'fileId': '1yNiuug2P-idZMUKkRb87DH_Mb3-Wn0hR', 'sobrescribir': True, 'reemplazoTotal': True}
+            # Sincronizar Google Drive con eventos saneados (NUNCA sobrescribir ni reemplazo total destructivo)
+            aud_data_cloud = {**res_obj, 'accion': 'guardar_auditoria', 'fileId': '1yNiuug2P-idZMUKkRb87DH_Mb3-Wn0hR'}
             sincronizar_con_google_async(GOOGLE_SCRIPT_CONF_URL, json.dumps(aud_data_cloud, ensure_ascii=False).encode('utf-8'))
-            print(f"[Server.py] 🚀 Saneando Google Drive con {len(merged_list)} eventos consolidados.")
+            print(f"[Server.py] 🚀 Sincronizando Google Drive con {len(merged_list)} eventos consolidados.")
         except Exception as e:
             print('[Server.py] Sync background auditoria error:', e)
         finally:
@@ -865,7 +877,10 @@ def sincronizar_con_google_async(url, payload_bytes):
         try:
             req_g = urllib.request.Request(url, data=payload_bytes, method='POST')
             req_g.add_header('Content-Type', 'text/plain;charset=utf-8')
-            opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor())
+            opener = urllib.request.build_opener(
+                urllib.request.HTTPSHandler(context=SSL_CONTEXT) if SSL_CONTEXT else urllib.request.HTTPSHandler(),
+                urllib.request.HTTPCookieProcessor()
+            )
             opener.open(req_g, timeout=20)
         except Exception as e:
             print('[Server.py] Sincronización en la nube (background):', e)
@@ -1253,17 +1268,27 @@ class LiveOneDriveHandler(http.server.SimpleHTTPRequestHandler):
                     except Exception:
                         pass
 
-                nuevos_evs = req_data.get('registroAuditoria') if isinstance(req_data, dict) and 'registroAuditoria' in req_data else ([req_data] if isinstance(req_data, dict) else [])
+                nuevos_evs = (
+                    req_data.get('eventosNuevos') 
+                    if isinstance(req_data, dict) and 'eventosNuevos' in req_data 
+                    else (
+                        req_data.get('registroAuditoria') 
+                        if isinstance(req_data, dict) and 'registroAuditoria' in req_data 
+                        else ([req_data] if isinstance(req_data, dict) and req_data.get('tipo') else [])
+                    )
+                )
                 if isinstance(nuevos_evs, list):
                     map_aud = {}
                     for ev in (aud_data.get('registroAuditoria') or []):
-                        if isinstance(ev, dict) and ev.get('id'):
-                            map_aud[ev['id']] = ev
+                        if isinstance(ev, dict):
+                            k = ev.get('id') or f"{ev.get('tipo')}_{ev.get('identificacion') or ev.get('usuario')}_{ev.get('documentoCodigo')}_{ev.get('fechaHora') or ev.get('timestamp')}"
+                            map_aud[k] = ev
                     for ev in nuevos_evs:
-                        if isinstance(ev, dict) and ev.get('id'):
+                        if isinstance(ev, dict):
                             tipo = str(ev.get('tipo', '')).upper()
                             if tipo not in ['CONSULTA', 'BUSQUEDA', 'BUSCAR']:
-                                map_aud[ev['id']] = ev
+                                k = ev.get('id') or f"{ev.get('tipo')}_{ev.get('identificacion') or ev.get('usuario')}_{ev.get('documentoCodigo')}_{ev.get('fechaHora') or ev.get('timestamp')}"
+                                map_aud[k] = ev
                     lista_aud = list(map_aud.values())
                     aud_data['registroAuditoria'] = deduplicar_registro_auditoria(lista_aud)
 
@@ -1275,8 +1300,11 @@ class LiveOneDriveHandler(http.server.SimpleHTTPRequestHandler):
                 CACHE['auditoria']['data'] = json.dumps(aud_data, ensure_ascii=False).encode('utf-8')
                 CACHE['auditoria']['ts'] = time.time()
 
-                # Sincronizar con Google Drive en background con acción guardar_auditoria y fileId dedicado
-                aud_data_cloud = {**aud_data, 'accion': 'guardar_auditoria', 'fileId': '1yNiuug2P-idZMUKkRb87DH_Mb3-Wn0hR'}
+                # Sincronizar con Google Drive en background con acción guardar_auditoria
+                if isinstance(req_data, dict) and 'eventosNuevos' in req_data and isinstance(nuevos_evs, list) and len(nuevos_evs) > 0:
+                    aud_data_cloud = {'accion': 'guardar_auditoria', 'fileId': '1yNiuug2P-idZMUKkRb87DH_Mb3-Wn0hR', 'eventosNuevos': nuevos_evs}
+                else:
+                    aud_data_cloud = {**aud_data, 'accion': 'guardar_auditoria', 'fileId': '1yNiuug2P-idZMUKkRb87DH_Mb3-Wn0hR'}
                 sincronizar_con_google_async(GOOGLE_SCRIPT_CONF_URL, json.dumps(aud_data_cloud, ensure_ascii=False).encode('utf-8'))
 
                 res_bytes = json_str.encode('utf-8')

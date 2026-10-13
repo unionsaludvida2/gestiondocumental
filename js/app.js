@@ -11,11 +11,11 @@
  * - Modo Edición: Desbloqueo Automático para Acceso Total y Contraseña Personal para Directivos y Administrativos
  */
 
-import { sharepointService, determinarEstrategiaDescarga, esDocumentoFMT } from './sharepoint-service.js?v=11.6.95';
-import { filterEngine } from './filters.js?v=11.6.95';
-import { modalManager } from './modal.js?v=11.6.95';
-import { analyticsManager } from './analytics.js?v=11.6.95';
-import { staffService } from './staff-service.js?v=11.6.95';
+import { sharepointService, determinarEstrategiaDescarga, esDocumentoFMT } from './sharepoint-service.js?v=11.6.96';
+import { filterEngine } from './filters.js?v=11.6.96';
+import { modalManager } from './modal.js?v=11.6.96';
+import { analyticsManager } from './analytics.js?v=11.6.96';
+import { staffService } from './staff-service.js?v=11.6.96';
 
 const STORAGE_KEY_EDIT_MODE = 'agy_sgc_edit_mode';
 const STORAGE_KEY_FAVORITES = 'agy_sgc_favorites';
@@ -943,10 +943,11 @@ class AppController {
   async sincronizarInteligenteSilenciosa() {
     this.ultimaSincronizacionFondo = Date.now();
     try {
-      // 1. Sincronizar configuraciones y empleados de forma asíncrona
+      // 1. Sincronizar configuraciones, empleados y auditoría de forma asíncrona
       await Promise.all([
         staffService.sincronizarConfiguracion(),
-        staffService.sincronizarEmpleados()
+        staffService.sincronizarEmpleados(),
+        staffService.sincronizarAuditoria()
       ]);
 
       // 2. Consultar catálogo de documentos

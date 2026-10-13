@@ -655,13 +655,23 @@ function actualizarAuditoriaDatEnDrive(dataObj) {
         existingContent = JSON.parse(raw);
       }
     } catch (eParse) {
+      Logger.log('Error parseando auditoria.dat en Drive: ' + eParse.message);
       existingContent = {};
     }
 
     const existingEvents = Array.isArray(existingContent.registroAuditoria) ? existingContent.registroAuditoria : [];
-    const incomingEvents = Array.isArray(dataObj.registroAuditoria) 
-      ? dataObj.registroAuditoria 
-      : (Array.isArray(dataObj.eventosNuevos) ? dataObj.eventosNuevos : (dataObj.tipo ? [dataObj] : []));
+    
+    // Salvaguarda crítica: Si el archivo en Drive tiene datos (> 1KB) y no se pudieron leer eventos,
+    // abortar inmediatamente para prevenir la pérdida accidental de datos históricos.
+    if (fileAud.getSize() > 1000 && existingEvents.length === 0) {
+      throw new Error('Salvaguarda activada: No se pudieron leer los eventos previos en Google Drive (' + fileAud.getSize() + ' bytes). Abortando para prevenir sobreescritura.');
+    }
+
+    const incomingEvents = Array.isArray(dataObj.eventosNuevos)
+      ? dataObj.eventosNuevos
+      : (Array.isArray(dataObj.registroAuditoria) 
+          ? dataObj.registroAuditoria 
+          : (dataObj.tipo ? [dataObj] : []));
 
     if (incomingEvents.length === 0 && existingEvents.length > 0) {
       return { status: 'ok', mensaje: 'Sin eventos nuevos para procesar', total: existingEvents.length };
@@ -714,20 +724,17 @@ function actualizarAuditoriaDatEnDrive(dataObj) {
       return ev;
     }
 
-    const esReemplazoTotal = Boolean(dataObj.sobrescribir || dataObj.reemplazoTotal);
-
-    // 2. Fusión deduplicada por id o clave compuesta
+    // 2. Fusión deduplicada por id o clave compuesta (POLÍTICA INSTITUCIONAL INMUTABLE: APPEND-ONLY)
+    // NUNCA se permite sobreescritura destructiva ni borrado de eventos existentes en Google Drive.
     const mapAud = new Map();
     let nuevosAgregados = 0;
 
-    if (!esReemplazoTotal) {
-      // Primero incorporar los existentes en Drive saneados
-      for (let i = 0; i < existingEvents.length; i++) {
-        const ev = sanitizarEventoGas(existingEvents[i]);
-        if (ev && typeof ev === 'object') {
-          const k = ev.id || `${ev.tipo}_${ev.identificacion || ev.usuario}_${ev.documentoCodigo || ''}_${ev.fechaHora || ev.timestamp}`;
-          mapAud.set(k, ev);
-        }
+    // Primero incorporar SIEMPRE los existentes en Drive saneados
+    for (let i = 0; i < existingEvents.length; i++) {
+      const ev = sanitizarEventoGas(existingEvents[i]);
+      if (ev && typeof ev === 'object') {
+        const k = ev.id || `${ev.tipo}_${ev.identificacion || ev.usuario}_${ev.documentoCodigo || ''}_${ev.fechaHora || ev.timestamp}`;
+        mapAud.set(k, ev);
       }
     }
 
@@ -738,7 +745,7 @@ function actualizarAuditoriaDatEnDrive(dataObj) {
       const ev = sanitizarEventoGas(incomingEvents[i]);
       if (ev && typeof ev === 'object') {
         const k = ev.id || `${ev.tipo}_${ev.identificacion || ev.usuario}_${ev.documentoCodigo || ''}_${ev.fechaHora || ev.timestamp}`;
-        if (!mapAud.has(k) || esReemplazoTotal) {
+        if (!mapAud.has(k)) {
           nuevosAgregados++;
         }
         mapAud.set(k, ev);

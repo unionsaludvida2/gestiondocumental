@@ -6,9 +6,9 @@
  * registro seguro de contraseñas en usuarios.conf y persistencia de sesión.
  */
 
-import { EMPLEADOS_ACTIVOS_BASE } from './staff-data.js?v=11.6.95';
-import { DOCUMENTOS_REALES } from './data.js?v=11.6.95';
-import { cacheService } from './cache-service.js?v=11.6.95';
+import { EMPLEADOS_ACTIVOS_BASE } from './staff-data.js?v=11.6.96';
+import { DOCUMENTOS_REALES } from './data.js?v=11.6.96';
+import { cacheService } from './cache-service.js?v=11.6.96';
 
 const STORAGE_KEY_AUTH_SESSION = 'agy_sgc_authenticated_session';
 const STORAGE_KEY_REMEMBERED_USER = 'agy_sgc_remembered_user';
@@ -270,15 +270,23 @@ export class StaffService {
     try {
       const sesionGuardada = localStorage.getItem(STORAGE_KEY_AUTH_SESSION);
       if (sesionGuardada) {
-        this.sesionActiva = JSON.parse(sesionGuardada);
-        this.colaboradorActivo = this.sesionActiva;
+        try {
+          const parsed = JSON.parse(sesionGuardada);
+          if (this.esSesionValida(parsed)) {
+            this.sesionActiva = parsed;
+            this.colaboradorActivo = this.sesionActiva;
+          } else {
+            this.cerrarSesion();
+          }
+        } catch {
+          this.cerrarSesion();
+        }
       }
       const recordado = localStorage.getItem(STORAGE_KEY_REMEMBERED_USER);
       if (recordado) {
-        this.usuarioRecordado = JSON.parse(recordado);
-        if (!this.colaboradorActivo) {
-          this.colaboradorActivo = this.usuarioRecordado;
-        }
+        try {
+          this.usuarioRecordado = JSON.parse(recordado);
+        } catch { }
       }
       const cacheEmpleados = localStorage.getItem(STORAGE_KEY_STAFF_CACHE);
       if (cacheEmpleados) {
@@ -609,31 +617,40 @@ export class StaffService {
   }
 
   /**
-   * Carga sincrónica de empleados y configuraciones en tiempo real
+   * Carga sincrónica de empleados, configuraciones y auditoría en tiempo real
    */
   async inicializar() {
     await Promise.allSettled([
       this.sincronizarConfiguracion(),
-      this.sincronizarEmpleados()
+      this.sincronizarEmpleados(),
+      this.sincronizarAuditoria()
     ]);
 
-    // Si hay una sesión activa, refrescar sus datos y perfil
+    this.iniciarSincronizacionPeriodicaAuditoria();
+
+    // Si hay una sesión activa, verificar su validez de jornada antes de refrescarla
     if (this.sesionActiva) {
-      const docClean = this.limpiarNumeros(this.sesionActiva.identificacion);
-      const match = this.empleados.find(
-        (e) => this.limpiarNumeros(e.identificacion) === docClean
-      );
-      if (match) {
-        const perfil = this.determinarPerfil(match.cargo, match.identificacion);
-        this.sesionActiva = {
-          ...match,
-          perfil: perfil,
-          ultimoIngreso: this.sesionActiva.ultimoIngreso || new Date().toISOString()
-        };
-        this.colaboradorActivo = this.sesionActiva;
-        try {
-          localStorage.setItem(STORAGE_KEY_AUTH_SESSION, JSON.stringify(this.sesionActiva));
-        } catch { }
+      if (!this.esSesionValida(this.sesionActiva)) {
+        this.cerrarSesion();
+      } else {
+        const docClean = this.limpiarNumeros(this.sesionActiva.identificacion);
+        const match = this.empleados.find(
+          (e) => this.limpiarNumeros(e.identificacion) === docClean
+        );
+        if (match) {
+          const perfil = this.determinarPerfil(match.cargo, match.identificacion);
+          this.sesionActiva = {
+            ...match,
+            perfil: perfil,
+            ultimoIngreso: this.sesionActiva.ultimoIngreso || new Date().toISOString(),
+            timestampInicio: this.sesionActiva.timestampInicio || Date.now(),
+            fechaSesion: this.sesionActiva.fechaSesion || new Date().toISOString().split('T')[0]
+          };
+          this.colaboradorActivo = this.sesionActiva;
+          try {
+            localStorage.setItem(STORAGE_KEY_AUTH_SESSION, JSON.stringify(this.sesionActiva));
+          } catch { }
+        }
       }
     }
 
@@ -994,11 +1011,11 @@ export class StaffService {
     const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx4-82Ls3Zu5gdzXlAhezZ6ew9tnAece8xSDMQ8QmXcu7UCnMxwqB48ISG_LwNDUgMiQQ/exec';
     const GOOGLE_DRIVE_AUDITORIA_URL = 'https://drive.google.com/uc?export=download&id=1yNiuug2P-idZMUKkRb87DH_Mb3-Wn0hR';
 
-    // 1. Probar endpoint /api/auditoria
+    // 1. Probar endpoint /api/auditoria (servidor local)
     try {
       const res = await fetch(`/api/auditoria${query}`, {
         cache: forzar ? 'no-store' : 'default',
-        signal: AbortSignal.timeout ? AbortSignal.timeout(4000) : undefined
+        signal: AbortSignal.timeout ? AbortSignal.timeout(5000) : undefined
       });
       if (res.ok) {
         const json = await res.json();
@@ -1010,12 +1027,12 @@ export class StaffService {
       }
     } catch (e) { }
 
-    // 2. Fallback a Google Apps Script (?action=auditoria)
+    // 2. Fallback a Google Apps Script (?action=auditoria) - Timeout tolerante a cold-starts de GAS (15s)
     try {
       const resG = await fetch(`${GOOGLE_SCRIPT_URL}?action=auditoria&_t=${timestamp}`, {
         method: 'GET',
         cache: 'no-store',
-        signal: AbortSignal.timeout ? AbortSignal.timeout(5000) : undefined
+        signal: AbortSignal.timeout ? AbortSignal.timeout(15000) : undefined
       });
       if (resG.ok) {
         const jsonG = await resG.json();
@@ -1031,7 +1048,7 @@ export class StaffService {
     try {
       const resD = await fetch(`${GOOGLE_DRIVE_AUDITORIA_URL}&_t=${timestamp}`, {
         cache: 'no-store',
-        signal: AbortSignal.timeout ? AbortSignal.timeout(5000) : undefined
+        signal: AbortSignal.timeout ? AbortSignal.timeout(8000) : undefined
       });
       if (resD.ok) {
         const jsonD = await resD.json();
@@ -1047,7 +1064,7 @@ export class StaffService {
     try {
       const resLocal = await fetch(`auditoria.dat${query}`, {
         cache: forzar ? 'no-store' : 'default',
-        signal: AbortSignal.timeout ? AbortSignal.timeout(3000) : undefined
+        signal: AbortSignal.timeout ? AbortSignal.timeout(4000) : undefined
       });
       if (resLocal.ok) {
         const jsonLocal = await resLocal.json();
@@ -1060,6 +1077,17 @@ export class StaffService {
     } catch (e) { }
 
     return { ok: false, huboCambios: false, total: (this.auditoriaData?.registroAuditoria || []).length };
+  }
+
+  /**
+   * Inicia sincronización periódica en segundo plano para mantener la auditoría siempre al día
+   */
+  iniciarSincronizacionPeriodicaAuditoria(intervaloMs = 60000) {
+    if (this._auditIntervalTimer) return;
+    this._auditIntervalTimer = setInterval(() => {
+      if (document.hidden) return;
+      this.sincronizarAuditoria(false).catch(() => {});
+    }, intervaloMs);
   }
 
   aplicarMaestras(json) {
@@ -1798,30 +1826,49 @@ export class StaffService {
   }
 
   /**
-   * Guarda y sincroniza el registro de auditoría en auditoria.dat de forma eficiente y sin colisiones
+   * Guarda y sincroniza el registro de auditoría en auditoria.dat de forma eficiente, incremental y sin colisiones
    */
-  async guardarAuditoriaEnNube(forzarInmediato = false) {
+  async guardarAuditoriaEnNube(forzarInmediato = false, eventoNuevo = null) {
     if (this._debounceAuditTimer) {
       clearTimeout(this._debounceAuditTimer);
       this._debounceAuditTimer = null;
     }
 
-    const payloadObj = {
-      accion: 'guardar_auditoria',
-      fileId: '1yNiuug2P-idZMUKkRb87DH_Mb3-Wn0hR',
-      ...this.auditoriaData
-    };
-    const payload = JSON.stringify(payloadObj);
+    if (!this._colaEventosPendientesNube) {
+      this._colaEventosPendientesNube = [];
+    }
+    if (eventoNuevo && typeof eventoNuevo === 'object') {
+      this._colaEventosPendientesNube.push(eventoNuevo);
+    }
 
     // Persistir en IndexedDB y localStorage
     try {
-      localStorage.setItem(STORAGE_KEY_AUDITORIA_CACHE, payload);
+      localStorage.setItem(STORAGE_KEY_AUDITORIA_CACHE, JSON.stringify(this.auditoriaData));
       cacheService.guardarColeccion('auditoria', this.auditoriaData);
     } catch { }
 
     const ejecutarSincronizacion = async () => {
       const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx4-82Ls3Zu5gdzXlAhezZ6ew9tnAece8xSDMQ8QmXcu7UCnMxwqB48ISG_LwNDUgMiQQ/exec';
       let sincronizadoPorApi = false;
+
+      // Si tenemos eventos nuevos en cola y no es un forzado total, enviamos únicamente los eventos nuevos (payload ultraligero < 1KB)
+      const eventosAEnviar = (!forzarInmediato && this._colaEventosPendientesNube.length > 0)
+        ? [...this._colaEventosPendientesNube]
+        : null;
+
+      const payloadObj = eventosAEnviar
+        ? {
+            accion: 'guardar_auditoria',
+            fileId: this.AUDITORIA_FILE_ID || '1yNiuug2P-idZMUKkRb87DH_Mb3-Wn0hR',
+            eventosNuevos: eventosAEnviar
+          }
+        : {
+            accion: 'guardar_auditoria',
+            fileId: this.AUDITORIA_FILE_ID || '1yNiuug2P-idZMUKkRb87DH_Mb3-Wn0hR',
+            ...this.auditoriaData
+          };
+
+      const payload = JSON.stringify(payloadObj);
 
       // 1. Enviar prioritariamente a /api/auditoria (servidor local si está en ejecución)
       try {
@@ -1833,6 +1880,7 @@ export class StaffService {
         });
         if (res && res.ok) {
           sincronizadoPorApi = true;
+          this._colaEventosPendientesNube = [];
           const jsonAud = await res.json();
           if (jsonAud && typeof jsonAud === 'object' && Array.isArray(jsonAud.registroAuditoria)) {
             this.aplicarAuditoria(jsonAud);
@@ -1849,6 +1897,8 @@ export class StaffService {
             headers: { 'Content-Type': 'text/plain;charset=utf-8' },
             body: payload,
             keepalive: true
+          }).then(() => {
+            this._colaEventosPendientesNube = [];
           }).catch(() => { });
         } catch (e) { }
       }
@@ -1857,8 +1907,8 @@ export class StaffService {
     if (forzarInmediato) {
       return ejecutarSincronizacion();
     } else {
-      // Debounce de 2 segundos para agrupar múltiples eventos rápidos y evitar saturar Google Drive
-      this._debounceAuditTimer = setTimeout(ejecutarSincronizacion, 2000);
+      // Debounce de 1.5 segundos para agrupar múltiples eventos rápidos y evitar saturar Google Drive
+      this._debounceAuditTimer = setTimeout(ejecutarSincronizacion, 1500);
     }
   }
 
@@ -2374,10 +2424,47 @@ export class StaffService {
   }
 
   /**
-   * Establece la sesión activa y la guarda en almacenamiento persistente
+   * Valida si una sesión almacenada sigue activa según las reglas institucionales:
+   * 1. No sobrepasar la jornada laboral (mismo día calendario YYYY-MM-DD).
+   * 2. No exceder 12 horas de inactividad continua.
+   */
+  esSesionValida(sesion) {
+    if (!sesion || !sesion.identificacion) return false;
+    const ahora = Date.now();
+    const hoyStr = new Date().toISOString().split('T')[0];
+
+    // Regla 1: Expiración por cambio de jornada (nuevo día calendario)
+    if (sesion.fechaSesion && sesion.fechaSesion !== hoyStr) {
+      return false;
+    }
+
+    // Regla 2: Expiración por inactividad prolongada (12 horas)
+    const tiempoRef = sesion.ultimoAcceso || sesion.timestampInicio;
+    if (tiempoRef && (ahora - tiempoRef > 12 * 60 * 60 * 1000)) {
+      return false;
+    }
+
+    // Regla 3: Sesiones heredadas de versiones antiguas sin control de jornada
+    if (!sesion.fechaSesion && !sesion.timestampInicio) {
+      return false;
+    }
+
+    return true;
+  }
+
+  /**
+   * Establece la sesión activa y la guarda en almacenamiento persistente con control de jornada
    */
   iniciarSesion(usuarioObj) {
-    this.sesionActiva = usuarioObj;
+    const ahora = Date.now();
+    const hoyStr = new Date().toISOString().split('T')[0];
+    const sesionConMeta = {
+      ...usuarioObj,
+      timestampInicio: ahora,
+      ultimoAcceso: ahora,
+      fechaSesion: hoyStr
+    };
+    this.sesionActiva = sesionConMeta;
     this.usuarioRecordado = {
       identificacion: usuarioObj.identificacion,
       email: usuarioObj.email,
@@ -2387,7 +2474,7 @@ export class StaffService {
       perfil: usuarioObj.perfil,
       passwordHash: usuarioObj.passwordHash
     };
-    this.colaboradorActivo = usuarioObj;
+    this.colaboradorActivo = sesionConMeta;
 
     try {
       localStorage.setItem(STORAGE_KEY_AUTH_SESSION, JSON.stringify(this.sesionActiva));
@@ -2418,6 +2505,20 @@ export class StaffService {
   }
 
   obtenerSesionActiva() {
+    if (this.sesionActiva && !this.esSesionValida(this.sesionActiva)) {
+      this.cerrarSesion();
+      return null;
+    }
+    if (this.sesionActiva) {
+      // Actualizar timestamp de último acceso de forma no invasiva (throttled cada 5 min)
+      const ahora = Date.now();
+      if (!this.sesionActiva.ultimoAcceso || ahora - this.sesionActiva.ultimoAcceso > 5 * 60 * 1000) {
+        this.sesionActiva.ultimoAcceso = ahora;
+        try {
+          localStorage.setItem(STORAGE_KEY_AUTH_SESSION, JSON.stringify(this.sesionActiva));
+        } catch { }
+      }
+    }
     return this.sesionActiva;
   }
 
@@ -2426,7 +2527,7 @@ export class StaffService {
   }
 
   obtenerColaboradorActivo() {
-    return this.sesionActiva || this.colaboradorActivo;
+    return this.obtenerSesionActiva();
   }
 
   buscarPorDocumento(doc) {
@@ -2581,8 +2682,8 @@ export class StaffService {
       window.dispatchEvent(new CustomEvent('agy_audit_event_logged', { detail: nuevoEvento }));
     } catch { }
 
-    // Sincronizar en auditoria.dat
-    this.guardarAuditoriaEnNube();
+    // Sincronizar en auditoria.dat de forma incremental
+    this.guardarAuditoriaEnNube(false, nuevoEvento);
 
     return nuevoEvento;
   }
