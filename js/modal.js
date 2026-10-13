@@ -3,9 +3,9 @@
  * Unión para la salud y la vida S.A.S.
  */
 
-import { sharepointService, determinarEstrategiaDescarga, esDocumentoFMT, normalizarAreaDoc } from './sharepoint-service.js?v=11.6.94';
-import { staffService } from './staff-service.js?v=11.6.94';
-import { filterEngine } from './filters.js?v=11.6.94';
+import { sharepointService, determinarEstrategiaDescarga, esDocumentoFMT, normalizarAreaDoc } from './sharepoint-service.js?v=11.6.95';
+import { staffService } from './staff-service.js?v=11.6.95';
+import { filterEngine } from './filters.js?v=11.6.95';
 
 const STORAGE_KEY_USER_PROFILE = 'agy_user_profile';
 

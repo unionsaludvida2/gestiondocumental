@@ -9,13 +9,7 @@ echo   Union para la salud y la vida S.A.S.
 echo =================================================================
 echo.
 
-if exist "%USERPROFILE%\.venv_estandarizador\Scripts\python.exe" (
-    set "PYTHON_CMD=%USERPROFILE%\.venv_estandarizador\Scripts\python.exe"
-) else if exist "%~dp0.venv\Scripts\python.exe" (
-    set "PYTHON_CMD=%~dp0.venv\Scripts\python.exe"
-) else (
-    set "PYTHON_CMD=python"
-)
+set "PYTHON_CMD=python"
 
 echo Abriendo navegador en http://localhost:8080 ...
 start "" "http://localhost:8080"
