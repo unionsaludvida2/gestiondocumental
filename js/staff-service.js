@@ -6,9 +6,9 @@
  * registro seguro de contraseñas en usuarios.conf y persistencia de sesión.
  */
 
-import { EMPLEADOS_ACTIVOS_BASE } from './staff-data.js?v=11.6.96';
-import { DOCUMENTOS_REALES } from './data.js?v=11.6.96';
-import { cacheService } from './cache-service.js?v=11.6.96';
+import { EMPLEADOS_ACTIVOS_BASE } from './staff-data.js?v=11.6.98';
+import { DOCUMENTOS_REALES } from './data.js?v=11.6.98';
+import { cacheService } from './cache-service.js?v=11.6.98';
 
 const STORAGE_KEY_AUTH_SESSION = 'agy_sgc_authenticated_session';
 const STORAGE_KEY_REMEMBERED_USER = 'agy_sgc_remembered_user';
@@ -330,12 +330,13 @@ export class StaffService {
    */
   async hidratarDesdeIndexedDB() {
     try {
-      const [conf, aud, mae, hist, emp] = await Promise.all([
+      const [conf, aud, mae, hist, emp, sesionCache] = await Promise.all([
         cacheService.obtenerColeccion('configuracion'),
         cacheService.obtenerColeccion('auditoria'),
         cacheService.obtenerColeccion('maestras'),
         cacheService.obtenerColeccion('historico'),
-        cacheService.obtenerColeccion('empleados')
+        cacheService.obtenerColeccion('empleados'),
+        cacheService.obtenerColeccion('sesion_activa')
       ]);
 
       if (conf && conf.usuariosRegistrados) {
@@ -367,6 +368,13 @@ export class StaffService {
       }
       if (Array.isArray(emp) && emp.length > 0) {
         this.empleados = emp;
+      }
+      if (!this.sesionActiva && sesionCache && this.esSesionValida(sesionCache)) {
+        this.sesionActiva = sesionCache;
+        this.colaboradorActivo = sesionCache;
+        try {
+          localStorage.setItem(STORAGE_KEY_AUTH_SESSION, JSON.stringify(sesionCache));
+        } catch { }
       }
       console.log('[StaffService] ⚡ Caché persistente IndexedDB sincronizada con éxito.');
     } catch (err) {
@@ -628,7 +636,7 @@ export class StaffService {
 
     this.iniciarSincronizacionPeriodicaAuditoria();
 
-    // Si hay una sesión activa, verificar su validez de jornada antes de refrescarla
+    // Si hay una sesión activa, verificar su validez de autenticación antes de refrescarla
     if (this.sesionActiva) {
       if (!this.esSesionValida(this.sesionActiva)) {
         this.cerrarSesion();
@@ -644,12 +652,16 @@ export class StaffService {
             perfil: perfil,
             ultimoIngreso: this.sesionActiva.ultimoIngreso || new Date().toISOString(),
             timestampInicio: this.sesionActiva.timestampInicio || Date.now(),
-            fechaSesion: this.sesionActiva.fechaSesion || new Date().toISOString().split('T')[0]
+            fechaSesion: this.sesionActiva.fechaSesion || new Date().toISOString().split('T')[0],
+            ultimoAcceso: Date.now()
           };
           this.colaboradorActivo = this.sesionActiva;
           try {
             localStorage.setItem(STORAGE_KEY_AUTH_SESSION, JSON.stringify(this.sesionActiva));
           } catch { }
+          if (cacheService && cacheService.guardarColeccion) {
+            cacheService.guardarColeccion('sesion_activa', this.sesionActiva).catch(() => {});
+          }
         }
       }
     }
@@ -1519,6 +1531,9 @@ export class StaffService {
       try {
         localStorage.setItem(STORAGE_KEY_AUTH_SESSION, JSON.stringify(this.sesionActiva));
       } catch { }
+      if (cacheService && cacheService.guardarColeccion) {
+        cacheService.guardarColeccion('sesion_activa', this.sesionActiva).catch(() => {});
+      }
     }
 
     if (this.usuarioRecordado && this.limpiarNumeros(this.usuarioRecordado.identificacion) === docClean) {
@@ -1708,6 +1723,9 @@ export class StaffService {
         localStorage.setItem(STORAGE_KEY_AUTH_SESSION, JSON.stringify(this.sesionActiva));
         localStorage.setItem(STORAGE_KEY_REMEMBERED_USER, JSON.stringify(this.usuarioRecordado));
       } catch { }
+      if (cacheService && cacheService.guardarColeccion) {
+        cacheService.guardarColeccion('sesion_activa', this.sesionActiva).catch(() => {});
+      }
     }
 
     try {
@@ -2043,11 +2061,11 @@ export class StaffService {
   validar4DigitosYEmail(ultimos4, email, empleadoObjetivo = null) {
     const emailClean = (email || '').trim().toLowerCase();
 
-    // Regla 9.4: Verificar si el correo o usuario está bloqueado
+    // Regla 9.4: Solo el bloqueo permanente de cuenta impide la recuperación
     if (emailClean) {
       const lockCheck = this.obtenerEstadoBloqueo(emailClean);
-      if (lockCheck.bloqueado) {
-        return { valido: false, error: lockCheck.error, bloqueado: true, tipoBloqueo: lockCheck.tipo };
+      if (lockCheck.cuentaBloqueada) {
+        return { valido: false, error: lockCheck.error, bloqueado: true, tipoBloqueo: 'cuenta' };
       }
     }
 
@@ -2071,10 +2089,10 @@ export class StaffService {
       };
     }
 
-    // Verificar si la cédula del colaborador está bloqueada
+    // Verificar si la cédula del colaborador tiene bloqueo permanente
     const lockCheckDoc = this.obtenerEstadoBloqueo(emp.identificacion);
-    if (lockCheckDoc.bloqueado) {
-      return { valido: false, error: lockCheckDoc.error, bloqueado: true, tipoBloqueo: lockCheckDoc.tipo };
+    if (lockCheckDoc.cuentaBloqueada) {
+      return { valido: false, error: lockCheckDoc.error, bloqueado: true, tipoBloqueo: 'cuenta' };
     }
 
     const empEmailClean = (emp.email || '').trim().toLowerCase();
@@ -2108,10 +2126,10 @@ export class StaffService {
       return { valido: false, error: 'No se ha detectado el usuario a restablecer.' };
     }
 
-    // Regla 9.4: Verificar si el usuario está bloqueado
+    // Regla 9.4: Solo el bloqueo permanente de cuenta impide la recuperación de identidad
     const lockCheck = this.obtenerEstadoBloqueo(empleadoObjetivo.identificacion);
-    if (lockCheck.bloqueado) {
-      return { valido: false, error: lockCheck.error, bloqueado: true, tipoBloqueo: lockCheck.tipo };
+    if (lockCheck.cuentaBloqueada) {
+      return { valido: false, error: lockCheck.error, bloqueado: true, tipoBloqueo: 'cuenta' };
     }
 
     const d4 = this.limpiarNumeros(ultimos4);
@@ -2424,28 +2442,19 @@ export class StaffService {
   }
 
   /**
-   * Valida si una sesión almacenada sigue activa según las reglas institucionales:
-   * 1. No sobrepasar la jornada laboral (mismo día calendario YYYY-MM-DD).
-   * 2. No exceder 12 horas de inactividad continua.
+   * Valida si una sesión almacenada sigue activa según las reglas de negocio institucionales:
+   * REGLA DE NEGOCIO: La sesión debe permanecer activa de manera continua y persistente en la caché local
+   * (localStorage / IndexedDB) una vez que el usuario ingresa con sus credenciales.
+   * NO expira por cambio de día calendario (nueva jornada) ni por tiempo transcurrido o inactividad.
+   * Solo queda invalidada si:
+   * 1. El objeto de sesión no contiene una identificación válida.
+   * 2. La cuenta del colaborador está actualmente bloqueada por seguridad.
    */
   esSesionValida(sesion) {
     if (!sesion || !sesion.identificacion) return false;
-    const ahora = Date.now();
-    const hoyStr = new Date().toISOString().split('T')[0];
 
-    // Regla 1: Expiración por cambio de jornada (nuevo día calendario)
-    if (sesion.fechaSesion && sesion.fechaSesion !== hoyStr) {
-      return false;
-    }
-
-    // Regla 2: Expiración por inactividad prolongada (12 horas)
-    const tiempoRef = sesion.ultimoAcceso || sesion.timestampInicio;
-    if (tiempoRef && (ahora - tiempoRef > 12 * 60 * 60 * 1000)) {
-      return false;
-    }
-
-    // Regla 3: Sesiones heredadas de versiones antiguas sin control de jornada
-    if (!sesion.fechaSesion && !sesion.timestampInicio) {
+    // Verificar si la cuenta del usuario está bloqueada por seguridad
+    if (this.estaUsuarioBloqueado(sesion.identificacion)) {
       return false;
     }
 
@@ -2453,16 +2462,16 @@ export class StaffService {
   }
 
   /**
-   * Establece la sesión activa y la guarda en almacenamiento persistente con control de jornada
+   * Establece la sesión activa y la guarda en almacenamiento persistente (localStorage e IndexedDB)
    */
   iniciarSesion(usuarioObj) {
     const ahora = Date.now();
     const hoyStr = new Date().toISOString().split('T')[0];
     const sesionConMeta = {
       ...usuarioObj,
-      timestampInicio: ahora,
+      timestampInicio: usuarioObj.timestampInicio || ahora,
       ultimoAcceso: ahora,
-      fechaSesion: hoyStr
+      fechaSesion: usuarioObj.fechaSesion || hoyStr
     };
     this.sesionActiva = sesionConMeta;
     this.usuarioRecordado = {
@@ -2480,6 +2489,10 @@ export class StaffService {
       localStorage.setItem(STORAGE_KEY_AUTH_SESSION, JSON.stringify(this.sesionActiva));
       localStorage.setItem(STORAGE_KEY_REMEMBERED_USER, JSON.stringify(this.usuarioRecordado));
     } catch { }
+
+    if (cacheService && cacheService.guardarColeccion) {
+      cacheService.guardarColeccion('sesion_activa', this.sesionActiva).catch(() => {});
+    }
   }
 
   /**
@@ -2491,6 +2504,10 @@ export class StaffService {
     try {
       localStorage.removeItem(STORAGE_KEY_AUTH_SESSION);
     } catch { }
+
+    if (cacheService && cacheService.guardarColeccion) {
+      cacheService.guardarColeccion('sesion_activa', null).catch(() => {});
+    }
   }
 
   /**
@@ -2517,6 +2534,9 @@ export class StaffService {
         try {
           localStorage.setItem(STORAGE_KEY_AUTH_SESSION, JSON.stringify(this.sesionActiva));
         } catch { }
+        if (cacheService && cacheService.guardarColeccion) {
+          cacheService.guardarColeccion('sesion_activa', this.sesionActiva).catch(() => {});
+        }
       }
     }
     return this.sesionActiva;

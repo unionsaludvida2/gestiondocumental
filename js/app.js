@@ -11,11 +11,12 @@
  * - Modo Edición: Desbloqueo Automático para Acceso Total y Contraseña Personal para Directivos y Administrativos
  */
 
-import { sharepointService, determinarEstrategiaDescarga, esDocumentoFMT } from './sharepoint-service.js?v=11.6.96';
-import { filterEngine } from './filters.js?v=11.6.96';
-import { modalManager } from './modal.js?v=11.6.96';
-import { analyticsManager } from './analytics.js?v=11.6.96';
-import { staffService } from './staff-service.js?v=11.6.96';
+import { sharepointService, determinarEstrategiaDescarga, esDocumentoFMT } from './sharepoint-service.js?v=11.6.98';
+import { filterEngine } from './filters.js?v=11.6.98';
+import { modalManager } from './modal.js?v=11.6.98';
+import { analyticsManager } from './analytics.js?v=11.6.98';
+import { staffService } from './staff-service.js?v=11.6.98';
+import { cacheService } from './cache-service.js?v=11.6.98';
 
 const STORAGE_KEY_EDIT_MODE = 'agy_sgc_edit_mode';
 const STORAGE_KEY_FAVORITES = 'agy_sgc_favorites';
@@ -190,6 +191,13 @@ class AppController {
     ]).then(() => {
       const sesionActiva = staffService.obtenerSesionActiva();
       if (sesionActiva) {
+        document.body.classList.remove('auth-required');
+        if (document.body.classList.contains('modal-open') && modalManager && typeof modalManager.cerrarModal === 'function') {
+          const authBackdrop = document.querySelector('.modal-backdrop[data-prevent-close="true"]');
+          if (authBackdrop) {
+            modalManager.cerrarModal();
+          }
+        }
         const perfilEfectivo = staffService.determinarPerfil(sesionActiva.cargo, sesionActiva.identificacion) || sesionActiva.perfil || this.perfil;
         if (perfilEfectivo !== this.perfil) {
           this.perfil = perfilEfectivo;
@@ -202,6 +210,9 @@ class AppController {
           localStorage.setItem('agy_sgc_user_profile', this.perfil);
           localStorage.setItem(STORAGE_KEY_AUTH_SESSION, JSON.stringify(sesionActiva));
         } catch { }
+        if (cacheService && cacheService.guardarColeccion) {
+          cacheService.guardarColeccion('sesion_activa', sesionActiva).catch(() => {});
+        }
 
         const esAccesoTotal = Boolean(this.perfil === 'total' || this.perfil === 'administrador');
         if (!esAccesoTotal) {

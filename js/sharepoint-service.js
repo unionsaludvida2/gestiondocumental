@@ -4,8 +4,8 @@
  * Conexión sincrónica en tiempo real al archivo REPOSITORIO_DOCUMENTAL.csv de OneDrive.
  */
 
-import { DOCUMENTOS_REALES, URL_ORIGEN_CSV } from './data.js?v=11.6.96';
-import { cacheService } from './cache-service.js?v=11.6.96';
+import { DOCUMENTOS_REALES, URL_ORIGEN_CSV } from './data.js?v=11.6.98';
+import { cacheService } from './cache-service.js?v=11.6.98';
 
 
 export const MAPA_NORMALIZACION_AREAS = {

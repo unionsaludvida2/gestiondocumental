@@ -37,6 +37,7 @@
    - 5.2. Diagrama de Flujo de Autenticación y Asignación de Perfil
    - 5.3. Matriz de Mapeo de Cargos y Regla de Saneamiento Directivo
    - 5.4. Matriz Exhaustiva de Capacidades por Perfil (RBAC)
+   - 5.5. Persistencia Continua de Sesión en Caché (Sesión Activa Persistente)
 6. [Motor de Salida y Matriz Determinística de Descarga](#6-motor-de-salida-y-matriz-determinística-de-descarga)
    - 6.1. Árbol de Decisión Determinística de Descarga
    - 6.2. Matriz de Prefijos Oficiales y Formatos de Salida
@@ -391,6 +392,15 @@ flowchart TD
 | **Dashboard Calidad y Auditoría**| Habilitada | Habilitada | **OCULTA** | **BLOQUEADA** |
 | **Exportar Excel / CSV** | Habilitada | Habilitada | **OCULTA** | **BLOQUEADA** |
 | **Desbloquear Cuentas** | Habilitada | **Deshabilitada** | **Deshabilitada** | **Deshabilitada** |
+
+### 5.5. Regla de Negocio: Persistencia Continua de Sesión en Caché (Sesión Activa Persistente)
+
+- **Principio Rector de Disponibilidad Operativa:** Todo colaborador institucional que se autentica exitosamente mediante sus credenciales institucionales debe mantener su **sesión activa de manera continua y persistente en la caché del cliente** (`localStorage` y réplica en `IndexedDB`).
+- **Prohibición de Solicitud de Login Diario / Expiración de Jornada:** Queda estrictamente prohibido cerrar la sesión de forma automática al cambiar el día calendario o transcurrir horas de inactividad. El sistema **no debe solicitar inicio de sesión diario**.
+- **Causales Exclusivas de Finalización de Sesión:**
+  1. **Cierre Voluntario y Explícito:** El colaborador hace clic deliberadamente en el botón `🚪 Cerrar Sesión` desde el modal de su perfil.
+  2. **Bloqueo Preventivo de Seguridad:** Si la cuenta del colaborador resulta bloqueada por acumulación de bloqueos temporales o por acción administrativa del Superadministrador.
+- **Resiliencia de Doble Capa en Caché:** Los datos de sesión se almacenan en `localStorage` (para arranque síncrono a 0 ms) y se sincronizan en `IndexedDB` a través de `CacheService` (`sesion_activa`), garantizando total persistencia ante cierres del navegador, reinicios de equipo o purgas selectivas de almacenamiento.
 
 ---
 

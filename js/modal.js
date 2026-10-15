@@ -3,9 +3,9 @@
  * Unión para la salud y la vida S.A.S.
  */
 
-import { sharepointService, determinarEstrategiaDescarga, esDocumentoFMT, normalizarAreaDoc } from './sharepoint-service.js?v=11.6.96';
-import { staffService } from './staff-service.js?v=11.6.96';
-import { filterEngine } from './filters.js?v=11.6.96';
+import { sharepointService, determinarEstrategiaDescarga, esDocumentoFMT, normalizarAreaDoc } from './sharepoint-service.js?v=11.6.98';
+import { staffService } from './staff-service.js?v=11.6.98';
+import { filterEngine } from './filters.js?v=11.6.98';
 
 const STORAGE_KEY_USER_PROFILE = 'agy_user_profile';
 
@@ -3647,17 +3647,18 @@ export class ModalManager {
                     Últimos 4 dígitos de tu Cédula:
                   </label>
                   <input 
-                    type="password" 
+                    type="text" 
                     id="input-reset-d4" 
                     class="form-input" 
-                    placeholder="••••" 
+                    placeholder="Ej. 1234" 
                     maxlength="4"
                     inputmode="numeric"
+                    pattern="[0-9]*"
                     value=""
                     autocomplete="off"
                     autofocus
                     required 
-                    style="font-size: 1.35rem; padding: 10px; letter-spacing: 8px; text-align: center; font-weight: 700; max-width: 180px; margin: 0 auto; display: block;"
+                    style="font-size: 1.35rem; padding: 10px; letter-spacing: 6px; text-align: center; font-weight: 700; max-width: 180px; margin: 0 auto; display: block;"
                   />
                 </div>
 
@@ -3683,15 +3684,56 @@ export class ModalManager {
       const errBanner = document.getElementById('reset-error-banner');
       const form = document.getElementById('form-reset-step1');
 
-      // Regla 9.4: Comprobar bloqueo previo si se tiene el usuario objetivo
+      // Filtrar para que el input solo acepte números (0-9) hasta 4 dígitos
+      if (inputD4) {
+        inputD4.addEventListener('input', (e) => {
+          e.target.value = e.target.value.replace(/\D/g, '').slice(0, 4);
+        });
+      }
+
+      // Regla 9.4: Comprobar bloqueo previo. Solo el bloqueo permanente de cuenta deshabilita la recuperación.
       if (usuarioObjetivo && usuarioObjetivo.identificacion) {
         const lockObj = staffService.obtenerEstadoBloqueo(usuarioObjetivo.identificacion);
-        if (lockObj.bloqueado) {
+        if (lockObj.cuentaBloqueada) {
           errBanner.textContent = lockObj.error;
+          errBanner.style.background = '#fef2f2';
+          errBanner.style.borderColor = '#fecaca';
+          errBanner.style.color = '#dc2626';
           errBanner.style.display = 'block';
           if (inputD4) inputD4.disabled = true;
           const btnSub = form.querySelector('button[type="submit"]');
           if (btnSub) btnSub.disabled = true;
+        } else if (lockObj.bloqueado) {
+          errBanner.innerHTML = `ℹ️ <strong>Inicio de sesión con contraseña en pausa temporal.</strong><br/><span style="font-size: 0.78rem;">Ingresa los últimos 4 dígitos de tu cédula para validar tu identidad, desbloquear tu acceso y crear una nueva contraseña.</span>`;
+          errBanner.style.background = '#eff6ff';
+          errBanner.style.borderColor = '#bfdbfe';
+          errBanner.style.color = '#1e40af';
+          errBanner.style.display = 'block';
+          if (inputD4) {
+            inputD4.disabled = false;
+            setTimeout(() => inputD4.focus(), 80);
+          }
+          const btnSub = form.querySelector('button[type="submit"]');
+          if (btnSub) btnSub.disabled = false;
+        }
+      } else if (emailInicial) {
+        const lockObjEmail = staffService.obtenerEstadoBloqueo(emailInicial);
+        if (lockObjEmail.cuentaBloqueada) {
+          errBanner.textContent = lockObjEmail.error;
+          errBanner.style.background = '#fef2f2';
+          errBanner.style.borderColor = '#fecaca';
+          errBanner.style.color = '#dc2626';
+          errBanner.style.display = 'block';
+          if (inputD4) inputD4.disabled = true;
+          if (inputEmail) inputEmail.disabled = true;
+          const btnSub = form.querySelector('button[type="submit"]');
+          if (btnSub) btnSub.disabled = true;
+        } else if (lockObjEmail.bloqueado) {
+          errBanner.innerHTML = `ℹ️ <strong>Inicio de sesión con contraseña en pausa temporal.</strong><br/><span style="font-size: 0.78rem;">Ingresa tu correo institucional y los últimos 4 dígitos de tu cédula para validar tu identidad y crear una nueva contraseña.</span>`;
+          errBanner.style.background = '#eff6ff';
+          errBanner.style.borderColor = '#bfdbfe';
+          errBanner.style.color = '#1e40af';
+          errBanner.style.display = 'block';
         }
       }
 

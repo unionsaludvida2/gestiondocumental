@@ -1199,6 +1199,20 @@ graph TD
             </tbody>
           </table>
         </div>
+
+        <div class="alert-box alert-success" style="margin-top: 24px; border-left: 5px solid #10b981; background: #ecfdf5; padding: 16px 20px; border-radius: 8px;">
+          <h4 style="margin: 0 0 8px; color: #065f46; font-size: 1rem; display: flex; align-items: center; gap: 8px;">
+            <span>🛡️</span> Regla de Negocio 5.5: Persistencia Continua de Sesión en Caché (Sesión Activa Persistente)
+          </h4>
+          <p style="margin: 0 0 8px; color: #047857; font-size: 0.88rem; line-height: 1.5;">
+            Todo colaborador institucional autenticado debe mantener su <strong>sesión activa de manera ininterrumpida y persistente en la memoria caché del navegador</strong> (<code>localStorage</code> y réplica en <code>IndexedDB</code>).
+          </p>
+          <ul style="margin: 0; padding-left: 20px; color: #065f46; font-size: 0.84rem; line-height: 1.6;">
+            <li><strong>Prohibición de Expiración Diaria:</strong> Queda terminantemente prohibido solicitar inicio de sesión diario o cerrar la sesión por cambio de jornada laboral o inactividad.</li>
+            <li><strong>Causales Exclusivas de Cierre:</strong> La sesión finaliza únicamente por cierre voluntario y explícito del usuario (<code>🚪 Cerrar Sesión</code>) o por bloqueo preventivo de seguridad.</li>
+            <li><strong>Arranque Ultrarrápido a 0 ms:</strong> La hidratación se efectúa desde <code>localStorage</code> y se respalda con <code>IndexedDB</code> para garantizar 100% de resiliencia y disponibilidad inmediata.</li>
+          </ul>
+        </div>
       </section>
 
       <!-- SECCIÓN 6: MOTOR DE SALIDA -->
