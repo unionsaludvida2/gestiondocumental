@@ -6,9 +6,9 @@
  * registro seguro de contraseñas en usuarios.conf y persistencia de sesión.
  */
 
-import { EMPLEADOS_ACTIVOS_BASE } from './staff-data.js?v=11.6.98';
-import { DOCUMENTOS_REALES } from './data.js?v=11.6.98';
-import { cacheService } from './cache-service.js?v=11.6.98';
+import { EMPLEADOS_ACTIVOS_BASE } from './staff-data.js?v=11.6.99';
+import { DOCUMENTOS_REALES } from './data.js?v=11.6.99';
+import { cacheService } from './cache-service.js?v=11.6.99';
 
 const STORAGE_KEY_AUTH_SESSION = 'agy_sgc_authenticated_session';
 const STORAGE_KEY_REMEMBERED_USER = 'agy_sgc_remembered_user';
@@ -2032,9 +2032,23 @@ export class StaffService {
       ? this.empleados
       : (Array.isArray(EMPLEADOS_ACTIVOS_BASE) ? EMPLEADOS_ACTIVOS_BASE : []);
 
-    const empleado = lista.find(
+    let empleado = lista.find(
       (e) => this.limpiarNumeros(e.identificacion) === docClean
-    ) || this.configuracion?.usuariosRegistrados?.[docClean];
+    );
+
+    // Fallback de contingencia: si no está en la caché de IndexedDB, buscar en la matriz base fresca
+    if (!empleado && Array.isArray(EMPLEADOS_ACTIVOS_BASE)) {
+      empleado = EMPLEADOS_ACTIVOS_BASE.find(
+        (e) => this.limpiarNumeros(e.identificacion) === docClean
+      );
+      if (empleado && Array.isArray(this.empleados)) {
+        this.empleados.push(empleado);
+      }
+    }
+
+    if (!empleado) {
+      empleado = this.configuracion?.usuariosRegistrados?.[docClean];
+    }
 
     if (!empleado) {
       return {
