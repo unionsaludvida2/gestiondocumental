@@ -2347,7 +2347,7 @@ export class DataService {
           permisoOperativo: docObj.permisoOperativo !== false,
           sharepointUrl: spUrl,
           downloadUrl: dlUrl,
-          modificacion: od?.modificacion || docObj.modificacion || new Date().toISOString().replace('T', ' ').substring(0, 19)
+          modificacion: od?.modificacion || docObj.modificacion || new Date().toISOString()
         });
       }
     });
@@ -2436,7 +2436,7 @@ export class DataService {
       permisoOperativo: nuevoDoc.permisoOperativo !== false,
       sharepointUrl: spUrl,
       downloadUrl: dlUrl,
-      modificacion: nuevoDoc.modificacion || new Date().toISOString().replace('T', ' ').substring(0, 19)
+      modificacion: nuevoDoc.modificacion || new Date().toISOString()
     };
 
     // 1. Guardar permanentemente en localStorage y cache de configuración
@@ -2699,6 +2699,8 @@ export class DataService {
       nuevosDatos.disponible = true;
       nuevosDatos.estado = 'DISPONIBLE';
     }
+
+    nuevosDatos.modificacion = nuevosDatos.modificacion || new Date().toISOString();
 
     const payload = {
       accion: 'modificar_documento',

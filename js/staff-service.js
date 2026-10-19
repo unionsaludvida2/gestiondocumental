@@ -2889,29 +2889,50 @@ export class StaffService {
   }
 
   /**
-   * Parsea cadenas de fecha en formatos ISO, timestamps en ms o DD/MM/YYYY HH:mm:ss a milisegundos
+   * Parsea cadenas de fecha en formatos ISO, timestamps en ms o DD/MM/YYYY HH:mm:ss a milisegundos universales UTC
+   * Garantiza la correcta interpretación de fechas UTC provenientes de SharePoint/OneDrive/ISO y horario local de Bogotá.
    */
   parsearFechaMilisegundos(str) {
     if (!str) return 0;
     if (typeof str === 'number') return str;
+    if (str instanceof Date) return isNaN(str.getTime()) ? 0 : str.getTime();
     let s = String(str).trim();
     if (!s || s === 'N/A' || s === 'Sincronizado' || s === 'null' || s === 'undefined') return 0;
 
     // Normalizar espacios no rompibles (NBSP y NNBSP \u202F \u00A0) y múltiples espacios
     s = s.replace(/[\u202F\u00A0]/g, ' ').replace(/\s+/g, ' ').trim();
 
-    if (s.includes('T') || /^\d{4}-\d{2}-\d{2}/.test(s)) {
-      const t = new Date(s).getTime();
-      if (!isNaN(t) && t > 0) return t;
-    }
-
-    // Si es un timestamp en ms
+    // 1. Si es un timestamp numérico en ms
     if (/^\d{12,14}$/.test(s)) {
       const n = parseInt(s, 10);
       if (!isNaN(n) && n > 0) return n;
     }
 
-    // Formato DD/MM/YYYY o DD-MM-YYYY con hora opcional y soporte completo para a. m. / p. m. / am / pm
+    // 2. Formato solo fecha YYYY-MM-DD (ej: 2026-10-19)
+    const matchIsoDateOnly = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (matchIsoDateOnly) {
+      const y = parseInt(matchIsoDateOnly[1], 10);
+      const m = parseInt(matchIsoDateOnly[2], 10) - 1;
+      const d = parseInt(matchIsoDateOnly[3], 10);
+      // Fijar al mediodía UTC para evitar desfases o cambios de día al convertir a zona horaria local
+      return Date.UTC(y, m, d, 12, 0, 0);
+    }
+
+    // 3. Formato ISO fecha y hora (ej: 2026-10-19T13:17:42.711Z, 2026-10-19 13:17:40, 2026-09-28T13:13:00)
+    // Regla Institucional: Los metadatos de OneDrive/SharePoint e ISO del sistema se originan en UTC.
+    // Si no tienen 'Z' ni offset +/-HH:mm, se normalizan a UTC añadiendo 'Z'.
+    if (/^\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}/.test(s)) {
+      let isoStr = s.replace(' ', 'T');
+      const tieneOffset = isoStr.endsWith('Z') || /[+-]\d{2}(?::?\d{2})?$/.test(isoStr);
+      if (!tieneOffset) {
+        isoStr += 'Z';
+      }
+      const t = Date.parse(isoStr);
+      if (!isNaN(t) && t > 0) return t;
+    }
+
+    // 4. Formato DD/MM/YYYY o DD-MM-YYYY con hora opcional y soporte completo para a. m. / p. m. / am / pm
+    // Regla Institucional: Las fechas en formato latino DD/MM/YYYY representan horario local de Bogotá (UTC-5).
     const matchLatam = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})(?:\s*,?\s*(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?\s*(am|pm|a\.?\s*m\.?|p\.?\s*m\.?)?)?/i);
     if (matchLatam) {
       const dia = parseInt(matchLatam[1], 10);
@@ -2925,8 +2946,9 @@ export class StaffService {
       if (ampm === 'pm' && hora < 12) hora += 12;
       if (ampm === 'am' && hora === 12) hora = 0;
 
-      const fechaObj = new Date(anio, mes, dia, hora, min, seg);
-      if (!isNaN(fechaObj.getTime())) return fechaObj.getTime();
+      // Bogotá está fija en UTC-5 todo el año (sin horario de verano).
+      // UTC = local + 5 horas
+      return Date.UTC(anio, mes, dia, hora + 5, min, seg);
     }
 
     const parseDirecto = Date.parse(s);
@@ -2934,42 +2956,101 @@ export class StaffService {
   }
 
   /**
-   * Formatea cualquier fecha a formato estándar institucional unificado DD/MM/YYYY HH:mm:ss (24h)
+   * Extrae los componentes de fecha y hora estandarizados en la zona horaria de Bogotá (UTC-5)
+   */
+  obtenerComponentesFechaBogota(val) {
+    const ms = this.parsearFechaMilisegundos(val);
+    if (!ms || ms <= 0) return null;
+
+    try {
+      const dtf = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'America/Bogota',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+      });
+      const parts = dtf.formatToParts(new Date(ms));
+      const m = {};
+      for (const p of parts) {
+        m[p.type] = p.value;
+      }
+      const h24 = parseInt(m.hour, 10) % 24;
+      const ampm = h24 >= 12 ? 'p.m.' : 'a.m.';
+      let h12 = h24 % 12;
+      if (h12 === 0) h12 = 12;
+
+      return {
+        dia: m.day,
+        mes: m.month,
+        anio: m.year,
+        hora24: String(h24).padStart(2, '0'),
+        hora12: String(h12).padStart(2, '0'),
+        minuto: m.minute,
+        segundo: m.second,
+        ampm: ampm
+      };
+    } catch {
+      // Fallback matemático exacto (Bogotá = UTC-5 sin DST)
+      const bogotaMs = ms - (5 * 3600 * 1000);
+      const d = new Date(bogotaMs);
+      const h24 = d.getUTCHours();
+      const ampm = h24 >= 12 ? 'p.m.' : 'a.m.';
+      let h12 = h24 % 12;
+      if (h12 === 0) h12 = 12;
+
+      return {
+        dia: String(d.getUTCDate()).padStart(2, '0'),
+        mes: String(d.getUTCMonth() + 1).padStart(2, '0'),
+        anio: String(d.getUTCFullYear()),
+        hora24: String(h24).padStart(2, '0'),
+        hora12: String(h12).padStart(2, '0'),
+        minuto: String(d.getUTCMinutes()).padStart(2, '0'),
+        segundo: String(d.getUTCSeconds()).padStart(2, '0'),
+        ampm: ampm
+      };
+    }
+  }
+
+  /**
+   * Formatea cualquier fecha a formato estándar institucional colombiano:
+   * DD/MM/YYYY hh:mm a.m./p.m. (horario estandarizado local de Bogotá)
    */
   formatearFechaHora(val) {
     if (!val || val === 'N/A' || val === 'Sincronizado' || val === 'null' || val === 'undefined') {
       return val === 'Sincronizado' ? 'Sincronizado' : 'N/A';
     }
-    const ms = this.parsearFechaMilisegundos(val);
-    if (!ms || ms <= 0) return String(val).trim();
+    const c = this.obtenerComponentesFechaBogota(val);
+    if (!c) return String(val).trim();
 
-    const d = new Date(ms);
-    const dia = String(d.getDate()).padStart(2, '0');
-    const mes = String(d.getMonth() + 1).padStart(2, '0');
-    const anio = d.getFullYear();
-    const hora = String(d.getHours()).padStart(2, '0');
-    const min = String(d.getMinutes()).padStart(2, '0');
-    const seg = String(d.getSeconds()).padStart(2, '0');
-
-    return `${dia}/${mes}/${anio} ${hora}:${min}:${seg}`;
+    return `${c.dia}/${c.mes}/${c.anio} ${c.hora12}:${c.minuto} ${c.ampm}`;
   }
 
   /**
-   * Formatea cualquier fecha a formato de fecha simple DD/MM/YYYY
+   * Formatea la hora en formato estándar colombiano: hh:mm a.m./p.m. (horario estandarizado local de Bogotá)
+   */
+  formatearHoraSolo(val) {
+    if (!val || val === 'N/A' || val === 'null' || val === 'undefined') return 'N/A';
+    const c = this.obtenerComponentesFechaBogota(val);
+    if (!c) return String(val).trim();
+
+    return `${c.hora12}:${c.minuto} ${c.ampm}`;
+  }
+
+  /**
+   * Formatea cualquier fecha a formato de fecha simple DD/MM/YYYY (horario estandarizado local de Bogotá)
    */
   formatearFechaSolo(val) {
     if (!val || val === 'N/A' || val === 'Sincronizado' || val === 'null' || val === 'undefined') {
       return 'N/A';
     }
-    const ms = this.parsearFechaMilisegundos(val);
-    if (!ms || ms <= 0) return String(val).trim();
+    const c = this.obtenerComponentesFechaBogota(val);
+    if (!c) return String(val).trim();
 
-    const d = new Date(ms);
-    const dia = String(d.getDate()).padStart(2, '0');
-    const mes = String(d.getMonth() + 1).padStart(2, '0');
-    const anio = d.getFullYear();
-
-    return `${dia}/${mes}/${anio}`;
+    return `${c.dia}/${c.mes}/${c.anio}`;
   }
 
   /**
@@ -4346,6 +4427,196 @@ export class StaffService {
       }
     }
     return this.maestrasData.tablasMaestras.areas;
+  }
+
+  normalizarTipoProceso(tp) {
+    if (!tp) return '';
+    const s = String(tp).trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    if (s.startsWith('estrategic')) return 'Estrategico';
+    if (s.startsWith('calidad')) return 'Calidad';
+    if (s.startsWith('mision')) return 'Misional';
+    if (s.startsWith('apoyo')) return 'Apoyo';
+    return String(tp).trim();
+  }
+
+  obtenerMatrizInstitucional() {
+    return {
+      'Estrategico': {
+        'GAD': ['Planeación Estratégica y Dirección', 'Gestión Administrativa y Financiera'],
+        'GFI': ['Gestión Financiera y Contable'],
+        'GIC': ['Gestión Integral de Calidad'],
+        'GTH': ['Políticas Institucionales'],
+        'GHU': ['Políticas Institucionales'],
+        'GTI': ['Tecnologías de la Información']
+      },
+      'Apoyo': {
+        'GTH': [
+          'Bienestar',
+          'Comunicaciones',
+          'Contratación',
+          'Desempeño',
+          'Formación',
+          'Gestión Documental',
+          'Gestión Humana',
+          'Gestión Talento Humano',
+          'Inducción',
+          'Nómina',
+          'Seguridad y Salud en el Trabajo',
+          'Selección'
+        ],
+        'GHU': [
+          'Bienestar',
+          'Comunicaciones',
+          'Contratación',
+          'Desempeño',
+          'Formación',
+          'Gestión Documental',
+          'Gestión Humana',
+          'Gestión Talento Humano',
+          'Inducción',
+          'Nómina',
+          'Seguridad y Salud en el Trabajo',
+          'Selección'
+        ],
+        'GAD': ['Gestión Administrativa y Financiera', 'Gestión Humana', 'Planeación Estratégica y Dirección'],
+        'GFI': ['Gestión Financiera y Contable'],
+        'GTI': ['Tecnologías de la Información']
+      },
+      'Calidad': {
+        'GIC': ['Gestión Integral de Calidad', 'Planeación Estratégica y Dirección', 'Intranet']
+      },
+      'Misional': {
+        'GMD': [
+          'Gestión de Especialistas',
+          'Gestión de Medicina General',
+          'Gestión Médica',
+          'Gestión asistencial',
+          'Gestión Integral de Calidad'
+        ]
+      }
+    };
+  }
+
+  obtenerAreasPorTipoProceso(tipoProceso) {
+    const tpNorm = this.normalizarTipoProceso(tipoProceso);
+    const areas = this.obtenerAreasInstitucionales();
+    if (!tpNorm) return areas;
+
+    const matriz = this.obtenerMatrizInstitucional();
+    const siglasPermitidas = matriz[tpNorm] ? Object.keys(matriz[tpNorm]) : [];
+
+    return areas.filter((a) => {
+      const sigla = (a.sigla || '').toUpperCase();
+      const nom = (a.nombre || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      if (siglasPermitidas.includes(sigla)) return true;
+      if (tpNorm === 'Misional') {
+        return sigla === 'GMD' || nom.includes('medic') || nom.includes('asistenc');
+      }
+      if (tpNorm === 'Calidad') {
+        return sigla === 'GIC' || nom.includes('calidad');
+      }
+      if (tpNorm === 'Estrategico') {
+        return ['GAD', 'GFI', 'GIC', 'GTH', 'GHU', 'GTI'].includes(sigla) ||
+               nom.includes('administrativ') || nom.includes('financier') || nom.includes('calidad') || nom.includes('talento') || nom.includes('tecnolog');
+      }
+      if (tpNorm === 'Apoyo') {
+        return ['GTH', 'GHU', 'GAD', 'GFI', 'GTI'].includes(sigla) ||
+               nom.includes('talento') || nom.includes('administrativ') || nom.includes('financier') || nom.includes('tecnolog');
+      }
+      return false;
+    });
+  }
+
+  obtenerProcesosPorAreaYTipo(nombreArea, tipoProceso) {
+    const tpNorm = this.normalizarTipoProceso(tipoProceso);
+    const matriz = this.obtenerMatrizInstitucional();
+    const areas = this.obtenerAreasInstitucionales();
+
+    let areaMatch = null;
+    if (nombreArea) {
+      const normA = String(nombreArea).trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      areaMatch = areas.find((a) => {
+        const aNom = (a.nombre || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        const aSig = (a.sigla || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        return aNom === normA || aSig === normA || aNom.includes(normA) || normA.includes(aNom);
+      });
+    }
+
+    const sigla = areaMatch ? (areaMatch.sigla || '').toUpperCase() : '';
+
+    if (tpNorm && matriz[tpNorm]) {
+      const procesosMatriz = (sigla && matriz[tpNorm][sigla]) 
+        ? [...matriz[tpNorm][sigla]] 
+        : [];
+
+      if (procesosMatriz.length === 0 && areaMatch) {
+        const nomAreaLower = (areaMatch.nombre || '').toLowerCase();
+        if (tpNorm === 'Misional' && (nomAreaLower.includes('medic') || nomAreaLower.includes('asistenc'))) {
+          procesosMatriz.push(...(matriz['Misional']['GMD'] || []));
+        } else if (tpNorm === 'Calidad' && nomAreaLower.includes('calidad')) {
+          procesosMatriz.push(...(matriz['Calidad']['GIC'] || []));
+        } else if (tpNorm === 'Estrategico') {
+          if (nomAreaLower.includes('talento') || nomAreaLower.includes('humana')) procesosMatriz.push(...(matriz['Estrategico']['GTH'] || []));
+          else if (nomAreaLower.includes('admin')) procesosMatriz.push(...(matriz['Estrategico']['GAD'] || []));
+          else if (nomAreaLower.includes('financ')) procesosMatriz.push(...(matriz['Estrategico']['GFI'] || []));
+          else if (nomAreaLower.includes('calidad')) procesosMatriz.push(...(matriz['Estrategico']['GIC'] || []));
+          else if (nomAreaLower.includes('tecnolog') || nomAreaLower.includes('tic')) procesosMatriz.push(...(matriz['Estrategico']['GTI'] || []));
+        } else if (tpNorm === 'Apoyo') {
+          if (nomAreaLower.includes('talento') || nomAreaLower.includes('humana')) procesosMatriz.push(...(matriz['Apoyo']['GTH'] || []));
+          else if (nomAreaLower.includes('admin')) procesosMatriz.push(...(matriz['Apoyo']['GAD'] || []));
+          else if (nomAreaLower.includes('financ')) procesosMatriz.push(...(matriz['Apoyo']['GFI'] || []));
+          else if (nomAreaLower.includes('tecnolog') || nomAreaLower.includes('tic')) procesosMatriz.push(...(matriz['Apoyo']['GTI'] || []));
+        }
+      }
+
+      if (areaMatch && Array.isArray(areaMatch.procesos)) {
+        areaMatch.procesos.forEach((p) => {
+          const pNorm = String(p).trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+          if (tpNorm === 'Estrategico' && (sigla === 'GTH' || sigla === 'GHU' || (areaMatch.nombre || '').toLowerCase().includes('talento'))) {
+            if (pNorm.includes('politica')) {
+              if (!procesosMatriz.some((item) => item.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '') === pNorm)) {
+                procesosMatriz.push(p);
+              }
+            }
+          } else if (tpNorm === 'Apoyo' && (sigla === 'GTH' || sigla === 'GHU' || (areaMatch.nombre || '').toLowerCase().includes('talento'))) {
+            if (!pNorm.includes('politica')) {
+              if (!procesosMatriz.some((item) => item.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '') === pNorm)) {
+                procesosMatriz.push(p);
+              }
+            }
+          } else {
+            if (!procesosMatriz.some((item) => item.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '') === pNorm)) {
+              procesosMatriz.push(p);
+            }
+          }
+        });
+      }
+
+      const unicos = Array.from(new Set(procesosMatriz)).sort((a, b) => a.localeCompare(b, 'es'));
+      if (unicos.length > 0) return unicos;
+    }
+
+    return this.obtenerProcesosPorArea(nombreArea);
+  }
+
+  obtenerTipoProcesoPorArea(nombreArea, proceso = '') {
+    if (proceso) {
+      const pNorm = String(proceso).trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      if (pNorm.includes('politica')) return 'Estrategico';
+      if (pNorm.includes('bienestar') || pNorm.includes('nomina') || pNorm.includes('induccion') || pNorm.includes('seleccion') || pNorm.includes('sst') || pNorm.includes('desempeno') || pNorm.includes('formacion') || pNorm.includes('comunicacion') || pNorm.includes('contratacion')) {
+        return 'Apoyo';
+      }
+      if (pNorm.includes('medica') || pNorm.includes('especialista') || pNorm.includes('asistencial')) return 'Misional';
+    }
+
+    const a = String(nombreArea || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    if (a.includes('medic') || a.includes('gmd') || a.includes('asistenc')) return 'Misional';
+    if (a.includes('calidad') || a.includes('gic')) return 'Calidad';
+    if (a.includes('admin') || a.includes('gad')) return 'Estrategico';
+    if (a.includes('talento') || a.includes('humana') || a.includes('gth') || a.includes('ghu') || a.includes('sst')) return 'Apoyo';
+    if (a.includes('financier') || a.includes('gfi')) return 'Apoyo';
+    if (a.includes('tecnolog') || a.includes('gti') || a.includes('tic')) return 'Apoyo';
+    return 'Apoyo';
   }
 
   obtenerProcesosPorArea(nombreArea) {

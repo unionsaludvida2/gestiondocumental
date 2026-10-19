@@ -1966,7 +1966,7 @@ class AppController {
               `
             : ''
           }
-          <td class="col-fecha" style="width: 118px; white-space: nowrap; font-size: 0.73rem; color: #64748b; padding: 6px 6px;">
+          <td class="col-fecha" style="width: 138px; min-width: 130px; white-space: nowrap; font-size: 0.73rem; color: #64748b; padding: 6px 6px;">
             ${staffService.formatearFechaHora(doc.modificacion)}
           </td>
           <td class="docs-table-actions-cell" style="width: ${this.modoEdicion ? '205px' : '115px'}; min-width: ${this.modoEdicion ? '205px' : '115px'}; text-align: center; padding: 6px 4px; position: relative;">
@@ -2032,7 +2032,7 @@ class AppController {
                 <td class="col-area" style="font-size: 0.78rem; padding: 6px 8px; color:#475569;">${regDoc.area || 'N/A'}</td>
                 <td class="col-version" style="width: 52px; font-weight: 700; color: var(--primary); text-align: center; white-space: nowrap; padding: 6px 3px; font-size: 0.78rem;">${staffService.formatearVersion(regDoc.version)}</td>
                 ${esVistaTop10 ? `<td class="col-descargas"></td>` : ''}
-                <td class="col-fecha" style="width: 118px; white-space: nowrap; font-size: 0.73rem; color: #64748b; padding: 6px 6px;">
+                <td class="col-fecha" style="width: 138px; min-width: 130px; white-space: nowrap; font-size: 0.73rem; color: #64748b; padding: 6px 6px;">
                   ${staffService.formatearFechaHora(regDoc.modificacion)}
                 </td>
                 <td class="docs-table-actions-cell" style="width: ${this.modoEdicion ? '205px' : '115px'}; min-width: ${this.modoEdicion ? '205px' : '115px'}; text-align: center; padding: 6px 4px; position: relative;">
@@ -2067,7 +2067,7 @@ class AppController {
         ? `<th style="width: 90px; min-width: 85px; text-align: center; padding: 8px 4px;">DESCARGAS</th>`
         : ''
       }
-              <th style="width: 118px; min-width: 118px; padding: 8px 6px;">Modificación</th>
+              <th style="width: 138px; min-width: 130px; padding: 8px 6px;">Modificación</th>
               <th style="width: ${this.modoEdicion ? '205px' : '115px'}; min-width: ${this.modoEdicion ? '205px' : '115px'}; text-align: center; padding: 8px 6px;">
                 ACCIONES
               </th>

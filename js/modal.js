@@ -2599,14 +2599,45 @@ export class ModalManager {
       }
     };
 
-    selectDefTipo?.addEventListener('change', guardarYAplicarFiltrosDefecto);
-    selectDefArea?.addEventListener('change', guardarYAplicarFiltrosDefecto);
+    const actualizarCascadaPreferencias = (origen = '') => {
+      const tp = selectDefTipo?.value || '';
+      const ar = selectDefArea?.value || '';
+
+      if (origen === 'tipo') {
+        const areasValidas = tp ? staffService.obtenerAreasPorTipoProceso(tp) : staffService.obtenerAreasInstitucionales();
+        if (selectDefArea) {
+          const areaActual = selectDefArea.value;
+          selectDefArea.innerHTML = `<option value="">(Todas las áreas)</option>` +
+            areasValidas.map((a) => `<option value="${a.nombre}" ${a.nombre === areaActual ? 'selected' : ''}>${a.nombre}</option>`).join('');
+        }
+      }
+
+      if (selectDefProc) {
+        const arActual = selectDefArea?.value || '';
+        const procs = (tp && arActual)
+          ? staffService.obtenerProcesosPorAreaYTipo(arActual, tp)
+          : (arActual ? staffService.obtenerProcesosPorArea(arActual) : (tp ? staffService.obtenerProcesosPorAreaYTipo('', tp) : []));
+        const procActual = selectDefProc.value;
+        selectDefProc.innerHTML = `<option value="">(Todos los procesos)</option>` +
+          procs.map((p) => `<option value="${p}" ${p === procActual ? 'selected' : ''}>${p}</option>`).join('');
+      }
+    };
+
+    selectDefTipo?.addEventListener('change', async () => {
+      actualizarCascadaPreferencias('tipo');
+      await guardarYAplicarFiltrosDefecto();
+    });
+    selectDefArea?.addEventListener('change', async () => {
+      actualizarCascadaPreferencias('area');
+      await guardarYAplicarFiltrosDefecto();
+    });
     selectDefProc?.addEventListener('change', guardarYAplicarFiltrosDefecto);
 
     btnClearDef?.addEventListener('click', async () => {
       if (selectDefTipo) selectDefTipo.value = '';
       if (selectDefArea) selectDefArea.value = '';
       if (selectDefProc) selectDefProc.value = '';
+      actualizarCascadaPreferencias('tipo');
       await guardarYAplicarFiltrosDefecto();
     });
 
@@ -2637,7 +2668,7 @@ export class ModalManager {
         try {
           await onSincronizar();
           if (statusMsg) {
-            const hora = new Date().toLocaleTimeString('es-CO');
+            const hora = staffService.formatearHoraSolo(new Date());
             statusMsg.innerHTML = `✅ <strong>Sincronización completada exitosamente</strong> a las ${hora}.`;
           }
         } catch (err) {
@@ -4183,24 +4214,28 @@ export class ModalManager {
       .map((t, idx) => `<option value="${t.nombre}" ${(esRegistro ? t.nombre === 'Formato' : idx === 0) ? 'selected' : ''}>${t.nombre} (${t.prefijo})</option>`)
       .join('');
 
-    const optionsAreasHtml = areasMaestras
-      .map((a, idx) => `<option value="${a.nombre}" ${idx === 0 ? 'selected' : ''}>${a.nombre} (${a.sigla})</option>`)
-      .join('');
+    const tipoProcesoDefault = docPadreSeleccionado?.tipoProceso || staffService.obtenerTipoProcesoPorArea(areaDefault, docPadreSeleccionado?.proceso || '') || 'Apoyo';
 
     const tiposProcesoMaestros = staffService.obtenerTiposProceso();
     const optionsTiposProcesoHtml = tiposProcesoMaestros
-      .map((tp, idx) => `<option value="${tp.nombre}" ${idx === 0 ? 'selected' : ''}>${tp.nombre}</option>`)
+      .map((tp) => `<option value="${tp.nombre}" ${tp.nombre.toLowerCase() === tipoProcesoDefault.toLowerCase() ? 'selected' : ''}>${tp.nombre}</option>`)
       .join('');
 
-    const generarOptionsProcesosND = (nombreArea, procesoSeleccionado = '') => {
-      const procs = staffService.obtenerProcesosPorArea(nombreArea);
+    const areasValidasDefault = staffService.obtenerAreasPorTipoProceso(tipoProcesoDefault);
+    const optionsAreasHtml = (areasValidasDefault.length > 0 ? areasValidasDefault : areasMaestras)
+      .map((a) => `<option value="${a.nombre}" ${(a.nombre || '').toLowerCase() === (areaDefault || '').toLowerCase() ? 'selected' : ''}>${a.nombre} (${a.sigla})</option>`)
+      .join('');
+
+    const generarOptionsProcesosND = (nombreArea, tipoProceso = '', procesoSeleccionado = '') => {
+      const tp = tipoProceso || staffService.obtenerTipoProcesoPorArea(nombreArea, procesoSeleccionado);
+      const procs = staffService.obtenerProcesosPorAreaYTipo(nombreArea, tp);
       if (procs.length === 0) {
         return `<option value="N/A">N/A</option>`;
       }
       return procs.map((p) => `<option value="${p}" ${p.toLowerCase() === (procesoSeleccionado || '').toLowerCase() ? 'selected' : ''}>${p}</option>`).join('');
     };
 
-    const optionsProcesosHtml = generarOptionsProcesosND(areaDefault, docPadreSeleccionado?.proceso || '');
+    const optionsProcesosHtml = generarOptionsProcesosND(areaDefault, tipoProcesoDefault, docPadreSeleccionado?.proceso || '');
 
     this.modalContainer.innerHTML = `
       <div class="modal-backdrop">
@@ -4664,12 +4699,8 @@ export class ModalManager {
 
     const selectTipoProceso = document.getElementById('nd-tipo-proceso');
 
-    const obtenerTipoProcesoPorArea = (nombreArea) => {
-      const a = (nombreArea || '').toLowerCase();
-      if (a.includes('calidad') || a.includes('gic')) return 'Estratégicos';
-      if (a.includes('talento humano') || a.includes('gth') || a.includes('seguridad y salud') || a.includes('sst') || a.includes('financiera') || a.includes('gfi') || a.includes('tecnolog') || a.includes('gti') || a.includes('admin')) return 'Apoyo';
-      if (a.includes('auditor') || a.includes('control')) return 'Evaluación y Control';
-      return 'Misional';
+    const obtenerTipoProcesoPorArea = (nombreArea, proceso = '') => {
+      return staffService.obtenerTipoProcesoPorArea(nombreArea, proceso);
     };
 
     // Selectores y elementos reactivos para cambio de Subclase / Registro
@@ -4697,10 +4728,10 @@ export class ModalManager {
           if (areaMatch) inputArea.value = areaMatch.nombre;
         }
         if (selectTipoProceso) {
-          selectTipoProceso.value = padre.tipoProceso || 'Estratégicos';
+          selectTipoProceso.value = padre.tipoProceso || staffService.obtenerTipoProcesoPorArea(inputArea.value, padre.proceso) || 'Apoyo';
         }
         if (selectProceso) {
-          selectProceso.innerHTML = generarOptionsProcesosND(inputArea.value, padre.proceso || '');
+          selectProceso.innerHTML = generarOptionsProcesosND(inputArea.value, selectTipoProceso ? selectTipoProceso.value : '', padre.proceso || '');
         }
         if (inputTitulo) {
           inputTitulo.placeholder = `ej. ${padre.titulo} Anticoagulados`;
@@ -4759,30 +4790,81 @@ export class ModalManager {
     radioRegistro?.addEventListener('change', () => cambiarSubclase(true));
     selectPadre?.addEventListener('change', actualizarDesdePadre);
 
-    // Función reactiva para actualizar el código y opciones de procesos según Tipo de Documento y Área
-    const recalcularCodigoEnTiempoReal = () => {
+    // Función reactiva para actualizar el código, áreas y procesos según Tipo de Proceso
+    const recalcularSegunTipoProceso = () => {
       const esReg = Boolean(document.getElementById('nd-subclase-registro')?.checked);
-      if (esReg) {
-        actualizarDesdePadre();
-        return;
+      if (esReg) return;
+
+      const tp = selectTipoProceso?.value || 'Apoyo';
+      const areasValidas = staffService.obtenerAreasPorTipoProceso(tp);
+
+      const areaActual = inputArea.value;
+      const areaEsValida = areasValidas.some((a) =>
+        (a.nombre || '').toLowerCase() === (areaActual || '').toLowerCase() ||
+        (a.sigla || '').toUpperCase() === (areaActual || '').toUpperCase()
+      );
+
+      if (!areaEsValida && areasValidas.length > 0) {
+        inputArea.value = areasValidas[0].nombre;
       }
+
+      if (areasValidas.length > 0) {
+        inputArea.innerHTML = areasValidas
+          .map((a) => `<option value="${a.nombre}" ${(a.nombre || '').toLowerCase() === (inputArea.value || '').toLowerCase() ? 'selected' : ''}>${a.nombre} (${a.sigla})</option>`)
+          .join('');
+      }
+
       const t = inputTipoDoc.value;
       const a = inputArea.value;
       const res = this.calcularSiguienteCodigo(t, a);
       inputCodigo.value = res.codigoCompleto;
 
-      const tipoProcSugerido = obtenerTipoProcesoPorArea(a);
-      if (selectTipoProceso) {
-        selectTipoProceso.value = tipoProcSugerido;
-      }
-
       if (selectProceso) {
-        selectProceso.innerHTML = generarOptionsProcesosND(a);
+        selectProceso.innerHTML = generarOptionsProcesosND(a, tp);
       }
 
       actualizarDisponibilidadYRutas();
     };
 
+    // Función reactiva para actualizar el código y opciones según el Área Institucional
+    const recalcularSegunArea = () => {
+      const esReg = Boolean(document.getElementById('nd-subclase-registro')?.checked);
+      if (esReg) {
+        actualizarDesdePadre();
+        return;
+      }
+
+      const t = inputTipoDoc.value;
+      const a = inputArea.value;
+      const res = this.calcularSiguienteCodigo(t, a);
+      inputCodigo.value = res.codigoCompleto;
+
+      const tpActual = selectTipoProceso ? selectTipoProceso.value : '';
+      const procsParaTpActual = staffService.obtenerProcesosPorAreaYTipo(a, tpActual);
+
+      let tpFinal = tpActual;
+      if (!tpActual || procsParaTpActual.length === 0) {
+        tpFinal = staffService.obtenerTipoProcesoPorArea(a);
+        if (selectTipoProceso) {
+          selectTipoProceso.value = tpFinal;
+        }
+      }
+
+      if (selectProceso) {
+        selectProceso.innerHTML = generarOptionsProcesosND(a, tpFinal);
+      }
+
+      actualizarDisponibilidadYRutas();
+    };
+
+    const recalcularCodigoEnTiempoReal = () => {
+      recalcularSegunArea();
+    };
+
+    selectTipoProceso?.addEventListener('change', recalcularSegunTipoProceso);
+    selectProceso?.addEventListener('change', () => {
+      actualizarDisponibilidadYRutas();
+    });
     inputTipoDoc?.addEventListener('change', recalcularCodigoEnTiempoReal);
     inputArea?.addEventListener('input', recalcularCodigoEnTiempoReal);
     inputArea?.addEventListener('change', recalcularCodigoEnTiempoReal);
@@ -4933,7 +5015,8 @@ export class ModalManager {
         sharepointUrl: enlacesSecundarios?.sharepointUrl || '',
         downloadUrl: enlacesSecundarios?.downloadUrl || '',
         estado: estado,
-        estadoDocumento: estado
+        estadoDocumento: estado,
+        modificacion: new Date().toISOString()
       };
 
       try {
@@ -5186,7 +5269,7 @@ export class ModalManager {
               <div style="display: flex; align-items: center; gap: 8px;">
                 <strong>Extensión:</strong> <span class="badge" style="background: #e2e8f0; color: #0f172a; padding: 2px 8px; border-radius: 4px; font-weight: 700;">${doc.extension || 'DOC'}</span>
                 &nbsp;|&nbsp;
-                <strong>Modificación:</strong> ${doc.modificacion || 'N/A'}
+                <strong>Modificación:</strong> ${staffService.formatearFechaHora(doc.modificacion)}
               </div>
               <div style="display: flex; align-items: center; gap: 6px;">
                 ${doc.disponible ? `
@@ -5364,21 +5447,25 @@ export class ModalManager {
       .map((t) => `<option value="${t.nombre}" ${t.nombre.toLowerCase() === tipoDocActualNombre.toLowerCase() ? 'selected' : ''}>${t.nombre} (${t.prefijo})</option>`)
       .join('');
 
-    const optionsAreasHtml = areasMaestras
-      .map((a) => `<option value="${a.nombre}" ${a.nombre.toLowerCase() === areaActualNombre.toLowerCase() ? 'selected' : ''}>${a.nombre} (${a.sigla})</option>`)
+    const tipoProcesoActualDoc = doc.tipoProceso || staffService.obtenerTipoProcesoPorArea(areaActualNombre, doc.proceso || doc.carpeta || '') || 'Apoyo';
+
+    const areasValidasRecodDefault = staffService.obtenerAreasPorTipoProceso(tipoProcesoActualDoc);
+    const optionsAreasHtml = (areasValidasRecodDefault.length > 0 ? areasValidasRecodDefault : areasMaestras)
+      .map((a) => `<option value="${a.nombre}" ${(a.nombre || '').toLowerCase() === (areaActualNombre || '').toLowerCase() ? 'selected' : ''}>${a.nombre} (${a.sigla})</option>`)
       .join('');
 
     const optionsTiposProcesoHtml = tiposProcesoMaestros
-      .map((tp) => `<option value="${tp.nombre}" ${(doc.tipoProceso || '').toLowerCase() === tp.nombre.toLowerCase() ? 'selected' : ''}>${tp.nombre}</option>`)
+      .map((tp) => `<option value="${tp.nombre}" ${tp.nombre.toLowerCase() === tipoProcesoActualDoc.toLowerCase() ? 'selected' : ''}>${tp.nombre}</option>`)
       .join('');
 
-    const generarOptionsProcesosRecod = (nombreArea, procesoSeleccionado = '') => {
-      const procs = staffService.obtenerProcesosPorArea(nombreArea);
+    const generarOptionsProcesosRecod = (nombreArea, tipoProceso = '', procesoSeleccionado = '') => {
+      const tp = tipoProceso || staffService.obtenerTipoProcesoPorArea(nombreArea, procesoSeleccionado);
+      const procs = staffService.obtenerProcesosPorAreaYTipo(nombreArea, tp);
       if (procs.length === 0) return `<option value="N/A">N/A</option>`;
       return procs.map((p) => `<option value="${p}" ${p.toLowerCase() === (procesoSeleccionado || '').toLowerCase() ? 'selected' : ''}>${p}</option>`).join('');
     };
 
-    const optionsProcesosHtml = generarOptionsProcesosRecod(areaActualNombre, doc.proceso || doc.carpeta || '');
+    const optionsProcesosHtml = generarOptionsProcesosRecod(areaActualNombre, tipoProcesoActualDoc, doc.proceso || doc.carpeta || '');
 
     this.modalContainer.innerHTML = `
       <div class="modal-backdrop">
@@ -5504,19 +5591,65 @@ export class ModalManager {
     const errBox = document.getElementById('recod-error');
     const selectTipoDoc = document.getElementById('recod-tipo-doc');
     const selectArea = document.getElementById('recod-area');
+    const selectTipoProceso = document.getElementById('recod-tipo-proceso');
     const selectProceso = document.getElementById('recod-proceso');
     const inputNuevoCodigo = document.getElementById('recod-nuevo-codigo');
+
+    const recalcularSegunTipoProcesoRecod = () => {
+      const tp = selectTipoProceso?.value || 'Apoyo';
+      const areasValidas = staffService.obtenerAreasPorTipoProceso(tp);
+
+      const areaActual = selectArea.value;
+      const areaEsValida = areasValidas.some((a) =>
+        (a.nombre || '').toLowerCase() === (areaActual || '').toLowerCase() ||
+        (a.sigla || '').toUpperCase() === (areaActual || '').toUpperCase()
+      );
+
+      if (!areaEsValida && areasValidas.length > 0) {
+        selectArea.value = areasValidas[0].nombre;
+      }
+
+      if (areasValidas.length > 0) {
+        selectArea.innerHTML = areasValidas
+          .map((a) => `<option value="${a.nombre}" ${(a.nombre || '').toLowerCase() === (selectArea.value || '').toLowerCase() ? 'selected' : ''}>${a.nombre} (${a.sigla})</option>`)
+          .join('');
+      }
+
+      const t = selectTipoDoc.value;
+      const a = selectArea.value;
+      const res = this.calcularSiguienteCodigo(t, a);
+      inputNuevoCodigo.value = res.codigoCompleto;
+
+      if (selectProceso) {
+        selectProceso.innerHTML = generarOptionsProcesosRecod(a, tp);
+      }
+    };
 
     const recalcularNuevoCodigo = () => {
       const t = selectTipoDoc.value;
       const a = selectArea.value;
       const res = this.calcularSiguienteCodigo(t, a);
       inputNuevoCodigo.value = res.codigoCompleto;
-      selectProceso.innerHTML = generarOptionsProcesosRecod(a);
+
+      const tpActual = selectTipoProceso ? selectTipoProceso.value : '';
+      const procsParaTpActual = staffService.obtenerProcesosPorAreaYTipo(a, tpActual);
+
+      let tpFinal = tpActual;
+      if (!tpActual || procsParaTpActual.length === 0) {
+        tpFinal = staffService.obtenerTipoProcesoPorArea(a);
+        if (selectTipoProceso) {
+          selectTipoProceso.value = tpFinal;
+        }
+      }
+
+      if (selectProceso) {
+        selectProceso.innerHTML = generarOptionsProcesosRecod(a, tpFinal);
+      }
     };
 
     selectTipoDoc?.addEventListener('change', recalcularNuevoCodigo);
     selectArea?.addEventListener('change', recalcularNuevoCodigo);
+    selectTipoProceso?.addEventListener('change', recalcularSegunTipoProcesoRecod);
 
     formRecod.addEventListener('submit', async (e) => {
       e.preventDefault();

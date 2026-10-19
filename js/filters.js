@@ -656,22 +656,30 @@ export class FilterEngine {
   parsearFecha(fechaStr) {
     if (!fechaStr || fechaStr === 'N/A') return 0;
     try {
-      const partesEspacio = fechaStr.trim().split(' ');
-      const partesFecha = partesEspacio[0].split('/');
-      if (partesFecha.length === 3) {
-        const dia = parseInt(partesFecha[0], 10);
-        const mes = parseInt(partesFecha[1], 10) - 1;
-        const anio = parseInt(partesFecha[2], 10);
-        let horas = 0, minutos = 0, segundos = 0;
-        if (partesEspacio.length > 1) {
-          const partesHora = partesEspacio[1].split(':');
-          if (partesHora.length >= 2) {
-            horas = parseInt(partesHora[0], 10) || 0;
-            minutos = parseInt(partesHora[1], 10) || 0;
-            segundos = parseInt(partesHora[2], 10) || 0;
-          }
+      if (typeof window !== 'undefined' && window.antigravityApp?.staffService?.parsearFechaMilisegundos) {
+        return window.antigravityApp.staffService.parsearFechaMilisegundos(fechaStr);
+      }
+      const s = String(fechaStr).trim().replace(/[\u202F\u00A0]/g, ' ').replace(/\s+/g, ' ');
+      const matchLatam = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})(?:\s*,?\s*(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?\s*(am|pm|a\.?\s*m\.?|p\.?\s*m\.?)?)?/i);
+      if (matchLatam) {
+        const dia = parseInt(matchLatam[1], 10);
+        const mes = parseInt(matchLatam[2], 10) - 1;
+        const anio = parseInt(matchLatam[3], 10);
+        let hora = matchLatam[4] ? parseInt(matchLatam[4], 10) : 0;
+        const min = matchLatam[5] ? parseInt(matchLatam[5], 10) : 0;
+        const seg = matchLatam[6] ? parseInt(matchLatam[6], 10) : 0;
+        const ampm = (matchLatam[7] || '').toLowerCase().replace(/[\.\s]/g, '');
+        if (ampm === 'pm' && hora < 12) hora += 12;
+        if (ampm === 'am' && hora === 12) hora = 0;
+        return Date.UTC(anio, mes, dia, hora + 5, min, seg);
+      }
+      if (/^\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}/.test(s)) {
+        let isoStr = s.replace(' ', 'T');
+        if (!isoStr.endsWith('Z') && !/[+-]\d{2}(?::?\d{2})?$/.test(isoStr)) {
+          isoStr += 'Z';
         }
-        return new Date(anio, mes, dia, horas, minutos, segundos).getTime();
+        const t = Date.parse(isoStr);
+        if (!isNaN(t) && t > 0) return t;
       }
       const d = new Date(fechaStr).getTime();
       return isNaN(d) ? 0 : d;
