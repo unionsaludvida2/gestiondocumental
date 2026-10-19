@@ -1,6 +1,6 @@
 /**
  * Matriz Base de Colaboradores Institucionales (Fallback Sincronizado)
- * Total: 1305 empleados activos
+ * Total: 1306 empleados activos
  */
 
 export const EMPLEADOS_ACTIVOS_BASE = [
@@ -12963,6 +12963,16 @@ export const EMPLEADOS_ACTIVOS_BASE = [
     "email": "yulis.lobo@unionsaludvida.com",
     "estado": "Activo",
     "perfil": "operativo"
+  },
+  {
+    "id": "emp-1036404493",
+    "nombre": "Yulisa Castaño Gonzalez",
+    "identificacion": "1036404493",
+    "sede": "Lider Asistencial",
+    "cargo": "Lider Gestion Asistencial",
+    "email": "yulisa.castano@unionsaludvida.com",
+    "estado": "Activo",
+    "perfil": "administrativo"
   },
   {
     "id": "emp-1214739131",
