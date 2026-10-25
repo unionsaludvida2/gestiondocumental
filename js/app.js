@@ -11,12 +11,12 @@
  * - Modo Edición: Desbloqueo Automático para Acceso Total y Contraseña Personal para Directivos y Administrativos
  */
 
-import { sharepointService, determinarEstrategiaDescarga, esDocumentoFMT } from './sharepoint-service.js?v=11.6.99';
-import { filterEngine } from './filters.js?v=11.6.99';
-import { modalManager } from './modal.js?v=11.6.99';
-import { analyticsManager } from './analytics.js?v=11.6.99';
-import { staffService } from './staff-service.js?v=11.6.99';
-import { cacheService } from './cache-service.js?v=11.6.99';
+import { sharepointService, determinarEstrategiaDescarga, esDocumentoFMT } from './sharepoint-service.js?v=11.7.00';
+import { filterEngine } from './filters.js?v=11.7.00';
+import { modalManager } from './modal.js?v=11.7.00';
+import { analyticsManager } from './analytics.js?v=11.7.00';
+import { staffService } from './staff-service.js?v=11.7.00';
+import { cacheService } from './cache-service.js?v=11.7.00';
 
 const STORAGE_KEY_EDIT_MODE = 'agy_sgc_edit_mode';
 const STORAGE_KEY_FAVORITES = 'agy_sgc_favorites';
@@ -65,6 +65,9 @@ class AppController {
       const freshDocs = e.detail;
       if (Array.isArray(freshDocs) && freshDocs.length > 0) {
         this.documentos = freshDocs;
+        if (typeof sharepointService !== 'undefined') {
+          sharepointService.documentosEnMemoria = this.documentos;
+        }
         this.aplicarFiltros(true);
         if (this.vistaActual === 'analytics') {
           const docsPerfil = filterEngine.obtenerDocumentosPorPerfil(this.documentos);
@@ -245,6 +248,9 @@ class AppController {
         const firmaPrevia = this.calcularFirmaDocumental(this.documentos);
         const firmaNueva = this.calcularFirmaDocumental(docs);
         this.documentos = docs;
+        if (typeof sharepointService !== 'undefined') {
+          sharepointService.documentosEnMemoria = this.documentos;
+        }
         if (firmaPrevia !== firmaNueva) {
           this.aplicarFiltros(true);
           if (this.vistaActual === 'analytics') {
@@ -820,6 +826,9 @@ class AppController {
 
       if (docsActualizados && docsActualizados.length > 0) {
         this.documentos = docsActualizados;
+        if (typeof sharepointService !== 'undefined') {
+          sharepointService.documentosEnMemoria = this.documentos;
+        }
 
         // Detectar y registrar cambios en el histórico documental
         const sesion = staffService.obtenerSesionActiva();
@@ -985,6 +994,9 @@ class AppController {
 
       console.log('[Sincronización Inteligente] Cambios detectados en SharePoint/Google Sheets. Actualizando vista sin alterar la navegación...');
       this.documentos = nuevos;
+      if (typeof sharepointService !== 'undefined') {
+        sharepointService.documentosEnMemoria = this.documentos;
+      }
 
       // Detectar y registrar cambios en el histórico
       const sesion = staffService.obtenerSesionActiva();
@@ -2450,6 +2462,9 @@ class AppController {
         this.documentos.unshift(nuevoDoc);
       }
     }
+    if (typeof sharepointService !== 'undefined') {
+      sharepointService.documentosEnMemoria = this.documentos;
+    }
     this.aplicarFiltros(true);
     if (this.vistaActual === 'analytics') {
       const docsPerfil = filterEngine.obtenerDocumentosPorPerfil(this.documentos);
@@ -2529,6 +2544,9 @@ class AppController {
         };
       }
     }
+    if (typeof sharepointService !== 'undefined') {
+      sharepointService.documentosEnMemoria = this.documentos;
+    }
     this.aplicarFiltros(true);
     if (this.vistaActual === 'analytics') {
       const docsPerfil = filterEngine.obtenerDocumentosPorPerfil(this.documentos);
@@ -2540,6 +2558,9 @@ class AppController {
     if (!codigoRetirado) return;
     const codUpper = String(codigoRetirado).toUpperCase();
     this.documentos = this.documentos.filter((d) => (d.codigo || '').toUpperCase() !== codUpper);
+    if (typeof sharepointService !== 'undefined') {
+      sharepointService.documentosEnMemoria = this.documentos;
+    }
     this.aplicarFiltros(true);
     if (this.vistaActual === 'analytics') {
       const docsPerfil = filterEngine.obtenerDocumentosPorPerfil(this.documentos);

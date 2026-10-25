@@ -4,8 +4,8 @@
  * Conexión sincrónica en tiempo real al archivo REPOSITORIO_DOCUMENTAL.csv de OneDrive.
  */
 
-import { DOCUMENTOS_REALES, URL_ORIGEN_CSV } from './data.js?v=11.6.98';
-import { cacheService } from './cache-service.js?v=11.6.98';
+import { DOCUMENTOS_REALES, URL_ORIGEN_CSV } from './data.js?v=11.7.00';
+import { cacheService } from './cache-service.js?v=11.7.00';
 
 
 export const MAPA_NORMALIZACION_AREAS = {
@@ -550,11 +550,15 @@ export class DataService {
     const codPadre = docPadre.codigo.trim().toUpperCase();
 
     // 1. Obtener la referencia oficial del documento base padre en memoria
-    const padreOficial = (Array.isArray(this.documentosEnMemoria)
-      ? this.documentosEnMemoria.find((d) => (d.codigo || '').toUpperCase() === codPadre && !d.esRegistro)
-      : null) || docPadre;
+    const todosDocs = [
+      ...(Array.isArray(window.__agyApp?.documentos) ? window.__agyApp.documentos : []),
+      ...(Array.isArray(this.documentosEnMemoria) ? this.documentosEnMemoria : [])
+    ];
+
+    const padreOficial = todosDocs.find((d) => (d.codigo || '').toUpperCase() === codPadre && !d.esRegistro) || docPadre;
 
     const numerosExistentes = new Set();
+    const codigosExistentes = new Set();
     const regex = new RegExp(`^${codPadre.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}-(\\d+)$`, 'i');
 
     // 2. Revisar los registros derivados oficiales asociados al documento padre
@@ -564,19 +568,33 @@ export class DataService {
 
     for (const r of listaDerivados) {
       if (!r || !r.codigo) continue;
-      const m = r.codigo.trim().match(regex);
+      const codR = r.codigo.trim().toUpperCase();
+      codigosExistentes.add(codR);
+      const m = codR.match(regex);
       if (m && m[1]) {
         const num = parseInt(m[1], 10);
         if (!isNaN(num)) numerosExistentes.add(num);
       }
     }
 
-    // 3. Revisar cualquier documento derivado oficial presente en el catálogo activo en memoria
-    if (Array.isArray(this.documentosEnMemoria)) {
-      for (const d of this.documentosEnMemoria) {
-        if (!d || !d.codigo) continue;
-        if (d.esRegistro && (d.documentoPadreCodigo || '').toUpperCase() === codPadre) {
-          const m = d.codigo.trim().match(regex);
+    // 3. Revisar cualquier documento o derivado en la lista activa en memoria
+    for (const d of todosDocs) {
+      if (!d || !d.codigo) continue;
+      const codD = d.codigo.trim().toUpperCase();
+      codigosExistentes.add(codD);
+      if (d.esRegistro && (d.documentoPadreCodigo || '').toUpperCase() === codPadre) {
+        const m = codD.match(regex);
+        if (m && m[1]) {
+          const num = parseInt(m[1], 10);
+          if (!isNaN(num)) numerosExistentes.add(num);
+        }
+      }
+      if (Array.isArray(d.registrosDerivados)) {
+        for (const rd of d.registrosDerivados) {
+          if (!rd || !rd.codigo) continue;
+          const codRD = rd.codigo.trim().toUpperCase();
+          codigosExistentes.add(codRD);
+          const m = codRD.match(regex);
           if (m && m[1]) {
             const num = parseInt(m[1], 10);
             if (!isNaN(num)) numerosExistentes.add(num);
@@ -586,8 +604,13 @@ export class DataService {
     }
 
     const maxNum = numerosExistentes.size > 0 ? Math.max(...numerosExistentes) : 0;
-    const siguienteNum = maxNum + 1;
-    return `${codPadre}-${siguienteNum}`;
+    let siguienteNum = maxNum + 1;
+    let siguienteCodigo = `${codPadre}-${siguienteNum}`;
+    while (codigosExistentes.has(siguienteCodigo.toUpperCase())) {
+      siguienteNum++;
+      siguienteCodigo = `${codPadre}-${siguienteNum}`;
+    }
+    return siguienteCodigo;
   }
 
   /**

@@ -3,9 +3,9 @@
  * Unión para la salud y la vida S.A.S.
  */
 
-import { sharepointService, determinarEstrategiaDescarga, esDocumentoFMT, normalizarAreaDoc } from './sharepoint-service.js?v=11.6.98';
-import { staffService } from './staff-service.js?v=11.6.98';
-import { filterEngine } from './filters.js?v=11.6.98';
+import { sharepointService, determinarEstrategiaDescarga, esDocumentoFMT, normalizarAreaDoc } from './sharepoint-service.js?v=11.7.00';
+import { staffService } from './staff-service.js?v=11.7.00';
+import { filterEngine } from './filters.js?v=11.7.00';
 
 const STORAGE_KEY_USER_PROFILE = 'agy_user_profile';
 
@@ -879,7 +879,7 @@ export class ModalManager {
               if (window.__agyApp) {
                 window.__agyApp.actualizarDocumentoEnApp(doc);
               }
-              const docActualizado = (sharepointService.documentosEnMemoria || []).find((d) => (d.codigo || '').toUpperCase() === (doc.codigo || '').toUpperCase()) || doc;
+              const docActualizado = this.obtenerDocumentosActuales().find((d) => (d.codigo || '').toUpperCase() === (doc.codigo || '').toUpperCase()) || doc;
               this.abrirDrawerDocumento(docActualizado, modoEdicion, onEditarSharePoint, onDescargar, onActualizarDoc, onEliminarDoc, 'registros');
             }
           });
@@ -906,7 +906,7 @@ export class ModalManager {
               if (window.__agyApp) {
                 window.__agyApp.actualizarDocumentoEnApp(doc);
               }
-              const docActualizado = (sharepointService.documentosEnMemoria || []).find((d) => (d.codigo || '').toUpperCase() === (doc.codigo || '').toUpperCase()) || doc;
+              const docActualizado = this.obtenerDocumentosActuales().find((d) => (d.codigo || '').toUpperCase() === (doc.codigo || '').toUpperCase()) || doc;
               this.abrirDrawerDocumento(docActualizado, modoEdicion, onEditarSharePoint, onDescargar, onActualizarDoc, onEliminarDoc, 'registros');
             }
           });
@@ -928,9 +928,7 @@ export class ModalManager {
             window.__agyApp.agregarNuevoDocumentoEnApp(nuevoDoc);
           }
           const codPadre = (nuevoDoc.documentoPadreCodigo || nuevoDoc.codigoPadre || (nuevoDoc.codigo ? nuevoDoc.codigo.replace(/-(\d+)$/, '') : (doc.codigo || ''))).trim().toUpperCase();
-          const docActualizado = (window.__agyApp?.documentos || []).find((d) => (d.codigo || '').toUpperCase() === codPadre && !d.esRegistro) ||
-                                (sharepointService.documentosEnMemoria || []).find((d) => (d.codigo || '').toUpperCase() === codPadre && !d.esRegistro) ||
-                                doc;
+          const docActualizado = this.obtenerDocumentosActuales().find((d) => (d.codigo || '').toUpperCase() === codPadre && !d.esRegistro) || doc;
           if (docActualizado) {
             this.abrirDrawerDocumento(docActualizado, modoEdicion, onEditarSharePoint, onDescargar, onActualizarDoc, onEliminarDoc, 'registros');
             setTimeout(() => {
@@ -4007,18 +4005,64 @@ export class ModalManager {
   }
 
   /**
+   * Obtiene la colección completa y actualizada de documentos consolidados
+   * desde la aplicación activa (catálogo en vivo), sharepointService y el motor de filtros.
+   */
+  obtenerDocumentosActuales() {
+    const mapa = new Map();
+    // 1. Instancia viva de la aplicación (catálogo en memoria en tiempo real)
+    const appDocs = (typeof window !== 'undefined' && window.__agyApp && Array.isArray(window.__agyApp.documentos))
+      ? window.__agyApp.documentos
+      : [];
+    for (const d of appDocs) {
+      if (d && d.codigo) {
+        mapa.set((d.codigo || '').trim().toUpperCase(), d);
+      }
+    }
+    // 2. Colección de sharepointService
+    const spDocs = Array.isArray(sharepointService?.documentosEnMemoria)
+      ? sharepointService.documentosEnMemoria
+      : [];
+    for (const d of spDocs) {
+      if (d && d.codigo) {
+        const cod = (d.codigo || '').trim().toUpperCase();
+        if (!mapa.has(cod)) mapa.set(cod, d);
+      }
+    }
+    // 3. Documentos originales en filterEngine
+    const feDocs = (typeof filterEngine !== 'undefined' && Array.isArray(filterEngine?.documentosOriginales))
+      ? filterEngine.documentosOriginales
+      : [];
+    for (const d of feDocs) {
+      if (d && d.codigo) {
+        const cod = (d.codigo || '').trim().toUpperCase();
+        if (!mapa.has(cod)) mapa.set(cod, d);
+      }
+    }
+    return Array.from(mapa.values());
+  }
+
+  /**
    * Calcula el código automático con el consecutivo más alto + 1 con 3 cifras
+   * Garantiza que nunca se sugiera un código que ya exista en el catálogo institucional.
    */
   calcularSiguienteCodigo(tipoDoc, area) {
     const prefijo = this.obtenerPrefijoTipoDocumento(tipoDoc);
     const sigla = this.obtenerSiglaArea(area);
-    const patron = new RegExp('^' + prefijo + '-' + sigla + '-(\\d+)', 'i');
+    const patron = new RegExp('^' + prefijo + '[-_]' + sigla + '[-_](\\d+)', 'i');
 
     let maxConsecutivo = 0;
-    const docs = sharepointService.documentosEnMemoria || [];
+    const docs = this.obtenerDocumentosActuales();
+    const codigosExistentes = new Set();
+
     for (const d of docs) {
+      if (!d) continue;
+
       if (d.codigo) {
-        const match = d.codigo.trim().match(patron);
+        const cod = d.codigo.trim().toUpperCase();
+        codigosExistentes.add(cod);
+
+        const match = cod.match(patron);
         if (match && match[1]) {
           const num = parseInt(match[1], 10);
           if (!isNaN(num) && num > maxConsecutivo) {
@@ -4026,12 +4070,41 @@ export class ModalManager {
           }
         }
       }
+
+      // Evaluar registros derivados asociados
+      if (Array.isArray(d.registrosDerivados)) {
+        for (const r of d.registrosDerivados) {
+          if (r && r.codigo) {
+            const codR = r.codigo.trim().toUpperCase();
+            codigosExistentes.add(codR);
+
+            const matchR = codR.match(patron);
+            if (matchR && matchR[1]) {
+              const numR = parseInt(matchR[1], 10);
+              if (!isNaN(numR) && numR > maxConsecutivo) {
+                maxConsecutivo = numR;
+              }
+            }
+          }
+        }
+      }
     }
 
-    const sigNum = maxConsecutivo + 1;
-    const consecutivoStr = String(sigNum).padStart(3, '0');
+    let sigNum = maxConsecutivo + 1;
+    let consecutivoStr = String(sigNum).padStart(3, '0');
+    let codigoCompleto = `${prefijo}-${sigla}-${consecutivoStr}`;
+
+    // Garantía absoluta contra duplicados:
+    // Si por alguna razón el código generado ya existe en el catálogo,
+    // avanzar secuencialmente hasta encontrar el siguiente consecutivo verdaderamente disponible
+    while (codigosExistentes.has(codigoCompleto.toUpperCase())) {
+      sigNum++;
+      consecutivoStr = String(sigNum).padStart(3, '0');
+      codigoCompleto = `${prefijo}-${sigla}-${consecutivoStr}`;
+    }
+
     return {
-      codigoCompleto: `${prefijo}-${sigla}-${consecutivoStr}`,
+      codigoCompleto: codigoCompleto,
       prefijo: prefijo,
       siglaArea: sigla,
       consecutivo: consecutivoStr,
@@ -4043,7 +4116,7 @@ export class ModalManager {
    * Obtiene rutas de carpetas de SharePoint sugeridas a partir del prefijo o área de codificación
    */
   obtenerRutasSugeridas(codigo, tipoDoc, area, proceso) {
-    const docs = sharepointService.documentosEnMemoria || [];
+    const docs = this.obtenerDocumentosActuales();
     const codUpper = (codigo || '').trim().toUpperCase();
     const partesCod = codUpper.split('-');
     const prefijo = partesCod.length >= 2 ? `${partesCod[0]}-${partesCod[1]}` : codUpper;
@@ -4188,7 +4261,7 @@ export class ModalManager {
       .sort((a, b) => (a.nombre || '').localeCompare(b.nombre || '', 'es'));
 
     // Lista de formatos base disponibles para registros derivados
-    const formatosBase = (sharepointService.documentosEnMemoria || [])
+    const formatosBase = this.obtenerDocumentosActuales()
       .filter((d) => !d.esRegistro && d.subclase !== 'Registro')
       .sort((a, b) => (a.codigo || '').localeCompare(b.codigo || '', 'es'));
 
@@ -4566,7 +4639,7 @@ export class ModalManager {
         return;
       }
 
-      const docExistente = (sharepointService.documentosEnMemoria || []).find((d) => (d.codigo || '').toUpperCase() === cod && !d.esRegistro);
+      const docExistente = this.obtenerDocumentosActuales().find((d) => (d.codigo || '').toUpperCase() === cod && !d.esRegistro);
       const tieneEnlace = Boolean(
         docExistente &&
         ((docExistente.sharepointUrl && docExistente.sharepointUrl.trim() !== '' && docExistente.sharepointUrl !== '#') ||
@@ -4911,8 +4984,23 @@ export class ModalManager {
         ? (document.getElementById('nd-select-padre')?.value || codigo.replace(/-(\d+)$/, ''))
         : null;
       const docPadreRef = esRegistroDoc
-        ? (sharepointService.documentosEnMemoria || []).find((d) => (d.codigo || '').toUpperCase() === (codPadre || '').toUpperCase() && !d.esRegistro)
+        ? this.obtenerDocumentosActuales().find((d) => (d.codigo || '').toUpperCase() === (codPadre || '').toUpperCase() && !d.esRegistro)
         : null;
+
+      // Validación preventiva anti-colisión: Verificar si el código ya existe
+      if (!esRegistroDoc) {
+        const existeDoc = this.obtenerDocumentosActuales().some(d => (d.codigo || '').trim().toUpperCase() === codigo && !d.esRegistro);
+        if (existeDoc) {
+          errBox.textContent = `❌ Ya existe un documento registrado con el código ${codigo}. Por favor utiliza un consecutivo diferente.`;
+          errBox.style.display = 'block';
+          const btnSave = document.getElementById('btn-nuevo-doc-save');
+          if (btnSave) {
+            btnSave.disabled = false;
+            btnSave.innerHTML = `<span>💾</span> Guardar y Publicar Documento`;
+          }
+          return;
+        }
+      }
 
       // Garantizar que un registro derivado siempre tenga el sufijo consecutivo -N
       if (esRegistroDoc && docPadreRef) {
@@ -5097,7 +5185,7 @@ export class ModalManager {
     const esRegistro = Boolean(doc.esRegistro || doc.subclase === 'Registro' || docPadre || (doc.id && String(doc.id).includes('_REG_')) || /^[A-Z]{3,4}-[A-Z]{2,4}-\d{3,4}-\d+$/.test(doc.codigo || ''));
     if (esRegistro && !docPadre) {
       const codPadre = doc.documentoPadreCodigo || (doc.codigo || '').replace(/-(\d+)$/, '');
-      docPadre = (sharepointService.documentosEnMemoria || []).find(
+      docPadre = this.obtenerDocumentosActuales().find(
         (d) => (d.codigo || '').toUpperCase() === (codPadre || '').toUpperCase() && !d.esRegistro
       );
     }

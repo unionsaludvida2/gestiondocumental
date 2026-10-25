@@ -7635,5 +7635,36 @@ export const DOCUMENTOS_REALES = [
     "fechaAprobacion": "1/8/2026",
     "fechaVencimiento": "01/08/2031",
     "tipoCambio": "Creacion del documento"
+  },
+  {
+    "id": "doc-239",
+    "codigo": "PR-GTI-001",
+    "titulo": "Procedimiento de gestion y respuesta a incidentes de ciberseguridad",
+    "formato": "PDF",
+    "extension": "PDF",
+    "estado": "DISPONIBLE",
+    "disponible": true,
+    "descargable": true,
+    "permisoOperativo": true,
+    "permisoAdministrativo": true,
+    "permisoDirectivo": true,
+    "estadoDocumento": "Activo",
+    "tipoProceso": "Apoyo",
+    "area": "Gestión Tecnología Información",
+    "proceso": "Tecnologías de la Información",
+    "carpeta": "Tecnologías de la Información",
+    "tipoDocumento": "Procedimiento",
+    "modificacion": "2026-10-23T09:51:00",
+    "version": "v01",
+    "descripcion": "Procedimiento de gestion y respuesta a incidentes de ciberseguridad.",
+    "sharepointUrl": "https://unionsaludvida.sharepoint.com/sites/INTRANET/Documentos compartidos/DOCUMENTOS_INSTITUCIONALES/TECNOLOGIA/PR-GTI-001.pdf?web=1",
+    "downloadUrl": "https://unionsaludvida.sharepoint.com/sites/INTRANET/Documentos compartidos/DOCUMENTOS_INSTITUCIONALES/TECNOLOGIA/PR-GTI-001.pdf",
+    "ubicacion": "Intranet",
+    "tiempoVigencia": "5 Años",
+    "lugar": "Archivo digital",
+    "fechaAprobacion": "23/10/2026",
+    "fechaVencimiento": "23/10/2031",
+    "tipoCambio": "Creación del documento"
   }
 ];
+
