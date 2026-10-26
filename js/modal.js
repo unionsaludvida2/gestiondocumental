@@ -1067,7 +1067,7 @@ export class ModalManager {
     const conteoOperativo = documentos.filter((d) => d.permisoOperativo === true).length;
 
     this.modalContainer.innerHTML = `
-      <div class="modal-backdrop">
+      <div class="modal-backdrop" data-prevent-close="true">
         <div class="modal-card modal-card-settings animate-scale-up" style="width: 820px; max-width: 95vw; height: 540px; min-height: 540px; display: flex; flex-direction: column; overflow: hidden; padding: 0;">
           
           <!-- Cabecera del Modal -->
@@ -4311,7 +4311,7 @@ export class ModalManager {
     const optionsProcesosHtml = generarOptionsProcesosND(areaDefault, tipoProcesoDefault, docPadreSeleccionado?.proceso || '');
 
     this.modalContainer.innerHTML = `
-      <div class="modal-backdrop">
+      <div class="modal-backdrop" data-prevent-close="true">
         <div class="modal-card animate-scale-up" role="dialog" aria-modal="true" style="max-width: 690px; max-height: 92vh; display: flex; flex-direction: column; overflow: hidden; padding: 0;">
           
           <!-- Encabezado con Azul Institucional Corporativo -->
@@ -5156,8 +5156,18 @@ export class ModalManager {
       }
     });
 
-    document.getElementById('btn-nuevo-doc-close')?.addEventListener('click', () => this.cerrarModal());
-    document.getElementById('btn-nuevo-doc-cancel')?.addEventListener('click', () => this.cerrarModal());
+    const confirmarCierreNuevoDoc = () => {
+      const tit = (document.getElementById('nd-titulo')?.value || '').trim();
+      if (tit.length > 0) {
+        if (!confirm('Tiene información ingresada en el formulario de creación. ¿Está seguro de que desea salir sin guardar? Todo lo que ha escrito se perderá.')) {
+          return;
+        }
+      }
+      this.cerrarModal();
+    };
+
+    document.getElementById('btn-nuevo-doc-close')?.addEventListener('click', confirmarCierreNuevoDoc);
+    document.getElementById('btn-nuevo-doc-cancel')?.addEventListener('click', confirmarCierreNuevoDoc);
 
     const inputTit = document.getElementById('nd-titulo');
     const selectFmt = document.getElementById('nd-formato');
@@ -5191,7 +5201,7 @@ export class ModalManager {
     }
 
     this.modalContainer.innerHTML = `
-      <div class="modal-backdrop">
+      <div class="modal-backdrop" data-prevent-close="true">
         <div class="modal-card animate-scale-up" role="dialog" aria-modal="true" style="max-width: 680px; max-height: 90vh; display: flex; flex-direction: column; overflow: hidden; padding: 0;">
           
           <!-- Encabezado con Azul Institucional -->
@@ -5506,8 +5516,17 @@ export class ModalManager {
       }
     });
 
-    document.getElementById('btn-edit-doc-close')?.addEventListener('click', () => this.cerrarModal());
-    document.getElementById('btn-edit-doc-cancel')?.addEventListener('click', () => this.cerrarModal());
+    const confirmarCierreEdit = () => {
+      const tit = (document.getElementById('ed-titulo')?.value || '').trim();
+      if (tit.length > 0 && tit !== (doc.titulo || '').trim()) {
+        if (!confirm('Tiene cambios sin guardar en los metadatos. ¿Desea salir sin guardar?')) {
+          return;
+        }
+      }
+      this.cerrarModal();
+    };
+    document.getElementById('btn-edit-doc-close')?.addEventListener('click', confirmarCierreEdit);
+    document.getElementById('btn-edit-doc-cancel')?.addEventListener('click', confirmarCierreEdit);
     setTimeout(() => document.getElementById('ed-titulo')?.focus(), 100);
   }
 
@@ -5556,7 +5575,7 @@ export class ModalManager {
     const optionsProcesosHtml = generarOptionsProcesosRecod(areaActualNombre, tipoProcesoActualDoc, doc.proceso || doc.carpeta || '');
 
     this.modalContainer.innerHTML = `
-      <div class="modal-backdrop">
+      <div class="modal-backdrop" data-prevent-close="true">
         <div class="modal-card animate-scale-up" role="dialog" aria-modal="true" style="max-width: 680px; max-height: 92vh; display: flex; flex-direction: column; overflow: hidden; padding: 0;">
           
           <!-- Encabezado Corporativo -->
@@ -5842,7 +5861,7 @@ export class ModalManager {
     document.body.classList.add('modal-open');
 
     this.modalContainer.innerHTML = `
-      <div class="modal-backdrop">
+      <div class="modal-backdrop" data-prevent-close="true">
         <div class="modal-card animate-scale-up" role="dialog" aria-modal="true" style="max-width: 520px; padding: 0; overflow: hidden;">
           
           <div class="modal-header" style="background: linear-gradient(135deg, #991b1b 0%, #dc2626 100%); color: #ffffff; padding: 16px 20px; display: flex; justify-content: space-between; align-items: center;">
