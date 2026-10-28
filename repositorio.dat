@@ -1,8 +1,8 @@
 {
   "version": "1.0",
   "empresa": "Unión para la salud y la vida S.A.S.",
-  "ultimaActualizacion": "2026-10-28T10:58:04Z",
-  "total": 257,
+  "ultimaActualizacion": "2026-10-28T16:33:02Z",
+  "total": 260,
   "documentos": [
     {
       "codigo": "Capacitación",
@@ -34,6 +34,22 @@
       "vinculoDescarga": "https://unionsaludvida.sharepoint.com/sites/INTRANET/Documentos compartidos/DOCUMENTOS_INSTITUCIONALES/DIRECCION_ADMIN_FINAN/COORD_GESTION_HUMANA/ARCHIVOS_COORD_GH/GESTION CALIDAD -GH/Gestion del talento humano/DOCUMENTOS UNION PARA LA SALUD Y LA VIDA/CONSTITUCION LEGAL/PROVEEDORES ANTECEDENTES/INSPEKTOR Risk Consultin/Capacitación Inicial Aplicativo Inspektor  - ANA VENURIS CARDONA-20260928_093513-Grabación de la reunión.mp4",
       "sharepointUrl": "https://unionsaludvida.sharepoint.com/sites/INTRANET/Documentos compartidos/DOCUMENTOS_INSTITUCIONALES/DIRECCION_ADMIN_FINAN/COORD_GESTION_HUMANA/ARCHIVOS_COORD_GH/GESTION CALIDAD -GH/Gestion del talento humano/DOCUMENTOS UNION PARA LA SALUD Y LA VIDA/CONSTITUCION LEGAL/PROVEEDORES ANTECEDENTES/INSPEKTOR Risk Consultin/Capacitación Inicial Aplicativo Inspektor  - ANA VENURIS CARDONA-20260928_093513-Grabación de la reunión.mp4?web=1",
       "downloadUrl": "https://unionsaludvida.sharepoint.com/sites/INTRANET/Documentos compartidos/DOCUMENTOS_INSTITUCIONALES/DIRECCION_ADMIN_FINAN/COORD_GESTION_HUMANA/ARCHIVOS_COORD_GH/GESTION CALIDAD -GH/Gestion del talento humano/DOCUMENTOS UNION PARA LA SALUD Y LA VIDA/CONSTITUCION LEGAL/PROVEEDORES ANTECEDENTES/INSPEKTOR Risk Consultin/Capacitación Inicial Aplicativo Inspektor  - ANA VENURIS CARDONA-20260928_093513-Grabación de la reunión.mp4",
+      "disponible": true
+    },
+    {
+      "codigo": "DA-GAD-001",
+      "titulo": "Flujograma de la ruta de prevención y atención del acoso sexual.docx",
+      "documento": "Flujograma de la ruta de prevención y atención del acoso sexual.docx",
+      "extension": ".docx",
+      "formato": "Word",
+      "carpeta": "Planeación Estratégica y Dirección",
+      "proceso": "Planeación Estratégica y Dirección",
+      "tipoDocumento": "",
+      "modificacion": "2026-10-28T09:40:35",
+      "vinculoEdicion": "https://unionsaludvida.sharepoint.com/sites/INTRANET/Documentos compartidos/DOCUMENTOS_INSTITUCIONALES/SISTEMAS_INFORMACION/GESTION DOCUMENTAL DE CALIDAD UT/Gestión documental de calidad Unión para la Salud Y la Vida SAS/Estrategico/Gestión Administrativa/Planeación Estratégica y Dirección/Documentos de apoyo/DA-GAD-001 Flujograma de la ruta de prevención y atención del acoso sexual.docx?web=1",
+      "vinculoDescarga": "https://unionsaludvida.sharepoint.com/sites/INTRANET/Documentos compartidos/DOCUMENTOS_INSTITUCIONALES/SISTEMAS_INFORMACION/GESTION DOCUMENTAL DE CALIDAD UT/Gestión documental de calidad Unión para la Salud Y la Vida SAS/Estrategico/Gestión Administrativa/Planeación Estratégica y Dirección/Documentos de apoyo/DA-GAD-001 Flujograma de la ruta de prevención y atención del acoso sexual.docx",
+      "sharepointUrl": "https://unionsaludvida.sharepoint.com/sites/INTRANET/Documentos compartidos/DOCUMENTOS_INSTITUCIONALES/SISTEMAS_INFORMACION/GESTION DOCUMENTAL DE CALIDAD UT/Gestión documental de calidad Unión para la Salud Y la Vida SAS/Estrategico/Gestión Administrativa/Planeación Estratégica y Dirección/Documentos de apoyo/DA-GAD-001 Flujograma de la ruta de prevención y atención del acoso sexual.docx?web=1",
+      "downloadUrl": "https://unionsaludvida.sharepoint.com/sites/INTRANET/Documentos compartidos/DOCUMENTOS_INSTITUCIONALES/SISTEMAS_INFORMACION/GESTION DOCUMENTAL DE CALIDAD UT/Gestión documental de calidad Unión para la Salud Y la Vida SAS/Estrategico/Gestión Administrativa/Planeación Estratégica y Dirección/Documentos de apoyo/DA-GAD-001 Flujograma de la ruta de prevención y atención del acoso sexual.docx",
       "disponible": true
     },
     {
@@ -3302,22 +3318,6 @@
     },
     {
       "codigo": "INS-GTH-012",
-      "titulo": "Procedimiento reintegro laboral.docx",
-      "documento": "Procedimiento reintegro laboral.docx",
-      "extension": ".docx",
-      "formato": "Word",
-      "carpeta": "Seguridad y Salud en el Trabajo",
-      "proceso": "Seguridad y Salud en el Trabajo",
-      "tipoDocumento": "",
-      "modificacion": "2026-08-28T09:27:15",
-      "vinculoEdicion": "https://unionsaludvida.sharepoint.com/sites/INTRANET/Documentos compartidos/DOCUMENTOS_INSTITUCIONALES/DIRECCION_ADMIN_FINAN/COORD_GESTION_HUMANA/ARCHIVOS_COORD_GH/GESTION CALIDAD -GH/Gestion del talento humano/DOCUMENTOS UNION PARA LA SALUD Y LA VIDA/SG-SST/RIESGO OSTEOMUSCULAR/INS-GTH-012  Procedimiento reintegro laboral.docx?web=1",
-      "vinculoDescarga": "https://unionsaludvida.sharepoint.com/sites/INTRANET/Documentos compartidos/DOCUMENTOS_INSTITUCIONALES/DIRECCION_ADMIN_FINAN/COORD_GESTION_HUMANA/ARCHIVOS_COORD_GH/GESTION CALIDAD -GH/Gestion del talento humano/DOCUMENTOS UNION PARA LA SALUD Y LA VIDA/SG-SST/RIESGO OSTEOMUSCULAR/INS-GTH-012  Procedimiento reintegro laboral.docx",
-      "sharepointUrl": "https://unionsaludvida.sharepoint.com/sites/INTRANET/Documentos compartidos/DOCUMENTOS_INSTITUCIONALES/DIRECCION_ADMIN_FINAN/COORD_GESTION_HUMANA/ARCHIVOS_COORD_GH/GESTION CALIDAD -GH/Gestion del talento humano/DOCUMENTOS UNION PARA LA SALUD Y LA VIDA/SG-SST/RIESGO OSTEOMUSCULAR/INS-GTH-012  Procedimiento reintegro laboral.docx?web=1",
-      "downloadUrl": "https://unionsaludvida.sharepoint.com/sites/INTRANET/Documentos compartidos/DOCUMENTOS_INSTITUCIONALES/DIRECCION_ADMIN_FINAN/COORD_GESTION_HUMANA/ARCHIVOS_COORD_GH/GESTION CALIDAD -GH/Gestion del talento humano/DOCUMENTOS UNION PARA LA SALUD Y LA VIDA/SG-SST/RIESGO OSTEOMUSCULAR/INS-GTH-012  Procedimiento reintegro laboral.docx",
-      "disponible": true
-    },
-    {
-      "codigo": "INS-GTH-012",
       "titulo": "Acta seguimiento a condiciones de salud.docx",
       "documento": "Acta seguimiento a condiciones de salud.docx",
       "extension": ".docx",
@@ -3330,6 +3330,22 @@
       "vinculoDescarga": "https://unionsaludvida.sharepoint.com/sites/INTRANET/Documentos compartidos/DOCUMENTOS_INSTITUCIONALES/DIRECCION_ADMIN_FINAN/COORD_GESTION_HUMANA/ARCHIVOS_COORD_GH/GESTION CALIDAD -GH/Gestion del talento humano/DOCUMENTOS UNION PARA LA SALUD Y LA VIDA/SG-SST/RIESGO OSTEOMUSCULAR/INS-GTH-012 Acta seguimiento a condiciones de salud.docx",
       "sharepointUrl": "https://unionsaludvida.sharepoint.com/sites/INTRANET/Documentos compartidos/DOCUMENTOS_INSTITUCIONALES/DIRECCION_ADMIN_FINAN/COORD_GESTION_HUMANA/ARCHIVOS_COORD_GH/GESTION CALIDAD -GH/Gestion del talento humano/DOCUMENTOS UNION PARA LA SALUD Y LA VIDA/SG-SST/RIESGO OSTEOMUSCULAR/INS-GTH-012 Acta seguimiento a condiciones de salud.docx?web=1",
       "downloadUrl": "https://unionsaludvida.sharepoint.com/sites/INTRANET/Documentos compartidos/DOCUMENTOS_INSTITUCIONALES/DIRECCION_ADMIN_FINAN/COORD_GESTION_HUMANA/ARCHIVOS_COORD_GH/GESTION CALIDAD -GH/Gestion del talento humano/DOCUMENTOS UNION PARA LA SALUD Y LA VIDA/SG-SST/RIESGO OSTEOMUSCULAR/INS-GTH-012 Acta seguimiento a condiciones de salud.docx",
+      "disponible": true
+    },
+    {
+      "codigo": "INS-GTH-012",
+      "titulo": "Procedimiento reintegro laboral.docx",
+      "documento": "Procedimiento reintegro laboral.docx",
+      "extension": ".docx",
+      "formato": "Word",
+      "carpeta": "Seguridad y Salud en el Trabajo",
+      "proceso": "Seguridad y Salud en el Trabajo",
+      "tipoDocumento": "",
+      "modificacion": "2026-08-28T09:27:15",
+      "vinculoEdicion": "https://unionsaludvida.sharepoint.com/sites/INTRANET/Documentos compartidos/DOCUMENTOS_INSTITUCIONALES/DIRECCION_ADMIN_FINAN/COORD_GESTION_HUMANA/ARCHIVOS_COORD_GH/GESTION CALIDAD -GH/Gestion del talento humano/DOCUMENTOS UNION PARA LA SALUD Y LA VIDA/SG-SST/RIESGO OSTEOMUSCULAR/INS-GTH-012  Procedimiento reintegro laboral.docx?web=1",
+      "vinculoDescarga": "https://unionsaludvida.sharepoint.com/sites/INTRANET/Documentos compartidos/DOCUMENTOS_INSTITUCIONALES/DIRECCION_ADMIN_FINAN/COORD_GESTION_HUMANA/ARCHIVOS_COORD_GH/GESTION CALIDAD -GH/Gestion del talento humano/DOCUMENTOS UNION PARA LA SALUD Y LA VIDA/SG-SST/RIESGO OSTEOMUSCULAR/INS-GTH-012  Procedimiento reintegro laboral.docx",
+      "sharepointUrl": "https://unionsaludvida.sharepoint.com/sites/INTRANET/Documentos compartidos/DOCUMENTOS_INSTITUCIONALES/DIRECCION_ADMIN_FINAN/COORD_GESTION_HUMANA/ARCHIVOS_COORD_GH/GESTION CALIDAD -GH/Gestion del talento humano/DOCUMENTOS UNION PARA LA SALUD Y LA VIDA/SG-SST/RIESGO OSTEOMUSCULAR/INS-GTH-012  Procedimiento reintegro laboral.docx?web=1",
+      "downloadUrl": "https://unionsaludvida.sharepoint.com/sites/INTRANET/Documentos compartidos/DOCUMENTOS_INSTITUCIONALES/DIRECCION_ADMIN_FINAN/COORD_GESTION_HUMANA/ARCHIVOS_COORD_GH/GESTION CALIDAD -GH/Gestion del talento humano/DOCUMENTOS UNION PARA LA SALUD Y LA VIDA/SG-SST/RIESGO OSTEOMUSCULAR/INS-GTH-012  Procedimiento reintegro laboral.docx",
       "disponible": true
     },
     {
@@ -3637,6 +3653,22 @@
       "disponible": true
     },
     {
+      "codigo": "PR-GAD-004",
+      "titulo": "Prevención y atención del acoso sexual.docx",
+      "documento": "Prevención y atención del acoso sexual.docx",
+      "extension": ".docx",
+      "formato": "Word",
+      "carpeta": "Planeación Estratégica y Dirección",
+      "proceso": "Planeación Estratégica y Dirección",
+      "tipoDocumento": "",
+      "modificacion": "2026-10-28T09:43:54",
+      "vinculoEdicion": "https://unionsaludvida.sharepoint.com/sites/INTRANET/Documentos compartidos/DOCUMENTOS_INSTITUCIONALES/SISTEMAS_INFORMACION/GESTION DOCUMENTAL DE CALIDAD UT/Gestión documental de calidad Unión para la Salud Y la Vida SAS/Estrategico/Gestión Administrativa/Planeación Estratégica y Dirección/Procesos/PR-GAD-004 Prevención y atención del acoso sexual.docx?web=1",
+      "vinculoDescarga": "https://unionsaludvida.sharepoint.com/sites/INTRANET/Documentos compartidos/DOCUMENTOS_INSTITUCIONALES/SISTEMAS_INFORMACION/GESTION DOCUMENTAL DE CALIDAD UT/Gestión documental de calidad Unión para la Salud Y la Vida SAS/Estrategico/Gestión Administrativa/Planeación Estratégica y Dirección/Procesos/PR-GAD-004 Prevención y atención del acoso sexual.docx",
+      "sharepointUrl": "https://unionsaludvida.sharepoint.com/sites/INTRANET/Documentos compartidos/DOCUMENTOS_INSTITUCIONALES/SISTEMAS_INFORMACION/GESTION DOCUMENTAL DE CALIDAD UT/Gestión documental de calidad Unión para la Salud Y la Vida SAS/Estrategico/Gestión Administrativa/Planeación Estratégica y Dirección/Procesos/PR-GAD-004 Prevención y atención del acoso sexual.docx?web=1",
+      "downloadUrl": "https://unionsaludvida.sharepoint.com/sites/INTRANET/Documentos compartidos/DOCUMENTOS_INSTITUCIONALES/SISTEMAS_INFORMACION/GESTION DOCUMENTAL DE CALIDAD UT/Gestión documental de calidad Unión para la Salud Y la Vida SAS/Estrategico/Gestión Administrativa/Planeación Estratégica y Dirección/Procesos/PR-GAD-004 Prevención y atención del acoso sexual.docx",
+      "disponible": true
+    },
+    {
       "codigo": "PR-GMD-001",
       "titulo": "Proceso de gestión de especialistas.docx",
       "documento": "Proceso de gestión de especialistas.docx",
@@ -3810,6 +3842,22 @@
       "vinculoDescarga": "https://unionsaludvida.sharepoint.com/sites/INTRANET/Documentos compartidos/DOCUMENTOS_INSTITUCIONALES/SISTEMAS_INFORMACION/GESTION DOCUMENTAL DE CALIDAD UT/Gestión documental de calidad Unión para la Salud Y la Vida SAS/Estrategico/Gestión Administrativa/Planeación Estratégica y Dirección/Políticas/PT-GAD-005 Politica institucional de atencion centrada en la persona.docx",
       "sharepointUrl": "https://unionsaludvida.sharepoint.com/sites/INTRANET/Documentos compartidos/DOCUMENTOS_INSTITUCIONALES/SISTEMAS_INFORMACION/GESTION DOCUMENTAL DE CALIDAD UT/Gestión documental de calidad Unión para la Salud Y la Vida SAS/Estrategico/Gestión Administrativa/Planeación Estratégica y Dirección/Políticas/PT-GAD-005 Politica institucional de atencion centrada en la persona.docx?web=1",
       "downloadUrl": "https://unionsaludvida.sharepoint.com/sites/INTRANET/Documentos compartidos/DOCUMENTOS_INSTITUCIONALES/SISTEMAS_INFORMACION/GESTION DOCUMENTAL DE CALIDAD UT/Gestión documental de calidad Unión para la Salud Y la Vida SAS/Estrategico/Gestión Administrativa/Planeación Estratégica y Dirección/Políticas/PT-GAD-005 Politica institucional de atencion centrada en la persona.docx",
+      "disponible": true
+    },
+    {
+      "codigo": "PT-GAD-006",
+      "titulo": "Política institucional para la prevención del acoso, la discriminación y las violencias en el ámbito laboral.docx",
+      "documento": "Política institucional para la prevención del acoso, la discriminación y las violencias en el ámbito laboral.docx",
+      "extension": ".docx",
+      "formato": "Word",
+      "carpeta": "Planeación Estratégica y Dirección",
+      "proceso": "Planeación Estratégica y Dirección",
+      "tipoDocumento": "",
+      "modificacion": "2026-10-28T09:43:18",
+      "vinculoEdicion": "https://unionsaludvida.sharepoint.com/sites/INTRANET/Documentos compartidos/DOCUMENTOS_INSTITUCIONALES/SISTEMAS_INFORMACION/GESTION DOCUMENTAL DE CALIDAD UT/Gestión documental de calidad Unión para la Salud Y la Vida SAS/Estrategico/Gestión Administrativa/Planeación Estratégica y Dirección/Políticas/PT-GAD-006 Política institucional para la prevención del acoso, la discriminación y las violencias en el ámbito laboral.docx?web=1",
+      "vinculoDescarga": "https://unionsaludvida.sharepoint.com/sites/INTRANET/Documentos compartidos/DOCUMENTOS_INSTITUCIONALES/SISTEMAS_INFORMACION/GESTION DOCUMENTAL DE CALIDAD UT/Gestión documental de calidad Unión para la Salud Y la Vida SAS/Estrategico/Gestión Administrativa/Planeación Estratégica y Dirección/Políticas/PT-GAD-006 Política institucional para la prevención del acoso, la discriminación y las violencias en el ámbito laboral.docx",
+      "sharepointUrl": "https://unionsaludvida.sharepoint.com/sites/INTRANET/Documentos compartidos/DOCUMENTOS_INSTITUCIONALES/SISTEMAS_INFORMACION/GESTION DOCUMENTAL DE CALIDAD UT/Gestión documental de calidad Unión para la Salud Y la Vida SAS/Estrategico/Gestión Administrativa/Planeación Estratégica y Dirección/Políticas/PT-GAD-006 Política institucional para la prevención del acoso, la discriminación y las violencias en el ámbito laboral.docx?web=1",
+      "downloadUrl": "https://unionsaludvida.sharepoint.com/sites/INTRANET/Documentos compartidos/DOCUMENTOS_INSTITUCIONALES/SISTEMAS_INFORMACION/GESTION DOCUMENTAL DE CALIDAD UT/Gestión documental de calidad Unión para la Salud Y la Vida SAS/Estrategico/Gestión Administrativa/Planeación Estratégica y Dirección/Políticas/PT-GAD-006 Política institucional para la prevención del acoso, la discriminación y las violencias en el ámbito laboral.docx",
       "disponible": true
     },
     {
