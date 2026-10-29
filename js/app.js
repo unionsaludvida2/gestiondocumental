@@ -4004,7 +4004,7 @@ class AppController {
 
         <tr class="docs-table-row ${rowClass} ${doc.esRegistro ? 'docs-table-row-derivado' : ''}" data-id="${doc.id}">
 
-          <td class="col-fav" style="width: 26px; text-align: center; padding: 6px 2px;">
+          <td class="col-fav">
 
             ${doc.esRegistro
 
@@ -4026,19 +4026,19 @@ class AppController {
 
           ${esVistaTop10
 
-            ? `<td class="col-top-rank" style="width: 58px; text-align: center; padding: 6px 3px;">${badgePuestoHtml}</td>`
+            ? `<td class="col-top-rank">${badgePuestoHtml}</td>`
 
             : ''
 
           }
 
-          <td class="col-tipo" style="width: 44px; text-align: center; padding: 6px 3px;">
+          <td class="col-tipo">
 
             <span class="badge ${extClass}" style="font-size: 0.70rem; padding: 1px 5px; font-weight: 700;">${doc.extension}</span>
 
           </td>
 
-          <td class="col-codigo" style="width: 95px; font-family: var(--font-heading); font-weight: 700; color: ${doc.esRegistro ? '#0284c7' : '#334155'}; font-size: 0.78rem; white-space: nowrap; padding: 6px 6px;">
+          <td class="col-codigo">
 
             <div style="display:flex; align-items:center; gap:4px;">
 
@@ -4058,7 +4058,7 @@ class AppController {
 
           </td>
 
-          <td class="docs-table-title-cell" title="${doc.titulo}" style="padding: 7px 10px;">
+          <td class="docs-table-title-cell" title="${doc.titulo}">
 
             <div style="font-weight: 700; color: #1e293b; font-size: 0.83rem; line-height: 1.35;">${doc.titulo}</div>
 
@@ -4094,17 +4094,17 @@ class AppController {
 
           </td>
 
-          <td class="col-proceso" style="font-size: 0.78rem; padding: 6px 8px;">${doc.proceso || 'N/A'}</td>
+          <td class="col-proceso">${doc.proceso || 'N/A'}</td>
 
-          <td class="col-area" style="font-size: 0.78rem; padding: 6px 8px;">${doc.area || 'N/A'}</td>
+          <td class="col-area">${doc.area || 'N/A'}</td>
 
-          <td class="col-version" style="width: 52px; font-weight: 700; color: var(--primary); text-align: center; white-space: nowrap; padding: 6px 3px; font-size: 0.78rem;">${staffService.formatearVersion(doc.version)}</td>
+          <td class="col-version">${staffService.formatearVersion(doc.version)}</td>
 
           ${esVistaTop10
 
             ? `
 
-              <td class="col-descargas" style="width: 90px; text-align: center; white-space: nowrap; padding: 6px 4px;">
+              <td class="col-descargas">
 
                 <span style="display:inline-flex; align-items:center; gap:3px; background:#f8fafc; border:1px solid #cbd5e1; color:#0f172a; padding:2px 7px; border-radius:10px; font-size:0.73rem; font-weight:700;" title="${numDescargas} descargas registradas">
 
@@ -4120,13 +4120,13 @@ class AppController {
 
           }
 
-          <td class="col-fecha" style="width: 138px; min-width: 130px; white-space: nowrap; font-size: 0.73rem; color: #64748b; padding: 6px 6px;">
+          <td class="col-fecha">
 
             ${staffService.formatearFechaHora(doc.modificacion)}
 
           </td>
 
-          <td class="docs-table-actions-cell" style="width: ${this.modoEdicion ? '205px' : '115px'}; min-width: ${this.modoEdicion ? '205px' : '115px'}; text-align: center; padding: 6px 4px; position: relative;">
+          <td class="docs-table-actions-cell ${this.modoEdicion ? \'actions-wide\' : \'\'}">
 
             ${this.renderAccionesDocumento(doc)}
 
@@ -4216,17 +4216,17 @@ class AppController {
 
               <tr class="docs-table-row table-subrow-registro subrow-${doc.id}" data-id="${regDoc.id}" data-parent-id="${doc.id}" style="display: none; background: ${regIdx % 2 === 0 ? '#f8fafc' : '#ffffff'}; border-left: 4px solid #0284c7;">
 
-                <td class="col-fav" style="width: 26px; text-align: center; padding: 6px 2px;"></td>
+                <td class="col-fav"></td>
 
-                ${esVistaTop10 ? `<td class="col-top-rank" style="width: 58px;"></td>` : ''}
+                ${esVistaTop10 ? `<td class="col-top-rank"></td>` : ''}
 
-                <td class="col-tipo" style="width: 44px; text-align: center; padding: 6px 3px;">
+                <td class="col-tipo">
 
                   <span class="badge ${rExtClass}" style="font-size: 0.70rem; padding: 1px 5px; font-weight: 700;">${regDoc.extension}</span>
 
                 </td>
 
-                <td class="col-codigo" style="width: 95px; font-family: var(--font-heading); font-weight: 700; color: #0284c7; font-size: 0.78rem; white-space: nowrap; padding: 6px 6px;">
+                <td class="col-codigo">
 
                   <div style="display:flex; align-items:center; gap:4px;">
 
@@ -4238,27 +4238,27 @@ class AppController {
 
                 </td>
 
-                <td class="docs-table-title-cell" title="${regDoc.titulo}" style="padding: 7px 10px;">
+                <td class="docs-table-title-cell" title="${regDoc.titulo}">
 
                   <div style="font-weight: 600; color: #1e293b; font-size: 0.81rem; line-height: 1.35;">${regDoc.titulo}</div>
 
                 </td>
 
-                <td class="col-proceso" style="font-size: 0.78rem; padding: 6px 8px; color:#475569;">${regDoc.proceso || 'Registro Derivado'}</td>
+                <td class="col-proceso">${regDoc.proceso || 'Registro Derivado'}</td>
 
-                <td class="col-area" style="font-size: 0.78rem; padding: 6px 8px; color:#475569;">${regDoc.area || 'N/A'}</td>
+                <td class="col-area">${regDoc.area || 'N/A'}</td>
 
-                <td class="col-version" style="width: 52px; font-weight: 700; color: var(--primary); text-align: center; white-space: nowrap; padding: 6px 3px; font-size: 0.78rem;">${staffService.formatearVersion(regDoc.version)}</td>
+                <td class="col-version">${staffService.formatearVersion(regDoc.version)}</td>
 
                 ${esVistaTop10 ? `<td class="col-descargas"></td>` : ''}
 
-                <td class="col-fecha" style="width: 138px; min-width: 130px; white-space: nowrap; font-size: 0.73rem; color: #64748b; padding: 6px 6px;">
+                <td class="col-fecha">
 
                   ${staffService.formatearFechaHora(regDoc.modificacion)}
 
                 </td>
 
-                <td class="docs-table-actions-cell" style="width: ${this.modoEdicion ? '205px' : '115px'}; min-width: ${this.modoEdicion ? '205px' : '115px'}; text-align: center; padding: 6px 4px; position: relative;">
+                <td class="docs-table-actions-cell ${this.modoEdicion ? \'actions-wide\' : \'\'}">
 
                   ${this.renderAccionesDocumento(regDoc)}
 
@@ -4289,49 +4289,19 @@ class AppController {
         <table class="docs-table">
 
           <thead>
-
             <tr>
-
-              <th style="width: 26px; min-width: 26px; max-width: 26px; text-align: center; padding: 8px 2px;">★</th>
-
-              ${esVistaTop10
-
-        ? `<th style="width: 58px; min-width: 58px; text-align: center; padding: 8px 3px;">TOP</th>`
-
-        : ''
-
-      }
-
-              <th style="width: 44px; min-width: 44px; max-width: 44px; text-align: center; padding: 8px 3px;">Tipo</th>
-
-              <th style="width: 82px; min-width: 82px; max-width: 95px; padding: 8px 6px;">Código</th>
-
-              <th style="min-width: 170px; max-width: 260px; padding: 8px 8px;">Nombre del Documento</th>
-
-              <th style="width: 130px; min-width: 120px; padding: 8px 8px;">Proceso</th>
-
-              <th style="width: 135px; min-width: 125px; padding: 8px 8px;">Área Institucional</th>
-
-              <th style="width: 52px; min-width: 52px; text-align: center; padding: 8px 3px;">Versión</th>
-
-              ${esVistaTop10
-
-        ? `<th style="width: 90px; min-width: 85px; text-align: center; padding: 8px 4px;">DESCARGAS</th>`
-
-        : ''
-
-      }
-
-              <th style="width: 138px; min-width: 130px; padding: 8px 6px;">Modificación</th>
-
-              <th style="width: ${this.modoEdicion ? '205px' : '115px'}; min-width: ${this.modoEdicion ? '205px' : '115px'}; text-align: center; padding: 8px 6px;">
-
-                ACCIONES
-
-              </th>
-
+              <th class="col-fav">★</th>
+              ${esVistaTop10 ? `<th class="col-top-rank">TOP</th>` : ''}
+              <th class="col-tipo">Tipo</th>
+              <th class="col-codigo">Código</th>
+              <th class="docs-table-title-cell">Nombre del Documento</th>
+              <th class="col-proceso">Proceso</th>
+              <th class="col-area">Área Institucional</th>
+              <th class="col-version">Versión</th>
+              ${esVistaTop10 ? `<th class="col-descargas">Descargas</th>` : ''}
+              <th class="col-fecha">Modificación</th>
+              <th class="docs-table-actions-cell ${this.modoEdicion ? 'actions-wide' : ''}">Acciones</th>
             </tr>
-
           </thead>
 
           <tbody>
