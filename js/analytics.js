@@ -6,7 +6,7 @@
  * exportación del Listado Maestro y Auditoría de Actividad en pestañas separadas.
  */
 
-import { staffService } from './staff-service.js?v=11.7.00';
+import { staffService } from './staff-service.js?v=11.7.15';
 
 export class AnalyticsManager {
 
@@ -21,10 +21,14 @@ export class AnalyticsManager {
     let fVenc = null;
 
     // 1. Extraer o parsear fecha de aprobación / vigencia (soporta ISO, DD/MM/YYYY, etc.)
-    const msAprob = staffService.parsearFechaMilisegundos(doc.fechaAprobacion || doc.vigencia || doc.modificacion);
+    const rawAprob = doc.fechaAprobacion || doc.vigencia || doc.modificacion;
+    const msAprob = staffService.parsearFechaMilisegundos(rawAprob);
     if (msAprob > 0) {
       fAprob = new Date(msAprob);
     }
+    const strAprob = fAprob && !isNaN(fAprob.getTime())
+      ? `${String(fAprob.getDate()).padStart(2, '0')}/${String(fAprob.getMonth() + 1).padStart(2, '0')}/${fAprob.getFullYear()}`
+      : staffService.formatearFechaSolo(rawAprob);
 
     // 2. Extraer o calcular fecha de vencimiento normativo
     const msVenc = staffService.parsearFechaMilisegundos(doc.fechaVencimiento);
@@ -35,6 +39,9 @@ export class AnalyticsManager {
     } else {
       fVenc = new Date(2031, 7, 1);
     }
+    const strVenc = fVenc && !isNaN(fVenc.getTime())
+      ? `${String(fVenc.getDate()).padStart(2, '0')}/${String(fVenc.getMonth() + 1).padStart(2, '0')}/${fVenc.getFullYear()}`
+      : staffService.formatearFechaSolo(doc.fechaVencimiento);
 
     const estadoDoc = (doc.estado || doc.estadoDocumento || 'Activo').trim();
     if (estadoDoc.toLowerCase() === 'en revisión' || estadoDoc.toLowerCase() === 'en revision') {
@@ -611,21 +618,20 @@ export class AnalyticsManager {
     const data = this.calcularMetricas(documentos);
     const listaCompleta = documentos; // Estrictamente limitado a la documentación permitida para el perfil
     const perfilNorm = String(perfilEfectivo || '').toLowerCase();
-    const esAccesoTotal = Boolean(perfilNorm === 'total' || perfilNorm === 'administrador' || perfilNorm.includes('total'));
-    const esDirectivo = Boolean(perfilNorm === 'directivo');
-    const esAdministrativo = Boolean(perfilNorm === 'administrativo');
+    const esAdministrativo = Boolean(perfilNorm === 'administrativo' || perfilNorm === 'total' || perfilNorm === 'administrador' || perfilNorm.includes('total'));
     const esOperativo = Boolean(!perfilEfectivo || perfilNorm === 'operativo');
-    const tieneAccesoModulosCompletos = esAccesoTotal || esDirectivo;
+    const tieneAccesoModulosCompletos = esAdministrativo;
+    const esAccesoTotal = esAdministrativo;
 
-    // Si el perfil es administrativo u operativo, forzar estrictamente a resumen
+    // Si el perfil es operativo, forzar estrictamente a resumen
     if (!tieneAccesoModulosCompletos && this.pestanaActiva !== 'resumen') {
       this.pestanaActiva = 'resumen';
     }
 
-    // Ocultar exportaciones para administrativo u operativo
+    // Ocultar exportaciones para operativo
     const exportGroup = document.getElementById('sidebar-dash-export-group');
     if (exportGroup) {
-      exportGroup.style.display = (esAdministrativo || esOperativo) ? 'none' : 'block';
+      exportGroup.style.display = esOperativo ? 'none' : 'block';
     }
 
     // Ordenar agrupaciones de mayor a menor
@@ -687,10 +693,10 @@ export class AnalyticsManager {
             </div>
           </div>
 
-          <!-- 2. CUERPO INTERMEDIO DESPLAZABLE (Distribuciones por Tipo de Proceso, Área y Procesos) -->
+          <!-- 2. CUERPO INTERMEDIO DESPLAZABLE (Distribuciones por Tipo de Proceso, Área y Procesos en 1 fila de 3 columnas) -->
           <div class="dash-resumen-scrollable-body">
 
-            <!-- Gráficas de Distribución: 2 Columnas simétricas -->
+            <!-- Gráficas de Distribución: 3 Columnas simétricas en una misma fila -->
             <div class="analytics-charts-grid">
               
               <!-- Distribución por Tipo de Proceso -->
@@ -699,7 +705,7 @@ export class AnalyticsManager {
                   <h3 class="analytics-section-title">🧭 Documentos por Tipo de Proceso</h3>
                   <span style="font-size:0.75rem; color:#64748b;">Clic para filtrar</span>
                 </div>
-                <div class="analytics-bars-list" style="max-height: 240px; overflow-y: auto; padding-right: 4px;">
+                <div class="analytics-bars-list" style="flex: 1 1 0; min-height: 0; overflow-y: auto; padding-right: 4px;">
                   ${tiposProcesoOrdenados
                     .map(([tp, count]) => {
                       const pct = Math.round((count / data.total) * 100);
@@ -724,7 +730,7 @@ export class AnalyticsManager {
                   <h3 class="analytics-section-title">🏢 Documentos por Área</h3>
                   <span style="font-size:0.75rem; color:#64748b;">Clic para filtrar</span>
                 </div>
-                <div class="analytics-bars-list" style="max-height: 240px; overflow-y: auto; padding-right: 4px;">
+                <div class="analytics-bars-list" style="flex: 1 1 0; min-height: 0; overflow-y: auto; padding-right: 4px;">
                   ${areasOrdenadas
                     .map(([area, count]) => {
                       const pct = Math.round((count / data.total) * 100);
@@ -743,31 +749,31 @@ export class AnalyticsManager {
                 </div>
               </div>
 
-            </div>
+              <!-- Distribución por Proceso -->
+              <div class="analytics-section-card">
+                <div class="analytics-section-header">
+                  <h3 class="analytics-section-title">⚙️ Documentos por Proceso</h3>
+                  <span style="font-size:0.75rem; color:#64748b;">Clic para filtrar</span>
+                </div>
+                <div class="analytics-bars-list" style="flex: 1 1 0; min-height: 0; overflow-y: auto; padding-right: 4px;">
+                  ${procesosOrdenados
+                    .map(([proceso, count]) => {
+                      const pct = Math.round((count / data.total) * 100);
+                      return `
+                      <div class="chart-bar-item" data-filter-type="proceso" data-filter-val="${proceso}">
+                        <div class="chart-bar-labels">
+                          <span class="chart-bar-name" title="${proceso}">${proceso}</span>
+                          <span class="chart-bar-val">${count} (${pct}%)</span>
+                        </div>
+                        <div class="chart-bar-track">
+                          <div class="chart-bar-fill" style="width: ${pct}%; background-color: #1f4260;"></div>
+                        </div>
+                      </div>`;
+                    })
+                    .join('')}
+                </div>
+              </div>
 
-            <!-- Distribución por Proceso (Ancho Completo dentro de scroll) -->
-            <div class="analytics-section-card">
-              <div class="analytics-section-header">
-                <h3 class="analytics-section-title">⚙️ Documentos por Proceso</h3>
-                <span style="font-size:0.75rem; color:#64748b;">Clic para filtrar</span>
-              </div>
-              <div class="analytics-bars-list" style="max-height: 240px; overflow-y: auto; padding-right: 4px;">
-                ${procesosOrdenados
-                  .map(([proceso, count]) => {
-                    const pct = Math.round((count / data.total) * 100);
-                    return `
-                    <div class="chart-bar-item" data-filter-type="proceso" data-filter-val="${proceso}">
-                      <div class="chart-bar-labels">
-                        <span class="chart-bar-name" title="${proceso}">${proceso}</span>
-                        <span class="chart-bar-val">${count} (${pct}%)</span>
-                      </div>
-                      <div class="chart-bar-track">
-                        <div class="chart-bar-fill" style="width: ${pct}%; background-color: #1f4260;"></div>
-                      </div>
-                    </div>`;
-                  })
-                  .join('')}
-              </div>
             </div>
 
           </div>
@@ -795,7 +801,7 @@ export class AnalyticsManager {
 
         </div>
 
-        ${esAccesoTotal ? `
+        ${tieneAccesoModulosCompletos ? `
         
         <!-- ══════════════════════════════════════════════════════════════════════════
              PESTAÑA 2: GESTIÓN DE CALIDAD Y SEGUIMIENTO DE VIGENCIAS
@@ -949,9 +955,9 @@ export class AnalyticsManager {
         </div>
 
         <!-- ══════════════════════════════════════════════════════════════════════════
-             PESTAÑA 3: AUDITORÍA INSTITUCIONAL (EXCLUSIVO ACCESO TOTAL)
+             PESTAÑA 3: CONTROL DE CAMBIOS DOCUMENTALES (HISTÓRICO)
              ══════════════════════════════════════════════════════════════════════════ -->
-        <div id="tab-dash-content-auditoria" style="${this.pestanaActiva === 'auditoria' ? 'display: flex;' : 'display: none;'} flex-direction: column; flex: 1; height: 100%; min-height: 0;">
+        <div id="tab-dash-content-auditoria" style="${this.pestanaActiva === 'cambios' ? 'display: flex;' : 'display: none;'} flex-direction: column; flex: 1; height: 100%; min-height: 0;">
           
           <div class="analytics-section-card audit-dashboard-card" style="border: 1.5px solid #b4c9de; background: #ffffff; display: flex; flex-direction: column; flex: 1; min-height: 0; box-sizing: border-box;">
             
@@ -959,15 +965,15 @@ export class AnalyticsManager {
             <div class="analytics-section-header" style="flex-wrap: wrap; gap: 12px; border-bottom: 1.5px solid #e2e8f0; padding-bottom: 10px; margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between;">
               <div style="flex: 1; min-width: 240px;">
                 <h3 class="analytics-section-title" id="audit-main-title" style="color: var(--brand-navy); display: flex; align-items: center; gap: 8px;">
-                  ${this.pestanaActiva === 'cambios' ? '📜 Trazabilidad y Control de Cambios Documentales' : '🛡️ Registro de Auditoría de Actividad y Accesos'}
+                  📜 Trazabilidad y Control de Cambios Documentales
                 </h3>
                 <span id="audit-main-subtitle" style="font-size: 0.76rem; color: #64748b;">
-                  ${this.pestanaActiva === 'cambios' ? 'Histórico oficial de versiones (Google Drive), metadatos (Google Drive), ediciones físicas en SharePoint, creaciones y eliminaciones' : 'Trazabilidad institucional en tiempo real de inicios de sesión, descargas, aperturas de carpetas, creaciones y modificaciones'}
+                  Histórico oficial de creaciones, versiones, modificaciones en SharePoint, traslados y bajas
                 </span>
               </div>
               <div id="container-audit-sync-actions" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                 <span id="badge-audit-sync-status" style="font-size: 0.72rem; color: #166534; background: #dcfce7; padding: 3px 9px; border-radius: 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 5px; border: 1px solid #bbf7d0;">
-                  <span style="width: 7px; height: 7px; background: #16a34a; border-radius: 50%; display: inline-block;"></span> Google Drive Sincronizado
+                  <span style="width: 7px; height: 7px; background: #16a34a; border-radius: 50%; display: inline-block;"></span> Sincronizado
                 </span>
                 <button type="button" id="btn-sync-auditoria-ahora" class="btn btn-secondary" style="font-size: 0.75rem; padding: 4px 10px; display: flex; align-items: center; gap: 6px; cursor: pointer; border-radius: 6px;">
                   <span id="icon-sync-spin">🔄</span> Sincronizar ahora
@@ -975,90 +981,8 @@ export class AnalyticsManager {
               </div>
             </div>
 
-            <!-- SECCIÓN 2A: AUDITORÍA DE ACTIVIDAD Y ACCESOS -->
-            <div id="subtab-content-audit-actividad" style="${this.pestanaActiva === 'auditoria' ? 'display: flex;' : 'display: none;'} flex-direction: column; flex: 1; min-height: 0;">
-              <!-- Métricas de Auditoría de Gestión Documental y Accesos -->
-              <div style="display: grid; grid-template-columns: repeat(8, 1fr); gap: 6px; margin: 4px 0 10px 0;">
-                <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; padding: 6px 4px; text-align: center;">
-                  <div style="font-size: 1.10rem; font-weight: 800; color: #15803d;" id="kpi-dash-logins">0</div>
-                  <div style="font-size: 0.68rem; font-weight: 600; color: #166534;">🟢 Inicios</div>
-                </div>
-                <div style="background: #edf5fa; border: 1px solid var(--border-color, #cddde9); border-radius: 6px; padding: 6px 4px; text-align: center;">
-                  <div style="font-size: 1.10rem; font-weight: 800; color: var(--primary, #376c95);" id="kpi-dash-downloads">0</div>
-                  <div style="font-size: 0.68rem; font-weight: 600; color: var(--brand-navy, #1f4260);">📥 Descargas</div>
-                </div>
-                <div style="background: #fefce8; border: 1px solid #fef08a; border-radius: 6px; padding: 6px 4px; text-align: center;">
-                  <div style="font-size: 1.10rem; font-weight: 800; color: #a16207;" id="kpi-dash-folders">0</div>
-                  <div style="font-size: 0.68rem; font-weight: 600; color: #854d0e;">📁 Carpetas</div>
-                </div>
-                <div style="background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 6px; padding: 6px 4px; text-align: center;">
-                  <div style="font-size: 1.10rem; font-weight: 800; color: #059669;" id="kpi-dash-creates">0</div>
-                  <div style="font-size: 0.68rem; font-weight: 600; color: #065f46;">✨ Creados</div>
-                </div>
-                <div style="background: #faf5ff; border: 1px solid #e9d5ff; border-radius: 6px; padding: 6px 4px; text-align: center;">
-                  <div style="font-size: 1.10rem; font-weight: 800; color: #7e22ce;" id="kpi-dash-edits">0</div>
-                  <div style="font-size: 0.68rem; font-weight: 600; color: #6b21a8;">✏️ Ediciones</div>
-                </div>
-                <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 6px; padding: 6px 4px; text-align: center;">
-                  <div style="font-size: 1.10rem; font-weight: 800; color: #dc2626;" id="kpi-dash-elims">0</div>
-                  <div style="font-size: 0.68rem; font-weight: 600; color: #991b1b;">🗑️ Eliminados</div>
-                </div>
-                <div style="background: #fff1f2; border: 1px solid #fecdd3; border-radius: 6px; padding: 6px 4px; text-align: center;">
-                  <div style="font-size: 1.10rem; font-weight: 800; color: #be123c;" id="kpi-dash-security">0</div>
-                  <div style="font-size: 0.68rem; font-weight: 600; color: #9f1239;">🔑 Seguridad</div>
-                </div>
-                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 6px 4px; text-align: center;">
-                  <div style="font-size: 1.10rem; font-weight: 800; color: #334155;" id="kpi-dash-users">0</div>
-                  <div style="font-size: 0.68rem; font-weight: 600; color: #475569;">👥 Gestores</div>
-                </div>
-              </div>
-
-              <!-- Filtros de Auditoría y Búsqueda -->
-              <div style="display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; justify-content: space-between; align-items: center;">
-                <div style="display: flex; gap: 6px; flex-wrap: wrap;" id="group-audit-filters-dashboard">
-                  <button class="btn btn-secondary btn-audit-filter active" data-audit-filter="TODOS" style="padding: 4px 10px; font-size: 0.76rem;">Todos</button>
-                  <button class="btn btn-secondary btn-audit-filter" data-audit-filter="LOGIN" style="padding: 4px 10px; font-size: 0.76rem;">🟢 Inicios Sesión</button>
-                  <button class="btn btn-secondary btn-audit-filter" data-audit-filter="DESCARGA" style="padding: 4px 10px; font-size: 0.76rem;">📥 Descargas</button>
-                  <button class="btn btn-secondary btn-audit-filter" data-audit-filter="CARPETA" style="padding: 4px 10px; font-size: 0.76rem;">📁 Carpetas</button>
-                  <button class="btn btn-secondary btn-audit-filter" data-audit-filter="CREACION" style="padding: 4px 10px; font-size: 0.76rem;">✨ Creaciones</button>
-                  <button class="btn btn-secondary btn-audit-filter" data-audit-filter="REGISTROS" style="padding: 4px 10px; font-size: 0.76rem;">📂 Registros Derivados</button>
-                  <button class="btn btn-secondary btn-audit-filter" data-audit-filter="EDICION" style="padding: 4px 10px; font-size: 0.76rem;">✏️ Edición</button>
-                  <button class="btn btn-secondary btn-audit-filter" data-audit-filter="METADATOS" style="padding: 4px 10px; font-size: 0.76rem;">📋 Metadatos</button>
-                  <button class="btn btn-secondary btn-audit-filter" data-audit-filter="ELIMINACION" style="padding: 4px 10px; font-size: 0.76rem;">🗑️ Eliminaciones</button>
-                  <button class="btn btn-secondary btn-audit-filter" data-audit-filter="SEGURIDAD" style="padding: 4px 10px; font-size: 0.76rem;">🔑 Seguridad</button>
-                </div>
-                <div style="position: relative; min-width: 240px; flex: 1; max-width: 360px;">
-                  <input 
-                    type="text" 
-                    id="search-audit-input-dashboard" 
-                    class="form-input" 
-                    placeholder="Buscar por colaborador, documento..." 
-                    style="padding: 5px 10px; font-size: 0.80rem; height: 32px; width: 100%; box-sizing: border-box;"
-                  />
-                </div>
-              </div>
-
-              <!-- Tabla de Eventos de Actividad -->
-              <div class="audit-table-wrapper" style="flex: 1 1 0; min-height: 180px; overflow-y: auto; border: 1px solid #d0dfea; border-radius: 6px;">
-                <table class="audit-table" style="width: 100%; border-collapse: collapse; font-size: 0.80rem;">
-                  <thead style="position: sticky; top: 0; background: #f8fafc; z-index: 1; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
-                    <tr style="text-align: left; color: #475569; border-bottom: 1.5px solid #cbd5e1;">
-                      <th style="padding: 8px 10px;">Fecha y Hora</th>
-                      <th style="padding: 8px 10px;">Evento</th>
-                      <th style="padding: 8px 10px;">Colaborador</th>
-                      <th style="padding: 8px 10px;">Perfil</th>
-                      <th style="padding: 8px 10px;">Documento / Detalle</th>
-                    </tr>
-                  </thead>
-                  <tbody id="tbody-audit-events-dashboard">
-                    <!-- Se llena dinámicamente -->
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            <!-- SECCIÓN 2B: CONTROL DE CAMBIOS DOCUMENTALES (HISTÓRICO) -->
-            <div id="subtab-content-audit-cambios" style="display: none; flex-direction: column; flex: 1; min-height: 0;">
+            <!-- SECCIÓN CONTROL DE CAMBIOS DOCUMENTALES (HISTÓRICO) -->
+            <div id="subtab-content-audit-cambios" style="display: flex; flex-direction: column; flex: 1; min-height: 0;">
               <!-- Métricas KPI de Control de Cambios -->
               <div style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; margin: 4px 0 10px 0;">
                 <div style="background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 6px; padding: 8px 6px; text-align: center;">
@@ -1168,50 +1092,47 @@ export class AnalyticsManager {
     const rawPerfil = appPerfil || sesion?.perfil || (sesion ? staffService.determinarPerfil(sesion.cargo, sesion.identificacion) : null) || localStorage.getItem('agy_user_profile') || localStorage.getItem('agy_sgc_user_profile') || 'operativo';
     const perfilUsuario = String(rawPerfil).toLowerCase();
 
-    const esAccesoTotal = perfilUsuario === 'total' || perfilUsuario === 'administrador' || perfilUsuario.includes('total');
-    const esDirectivo = perfilUsuario === 'directivo';
-    const esAdministrativo = perfilUsuario === 'administrativo';
-    const esOperativo = perfilUsuario === 'operativo';
-    const tieneAccesoModulosCompletos = esAccesoTotal || esDirectivo;
+    const esAdministrativo = Boolean(perfilUsuario === 'administrativo' || perfilUsuario === 'total' || perfilUsuario === 'administrador' || perfilUsuario.includes('total'));
+    const esOperativo = Boolean(!perfilUsuario || perfilUsuario === 'operativo');
+    const tieneAccesoModulosCompletos = esAdministrativo;
 
-    // Regla estricta: perfil administrativo u operativo NO tienen acceso a calidad, auditoría ni cambios
+    // Regla estricta: perfil operativo NO tiene acceso a calidad, auditoría ni cambios
     if (!tieneAccesoModulosCompletos) {
       tabTarget = 'resumen';
+    }
+
+    if (tabTarget === 'auditoria') {
+      tabTarget = 'cambios';
     }
 
     this.pestanaActiva = tabTarget;
     const contentResumen = this.container?.querySelector('#tab-dash-content-resumen');
     const contentCalidad = this.container?.querySelector('#tab-dash-content-calidad');
     const contentAuditoria = this.container?.querySelector('#tab-dash-content-auditoria');
-    const secSubActividad = this.container?.querySelector('#subtab-content-audit-actividad');
     const secSubCambios = this.container?.querySelector('#subtab-content-audit-cambios');
     const title = this.container?.querySelector('#audit-main-title');
     const subtitle = this.container?.querySelector('#audit-main-subtitle');
 
     const btnSideResumen = document.getElementById('btn-sidebar-dash-resumen');
     const btnSideCalidad = document.getElementById('btn-sidebar-dash-calidad');
-    const btnSideAuditoria = document.getElementById('btn-sidebar-dash-auditoria');
     const btnSideCambios = document.getElementById('btn-sidebar-dash-cambios');
 
     btnSideResumen?.classList.remove('active');
     btnSideCalidad?.classList.remove('active');
-    btnSideAuditoria?.classList.remove('active');
     btnSideCambios?.classList.remove('active');
 
     const btnMaster = document.getElementById('btn-sidebar-dash-master');
     const btnVencidos = document.getElementById('btn-sidebar-dash-vencidos');
     const btnCalidadExport = document.getElementById('btn-sidebar-dash-calidad-export');
-    const btnAudit = document.getElementById('btn-sidebar-dash-audit');
     const btnHistory = document.getElementById('btn-sidebar-dash-history');
     const exportGroup = document.getElementById('sidebar-dash-export-group');
 
-    // Regla: Ocultar todos los botones de exportación y el grupo si es administrativo u operativo
-    if (esAdministrativo || esOperativo) {
+    // Regla: Ocultar exportaciones para operativo
+    if (esOperativo) {
       if (exportGroup) exportGroup.style.display = 'none';
       if (btnMaster) btnMaster.style.display = 'none';
       if (btnVencidos) btnVencidos.style.display = 'none';
       if (btnCalidadExport) btnCalidadExport.style.display = 'none';
-      if (btnAudit) btnAudit.style.display = 'none';
       if (btnHistory) btnHistory.style.display = 'none';
     } else if (exportGroup) {
       exportGroup.style.display = 'block';
@@ -1222,12 +1143,11 @@ export class AnalyticsManager {
       if (contentCalidad) contentCalidad.style.display = 'none';
       if (contentAuditoria) contentAuditoria.style.display = 'none';
       if (btnSideResumen) btnSideResumen.classList.add('active');
-      if (!esAdministrativo && !esOperativo) {
+      if (!esOperativo) {
         if (btnMaster) btnMaster.style.display = 'flex';
         if (btnVencidos) btnVencidos.style.display = 'flex';
       }
       if (btnCalidadExport) btnCalidadExport.style.display = 'none';
-      if (btnAudit) btnAudit.style.display = 'none';
       if (btnHistory) btnHistory.style.display = 'none';
     } else if (tabTarget === 'calidad') {
       if (contentResumen) contentResumen.style.display = 'none';
@@ -1237,53 +1157,14 @@ export class AnalyticsManager {
       if (btnMaster) btnMaster.style.display = 'none';
       if (btnVencidos) btnVencidos.style.display = 'none';
       if (btnCalidadExport) btnCalidadExport.style.display = 'flex';
-      if (btnAudit) btnAudit.style.display = 'none';
       if (btnHistory) btnHistory.style.display = 'none';
       if (typeof this.renderTablaCalidadActual === 'function') {
         this.renderTablaCalidadActual();
       }
-    } else if (tabTarget === 'auditoria') {
-      if (this._intervaloAuditoriaAutoSync) {
-        clearInterval(this._intervaloAuditoriaAutoSync);
-        this._intervaloAuditoriaAutoSync = null;
-      }
-      if (contentResumen) contentResumen.style.display = 'none';
-      if (contentCalidad) contentCalidad.style.display = 'none';
-      if (contentAuditoria) contentAuditoria.style.display = 'flex';
-      if (secSubActividad) secSubActividad.style.display = 'flex';
-      if (secSubCambios) secSubCambios.style.display = 'none';
-      if (title) title.innerHTML = '🛡️ Registro de Auditoría de Actividad y Accesos';
-      if (subtitle) subtitle.textContent = 'Trazabilidad en tiempo real de accesos, consultas, descargas y carpetas';
-      if (btnSideAuditoria) btnSideAuditoria.classList.add('active');
-      if (btnMaster) btnMaster.style.display = 'none';
-      if (btnVencidos) btnVencidos.style.display = 'none';
-      if (btnCalidadExport) btnCalidadExport.style.display = 'none';
-      if (btnAudit) btnAudit.style.display = 'flex';
-      if (btnHistory) btnHistory.style.display = 'none';
-      if (typeof this.renderTablaAuditoriaActual === 'function') {
-        this.renderTablaAuditoriaActual();
-      }
-      // Sincronización inmediata con la caché de Google al ingresar
-      staffService.sincronizarAuditoria(true).then((res) => {
-        if (typeof this.renderTablaAuditoriaActual === 'function') {
-          this.renderTablaAuditoriaActual();
-        }
-      });
-      // Monitoreo en vivo: verificación periódica de cambios en la nube cada 15 segundos
-      this._intervaloAuditoriaAutoSync = setInterval(() => {
-        if (this.pestanaActiva === 'auditoria' && !document.hidden) {
-          staffService.sincronizarAuditoria(true).then((res) => {
-            if (res && res.huboCambios && typeof this.renderTablaAuditoriaActual === 'function') {
-              this.renderTablaAuditoriaActual();
-            }
-          });
-        }
-      }, 15000);
     } else if (tabTarget === 'cambios') {
       if (contentResumen) contentResumen.style.display = 'none';
       if (contentCalidad) contentCalidad.style.display = 'none';
       if (contentAuditoria) contentAuditoria.style.display = 'flex';
-      if (secSubActividad) secSubActividad.style.display = 'none';
       if (secSubCambios) secSubCambios.style.display = 'flex';
       if (title) title.innerHTML = '📜 Trazabilidad y Control de Cambios Documentales';
       if (subtitle) subtitle.textContent = 'Histórico oficial de creaciones, versiones, modificaciones en SharePoint, traslados y bajas';
@@ -1291,7 +1172,6 @@ export class AnalyticsManager {
       if (btnMaster) btnMaster.style.display = 'none';
       if (btnVencidos) btnVencidos.style.display = 'none';
       if (btnCalidadExport) btnCalidadExport.style.display = 'none';
-      if (btnAudit) btnAudit.style.display = 'none';
       if (btnHistory) btnHistory.style.display = 'flex';
       if (typeof this.renderTablaHistoricoActual === 'function') {
         this.renderTablaHistoricoActual();
@@ -1813,178 +1693,14 @@ export class AnalyticsManager {
   }
 
   inicializarAuditoriaDashboard() {
-    const tbodyActividad = document.getElementById('tbody-audit-events-dashboard');
     const tbodyHistorico = document.getElementById('tbody-hist-events-dashboard');
-    if (!tbodyActividad) return;
+    if (!tbodyHistorico) return;
 
-    // Estado local de filtros
-    let filtroActividadActual = this.filtroAuditoriaActual || 'TODOS';
-    let busquedaActividadActual = '';
+    // Estado local de filtros de Control de Cambios
     let filtroHistoricoActual = 'TODOS';
     let busquedaHistoricoActual = '';
 
-    // ── 1. RENDER AUDITORÍA DE ACTIVIDAD Y ACCESOS ──
-    const renderTablaAuditoria = () => {
-      const eventos = staffService.obtenerRegistroAuditoria();
-
-      // Calcular KPIs
-      const logins = eventos.filter((e) => (e.tipo || '').toUpperCase() === 'LOGIN').length;
-      const downloads = eventos.filter((e) => (e.tipo || '').toUpperCase() === 'DESCARGA').length;
-      const folders = eventos.filter((e) => (e.tipo || '').toUpperCase() === 'CARPETA').length;
-      const creates = eventos.filter((e) => (e.tipo || '').toUpperCase() === 'CREACION').length;
-      const edits = eventos.filter((e) => (e.tipo || '').toUpperCase() === 'EDICION').length;
-      const elims = eventos.filter((e) => (e.tipo || '').toUpperCase() === 'ELIMINACION').length;
-      const security = eventos.filter((e) => (e.tipo || '').toUpperCase() === 'SEGURIDAD').length;
-      const usersSet = new Set(eventos.map((e) => e.identificacion).filter(Boolean));
-
-      const kpiLogins = document.getElementById('kpi-dash-logins');
-      const kpiDownloads = document.getElementById('kpi-dash-downloads');
-      const kpiFolders = document.getElementById('kpi-dash-folders');
-      const kpiCreates = document.getElementById('kpi-dash-creates');
-      const kpiEdits = document.getElementById('kpi-dash-edits');
-      const kpiElims = document.getElementById('kpi-dash-elims');
-      const kpiSecurity = document.getElementById('kpi-dash-security');
-      const kpiUsers = document.getElementById('kpi-dash-users');
-      if (kpiLogins) kpiLogins.textContent = logins;
-      if (kpiDownloads) kpiDownloads.textContent = downloads;
-      if (kpiFolders) kpiFolders.textContent = folders;
-      if (kpiCreates) kpiCreates.textContent = creates;
-      if (kpiEdits) kpiEdits.textContent = edits;
-      if (kpiElims) kpiElims.textContent = elims;
-      if (kpiSecurity) kpiSecurity.textContent = security;
-      if (kpiUsers) kpiUsers.textContent = usersSet.size;
-
-      const q = (busquedaActividadActual || '').toLowerCase().trim();
-      const fTipoUpper = (filtroActividadActual || 'TODOS').toUpperCase();
-
-      const filtrados = eventos.filter((ev) => {
-        const evTipoUpper = (ev.tipo || '').toUpperCase();
-        if (fTipoUpper !== 'TODOS') {
-          if (fTipoUpper === 'REGISTROS') {
-            const { esDerivado } = this.detectarRegistroDerivado(ev);
-            if (!esDerivado) return false;
-          } else if (fTipoUpper === 'METADATOS') {
-            if (!['METADATOS', 'CAMBIO_METADATOS', 'CAMBIO_RUTA', 'CAMBIO_TIPO'].includes(evTipoUpper)) return false;
-          } else if (evTipoUpper !== fTipoUpper) {
-            return false;
-          }
-        }
-        if (!q) return true;
-        const texto = `${ev.usuario || ''} ${ev.identificacion || ''} ${ev.cargo || ''} ${ev.documentoCodigo || ''} ${ev.documentoPadreCodigo || ''} ${ev.documentoTitulo || ''} ${ev.detalle || ''} ${ev.esRegistro ? 'registro derivado' : ''}`.toLowerCase();
-        return texto.includes(q);
-      });
-
-      filtrados.sort((a, b) => {
-        const tA = staffService.parsearFechaMilisegundos(a.fechaHora || a.timestamp);
-        const tB = staffService.parsearFechaMilisegundos(b.fechaHora || b.timestamp);
-        if (tB !== tA) return tB - tA;
-        return (b.id || '').localeCompare(a.id || '');
-      });
-
-      if (filtrados.length === 0) {
-        tbodyActividad.innerHTML = `
-          <tr>
-            <td colspan="5" style="padding: 24px; text-align: center; color: #94a3b8;">
-              No se encontraron eventos de actividad con los filtros aplicados.
-            </td>
-          </tr>`;
-        return;
-      }
-
-      tbodyActividad.innerHTML = filtrados
-        .map((ev) => {
-          let badgeEvento = '';
-          const tipoNorm = (ev.tipo || '').toUpperCase();
-          if (tipoNorm === 'LOGIN') {
-            badgeEvento = '<span class="audit-badge audit-badge-login" style="background:#dcfce7; color:#15803d; padding:2px 8px; border-radius:12px; font-weight:700; font-size:0.72rem;">🟢 Inicio Sesión</span>';
-          } else if (tipoNorm === 'CONSULTA') {
-            badgeEvento = '<span class="audit-badge audit-badge-consulta" style="background:#e0f2fe; color:#0284c7; padding:2px 8px; border-radius:12px; font-weight:700; font-size:0.72rem;">🔍 Consulta</span>';
-          } else if (tipoNorm === 'DESCARGA') {
-            badgeEvento = '<span class="audit-badge audit-badge-download" style="background:#edf5fa; color:var(--brand-navy, #1f4260); border:1px solid #cddde9; padding:2px 8px; border-radius:12px; font-weight:700; font-size:0.72rem;">📥 Descarga</span>';
-          } else if (tipoNorm === 'CARPETA') {
-            badgeEvento = '<span class="audit-badge audit-badge-folder" style="background:#fef9c3; color:#854d0e; padding:2px 8px; border-radius:12px; font-weight:700; font-size:0.72rem;">📁 Carpeta</span>';
-          } else if (tipoNorm === 'CREACION') {
-            badgeEvento = '<span class="audit-badge" style="background:#ecfdf5; color:#059669; padding:2px 8px; border-radius:12px; font-weight:700; font-size:0.72rem; border:1px solid #a7f3d0;">✨ Creación</span>';
-          } else if (tipoNorm === 'EDICION') {
-            badgeEvento = '<span class="audit-badge audit-badge-edit" style="background:#f3e8ff; color:#6b21a8; padding:2px 8px; border-radius:12px; font-weight:700; font-size:0.72rem;">✏️ Edición</span>';
-          } else if (tipoNorm === 'METADATOS' || tipoNorm === 'CAMBIO_METADATOS') {
-            badgeEvento = '<span class="audit-badge audit-badge-meta" style="background:#faf5ff; color:#7c3aed; padding:2px 8px; border-radius:12px; font-weight:700; font-size:0.72rem; border:1px solid #e9d5ff;">📋 Metadatos</span>';
-          } else if (tipoNorm === 'ELIMINACION') {
-            badgeEvento = '<span class="audit-badge" style="background:#fee2e2; color:#dc2626; padding:2px 8px; border-radius:12px; font-weight:700; font-size:0.72rem; border:1px solid #fecaca;">🗑️ Eliminación</span>';
-          } else if (tipoNorm === 'SEGURIDAD') {
-            badgeEvento = '<span class="audit-badge audit-badge-security" style="background:#fef2f2; color:#b91c1c; padding:2px 8px; border-radius:12px; font-weight:700; font-size:0.72rem; border:1px solid #fecaca;">🔑 Seguridad / Clave</span>';
-          } else {
-            const labelCapitalized = ev.tipo ? (ev.tipo.charAt(0).toUpperCase() + ev.tipo.slice(1).toLowerCase()) : 'Actividad';
-            badgeEvento = `<span class="audit-badge" style="background:#f1f5f9; color:#475569; padding:2px 8px; border-radius:12px; font-weight:700; font-size:0.72rem;">ℹ️ ${labelCapitalized}</span>`;
-          }
-
-          let badgePerfil = '';
-          const perfNorm = (ev.perfil || '').toLowerCase();
-          if (perfNorm === 'total' || perfNorm === 'administrador') {
-            badgePerfil = '<span class="audit-badge-profile" style="background:#e0f2fe; color:#0369a1; padding:2px 8px; border-radius:12px; font-weight:700; font-size:0.72rem; border:1px solid #bae6fd; display:inline-flex; align-items:center; gap:4px; white-space:nowrap;">🛡️ Acceso Total</span>';
-          } else if (perfNorm === 'directivo') {
-            badgePerfil = '<span class="audit-badge-profile" style="background:#fffbeb; color:#b45309; padding:2px 8px; border-radius:12px; font-weight:700; font-size:0.72rem; border:1px solid #fde68a; display:inline-flex; align-items:center; gap:4px; white-space:nowrap;">👑 Directivo</span>';
-          } else if (perfNorm === 'administrativo') {
-            badgePerfil = '<span class="audit-badge-profile" style="background:#f0fdfa; color:#0f766e; padding:2px 8px; border-radius:12px; font-weight:700; font-size:0.72rem; border:1px solid #99f6e4; display:inline-flex; align-items:center; gap:4px; white-space:nowrap;">💼 Administrativo</span>';
-          } else {
-            badgePerfil = '<span class="audit-badge-profile" style="background:#ecfdf5; color:#047857; padding:2px 8px; border-radius:12px; font-weight:700; font-size:0.72rem; border:1px solid #a7f3d0; display:inline-flex; align-items:center; gap:4px; white-space:nowrap;">👷 Operativo</span>';
-          }
-
-          let detalleDoc = '-';
-          const { esDerivado, codPadre, codDisplay } = this.detectarRegistroDerivado(ev);
-
-          if (codDisplay || ev.documentoTitulo) {
-            const badgeDerivadoHtml = esDerivado 
-              ? `<span style="background:#fef3c7; color:#92400e; font-size:0.67rem; font-weight:700; padding:1px 6px; border-radius:4px; border:1px solid #fde68a; display:inline-flex; align-items:center; gap:2px; vertical-align:middle; margin-left:6px;">📂 REGISTRO DERIVADO</span>` 
-              : '';
-            const padreHtml = (esDerivado && codPadre)
-              ? `<div style="font-size:0.71rem; color:#0369a1; font-weight:600; margin-top:2px;">Formato Base: <span>${codPadre}</span></div>`
-              : '';
-            const titClean = String(ev.documentoTitulo || '').replace(/\.(docx|xlsx|pdf|doc|xls)$/i, '').trim();
-            const detClean = String(ev.detalle || '').replace(/::[a-zA-Z0-9_\.]+/g, '').trim();
-            const detalleExtra = (detClean && !detClean.toLowerCase().includes(codDisplay.toLowerCase()))
-              ? `<div style="font-size:0.70rem; color:#64748b; margin-top:2px;">${detClean}</div>`
-              : '';
-
-            detalleDoc = `
-              <div style="font-weight: 700; color: #1e293b; display:flex; align-items:center; flex-wrap:wrap; gap:4px;">
-                <span>${codDisplay}</span>
-                ${badgeDerivadoHtml}
-              </div>
-              <div style="font-size: 0.74rem; color: #475569; margin-top:1px;">${titClean}</div>
-              ${padreHtml}
-              ${detalleExtra}
-            `;
-          } else if (ev.detalle) {
-            const detClean = String(ev.detalle || '').replace(/::[a-zA-Z0-9_\.]+/g, '').trim();
-            detalleDoc = `<div style="font-size: 0.74rem; color: #475569;">${detClean}</div>`;
-          }
-
-          return `
-            <tr style="border-bottom: 1px solid #f1f5f9; transition: background 0.15s ease;">
-              <td style="padding: 8px 12px; white-space: nowrap; color: #64748b; font-family: monospace; font-size: 0.75rem;">
-                ${staffService.formatearFechaHora(ev.fechaHora || ev.timestamp)}
-              </td>
-              <td style="padding: 8px 12px; white-space: nowrap;">
-                ${badgeEvento}
-              </td>
-              <td style="padding: 8px 12px;">
-                <div style="font-weight: 700; color: #0f172a;">${ev.usuario || 'Colaborador'}</div>
-                <div style="font-size: 0.72rem; color: #64748b;">${ev.cargo || ''}</div>
-              </td>
-              <td style="padding: 8px 12px; white-space: nowrap;">
-                ${badgePerfil}
-              </td>
-              <td style="padding: 8px 12px;">
-                ${detalleDoc}
-              </td>
-            </tr>
-          `;
-        })
-        .join('');
-    };
-
-    // ── 2. RENDER CONTROL DE CAMBIOS DOCUMENTALES (HISTÓRICO) ──
+    // ── RENDER CONTROL DE CAMBIOS DOCUMENTALES (HISTÓRICO) ──
     const renderTablaHistorico = () => {
       if (!tbodyHistorico) return;
       const eventosHistCrudo = staffService.obtenerHistoricoDocumental();
@@ -2285,32 +2001,10 @@ export class AnalyticsManager {
         .join('');
     };
 
-    this.renderTablaAuditoriaActual = renderTablaAuditoria;
     this.renderTablaHistoricoActual = renderTablaHistorico;
 
     // Render inicial
-    renderTablaAuditoria();
     renderTablaHistorico();
-
-    // Filtros de botones de evento de Actividad
-    this.container.querySelectorAll('#group-audit-filters-dashboard .btn-audit-filter').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        this.container.querySelectorAll('#group-audit-filters-dashboard .btn-audit-filter').forEach((b) => b.classList.remove('active'));
-        btn.classList.add('active');
-        filtroActividadActual = btn.getAttribute('data-audit-filter');
-        this.filtroAuditoriaActual = filtroActividadActual;
-        renderTablaAuditoria();
-      });
-    });
-
-    // Búsqueda en vivo de Actividad
-    const inputSearchAct = this.container.querySelector('#search-audit-input-dashboard');
-    if (inputSearchAct) {
-      inputSearchAct.addEventListener('input', (e) => {
-        busquedaActividadActual = e.target.value;
-        renderTablaAuditoria();
-      });
-    }
 
     // Filtros de botones de Control de Cambios (Histórico)
     this.container.querySelectorAll('#group-hist-filters-dashboard .btn-hist-filter').forEach((btn) => {
@@ -2331,7 +2025,7 @@ export class AnalyticsManager {
       });
     }
 
-    // Botón manual de Sincronización en vivo con Google Drive
+    // Botón manual de Sincronización en vivo
     const btnSyncAuditoria = this.container.querySelector('#btn-sync-auditoria-ahora');
     const iconSyncSpin = this.container.querySelector('#icon-sync-spin');
     const badgeSyncStatus = this.container.querySelector('#badge-audit-sync-status');
@@ -2343,18 +2037,16 @@ export class AnalyticsManager {
           iconSyncSpin.animate([{ transform: 'rotate(0deg)' }, { transform: 'rotate(360deg)' }], { duration: 800, iterations: Infinity });
         }
         if (badgeSyncStatus) {
-          badgeSyncStatus.innerHTML = '<span style="width: 7px; height: 7px; background: #eab308; border-radius: 50%; display: inline-block;"></span> Sincronizando con Google...';
+          badgeSyncStatus.innerHTML = '<span style="width: 7px; height: 7px; background: #eab308; border-radius: 50%; display: inline-block;"></span> Sincronizando...';
           badgeSyncStatus.style.background = '#fef9c3';
           badgeSyncStatus.style.color = '#854d0e';
           badgeSyncStatus.style.borderColor = '#fef08a';
         }
         try {
-          const res = await staffService.sincronizarAuditoria(true);
-          renderTablaAuditoria();
+          await staffService.sincronizarConfiguracion(true);
+          renderTablaHistorico();
           if (badgeSyncStatus) {
-            badgeSyncStatus.innerHTML = res.huboCambios
-              ? '✅ ¡Nuevos registros sincronizados!'
-              : '<span style="width: 7px; height: 7px; background: #16a34a; border-radius: 50%; display: inline-block;"></span> Google Drive Sincronizado';
+            badgeSyncStatus.innerHTML = '<span style="width: 7px; height: 7px; background: #16a34a; border-radius: 50%; display: inline-block;"></span> Sincronizado';
             badgeSyncStatus.style.background = '#dcfce7';
             badgeSyncStatus.style.color = '#166534';
             badgeSyncStatus.style.borderColor = '#bbf7d0';
@@ -2395,28 +2087,8 @@ export class AnalyticsManager {
 
 export const analyticsManager = new AnalyticsManager();
 
-// Actualización reactiva en tiempo real al registrarse o sincronizarse eventos sin requerir F5
-window.addEventListener('agy_audit_event_logged', () => {
-  if (analyticsManager && typeof analyticsManager.renderTablaAuditoriaActual === 'function') {
-    analyticsManager.renderTablaAuditoriaActual();
-  }
-});
-
 window.addEventListener('agy_doc_history_logged', () => {
   if (analyticsManager && typeof analyticsManager.renderTablaHistoricoActual === 'function') {
     analyticsManager.renderTablaHistoricoActual();
-  }
-});
-
-// Sincronización automática de auditoría al reenfocar o volver a la pestaña activa del navegador
-window.addEventListener('focus', () => {
-  if (analyticsManager && analyticsManager.pestanaActiva === 'auditoria' && !document.hidden) {
-    staffService.sincronizarAuditoria(true);
-  }
-});
-
-document.addEventListener('visibilitychange', () => {
-  if (analyticsManager && analyticsManager.pestanaActiva === 'auditoria' && !document.hidden) {
-    staffService.sincronizarAuditoria(true);
   }
 });

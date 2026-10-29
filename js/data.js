@@ -63,11 +63,22 @@ export const FORMATOS = [
 ];
 
 export const PERFILES = [
-  { id: 'total', label: 'Acceso Total', icon: '🛡️', desc: 'Visualización completa sin restricciones de todos los documentos' },
   { id: 'operativo', label: 'Operativo', icon: '👷', desc: 'Personal operativo y asistencial (Por defecto)' },
-  { id: 'administrativo', label: 'Administrativo', icon: '💼', desc: 'Personal administrativo, calidad y apoyo' },
-  { id: 'directivo', label: 'Directivo', icon: '👑', desc: 'Alta gerencia y directivos' }
+  { id: 'administrativo', label: 'Administrativo', icon: '🛡️', desc: 'Acceso administrativo total y gestión documental' }
 ];
+
+// ==============================================================================
+// CONFIGURACIÓN DE MODO LOCAL TEMPORAL (PRUEBAS Y READAPTACIÓN SEGURA)
+// ==============================================================================
+/**
+ * MODO_LOCAL_OFFLINE:
+ *  true  -> Desconecta temporalmente toda sincronización con fuentes externas
+ *           (Google Apps Script, Google Sheets, Google Drive, OneDrive/SharePoint Cloud).
+ *           Opera 100% con archivos y almacenamiento local para realizar pruebas sin
+ *           riesgo de alterar datos reales ni auditorías en la nube.
+ *  false -> Sincronización normal activa con fuentes externas oficiales.
+ */
+export const MODO_LOCAL_OFFLINE = false;
 
 export const URL_ORIGEN_CSV = 'https://unionsaludvida-my.sharepoint.com/:x:/p/plantillas/IQCctVunBodCQq97XWMPrue7AaIRpd-pVgSUuZrMBWBcA2A?e=uOiZui&download=1';
 

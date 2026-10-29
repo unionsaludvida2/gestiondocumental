@@ -2944,11 +2944,26 @@ body.modal-open {
   line-height: 1;
 }
 
-/* ─── Regla de Seguridad UI: En perfil Operativo el botón de desbloqueo/edición NUNCA se muestra ─── */
-body.perfil-operativo #btn-toggle-edit,
-body[data-perfil="operativo"] #btn-toggle-edit,
-#btn-toggle-edit.hidden-by-profile {
+/* ─── Botón de Bloqueo/Desbloqueo de Modo Administrativo (Candado) ─── */
+#btn-toggle-edit {
+  display: inline-flex !important;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+}
+#btn-toggle-edit.active {
+  background: #fef2f2 !important;
+  border-color: #f87171 !important;
+  color: #dc2626 !important;
+  box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.15);
+}
+
+/* ─── Visibilidad del Botón de Configuración (#btn-open-settings) ─── */
+body.perfil-operativo #btn-open-settings,
+body:not(.perfil-administrativo) #btn-open-settings {
   display: none !important;
+}
+body.perfil-administrativo #btn-open-settings {
+  display: inline-flex !important;
 }
 
 .header-action-pill.btn-icon-only .header-pill-icon {
@@ -3034,6 +3049,26 @@ body[data-perfil="operativo"] #btn-toggle-edit,
   background: #e5f2fb;
   transform: translateY(-1px);
   box-shadow: var(--shadow-md);
+}
+
+.btn-staff-pill.no-interactivo,
+body.perfil-operativo #btn-staff-pill {
+  cursor: default !important;
+  pointer-events: none !important;
+  transform: none !important;
+  box-shadow: none !important;
+  border-color: #b3d1e8 !important;
+  background: linear-gradient(135deg, #ffffff 0%, #f0f7fd 100%) !important;
+}
+
+.btn-staff-pill.no-interactivo:hover,
+body.perfil-operativo #btn-staff-pill:hover {
+  cursor: default !important;
+  pointer-events: none !important;
+  transform: none !important;
+  box-shadow: none !important;
+  border-color: #b3d1e8 !important;
+  background: linear-gradient(135deg, #ffffff 0%, #f0f7fd 100%) !important;
 }
 
 .btn-staff-pill.active {
@@ -3659,16 +3694,20 @@ body[data-perfil="operativo"] #btn-toggle-edit,
   margin-top: 2px;
 }
 
-/* 3. Gráficos de Distribución (Grid de 2 Columnas alineado simétrico) */
+/* 3. Gráficos de Distribución (Grid de 3 Columnas alineado simétrico) */
 .analytics-charts-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
+  flex: 1 1 0;
+  min-height: 0;
+  height: 100%;
 }
 
 @media (max-width: 1100px) {
   .analytics-charts-grid {
     grid-template-columns: 1fr;
+    height: auto;
   }
 }
 
@@ -3676,6 +3715,8 @@ body[data-perfil="operativo"] #btn-toggle-edit,
   display: flex;
   flex-direction: column;
   min-height: 160px;
+  max-height: 100%;
+  overflow: hidden;
   box-sizing: border-box;
 }
 

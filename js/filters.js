@@ -9,7 +9,7 @@ export class FilterEngine {
   constructor() {
     this.estado = {
       busqueda: '',
-      perfil: 'operativo', // 'operativo' (por defecto), 'administrativo', 'directivo'
+      perfil: 'operativo', // 'operativo' (por defecto) o 'administrativo'
       tiposProceso: new Set(),
       areas: new Set(),
       procesos: new Set(),
@@ -30,27 +30,13 @@ export class FilterEngine {
     if (!documentos) return [];
     const p = this.estado.perfil || 'operativo';
 
-    // 1. Acceso Total: Sin restricciones de ningún tipo (todos los documentos)
-    if (p === 'total' || p === 'administrador') {
+    // 1. Perfil Administrativo (anterior Acceso Total): Visualiza y gestiona el 100% de los documentos
+    if (p === 'administrativo' || p === 'total' || p === 'administrador') {
       return documentos;
     }
 
-    // 2. Directivo: Puede ver todos los documentos
-    if (p === 'directivo') {
-      return documentos;
-    }
-
-    // 3. Administrativo: Puede ver lo administrativo u operativo (exclusivamente si tiene permiso explícito === true)
-    if (p === 'administrativo') {
-      return documentos.filter((d) => d.permisoAdministrativo === true || d.permisoOperativo === true);
-    }
-
-    // 4. Operativo: Solo puede ver lo operativo (exclusivamente si tiene permiso explícito === true)
-    if (p === 'operativo') {
-      return documentos.filter((d) => d.permisoOperativo === true);
-    }
-
-    return documentos;
+    // 2. Perfil Operativo (por defecto para todos los colaboradores): Solo visualiza documentos operativos
+    return documentos.filter((d) => d.permisoOperativo === true);
   }
 
   removerTildes(texto) {

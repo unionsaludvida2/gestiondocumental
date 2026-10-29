@@ -16,7 +16,7 @@
     rel="stylesheet" />
 
   <!-- Estilos de la aplicación -->
-  <link rel="stylesheet" href="styles.css?v=11.7.00" />
+  <link rel="stylesheet" href="styles.css?v=11.7.15" />
 
   <script>
     window.addEventListener('error', function(e) {
@@ -55,12 +55,12 @@
     <!-- Panel de Acciones de Usuario y Seguridad -->
     <div class="header-right">
       <!-- 3. Tarjeta de Usuario y Perfil (más hacia el centro, destacada y simétrica) -->
-      <button type="button" class="header-action-pill btn-staff-pill" id="btn-staff-pill"
-        title="Sesión de Colaborador y Perfil de Acceso. Clic para ver opciones o cambiar perfil.">
-        <span class="header-pill-icon" id="header-staff-icon">👤</span>
+      <button type="button" class="header-action-pill btn-staff-pill no-interactivo" id="btn-staff-pill"
+        title="Modo Operativo: Consulta y visualización institucional de documentos" tabindex="-1" aria-disabled="true">
+        <span class="header-pill-icon" id="header-staff-icon">👷</span>
         <div class="header-pill-stacked-text">
           <span class="header-pill-subtext" id="header-staff-subtext">OPERATIVO</span>
-          <span class="header-pill-label" id="header-staff-name">Identificarse</span>
+          <span class="header-pill-label" id="header-staff-name">Usuario Operativo</span>
         </div>
       </button>
 
@@ -73,9 +73,9 @@
         </button>
 
         <button type="button" class="header-action-pill btn-edit-mode-toggle btn-icon-only" id="btn-toggle-edit"
-          title="Modo Edición protegido: Clic para habilitar edición en SharePoint con contraseña">
+          title="Modo Administrativo: Clic para ingresar contraseña y activar permisos de edición">
           <span class="header-pill-icon" id="edit-lock-icon">🔒</span>
-          <span class="sr-only" id="edit-mode-text" style="display: none;">Modo Edición</span>
+          <span class="sr-only" id="edit-mode-text" style="display: none;">Modo Administrativo</span>
         </button>
 
         <button type="button" class="header-action-pill btn-settings-toggle btn-icon-only" id="btn-open-settings"
@@ -183,10 +183,6 @@
             <span class="sidebar-dash-icon">🎯</span>
             <span>Gestión de Calidad</span>
           </button>
-          <button type="button" class="btn-sidebar-dash-action" id="btn-sidebar-dash-auditoria">
-            <span class="sidebar-dash-icon">🛡️</span>
-            <span>Auditoría Institucional</span>
-          </button>
           <button type="button" class="btn-sidebar-dash-action" id="btn-sidebar-dash-cambios">
             <span class="sidebar-dash-icon">📜</span>
             <span>Control de Cambios</span>
@@ -210,12 +206,6 @@
           <button type="button" class="btn-sidebar-dash-action" id="btn-sidebar-dash-calidad-export" style="display: none;">
             <span class="sidebar-dash-icon">📑</span>
             <span>Exportar Matriz de Calidad</span>
-          </button>
-
-          <!-- Exportación para Auditoría Institucional -->
-          <button type="button" class="btn-sidebar-dash-action" id="btn-sidebar-dash-audit" style="display: none;">
-            <span class="sidebar-dash-icon">🛡️</span>
-            <span>Exportar Auditoría</span>
           </button>
 
           <!-- Exportación para Control de Cambios -->
@@ -314,7 +304,7 @@
   <div id="modals-root"></div>
 
   <!-- Script principal como ES Module -->
-  <script type="module" src="js/app.js?v=11.7.00"></script>
+  <script type="module" src="js/app.js?v=11.8.0"></script>
 </body>
 
 </html>

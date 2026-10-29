@@ -442,7 +442,7 @@ export const EMPLEADOS_ACTIVOS_BASE = [
     "cargo": "Lider Cumplimiento Organizacional",
     "email": "ana.varelas@unionsaludvida.com",
     "estado": "Activo",
-    "perfil": "administrativo"
+    "perfil": "operativo"
   },
   {
     "id": "emp-1039468175",
@@ -572,7 +572,7 @@ export const EMPLEADOS_ACTIVOS_BASE = [
     "cargo": "Lider Gestion Asistencial",
     "email": "ana.henao@unionsaludvida.com",
     "estado": "Activo",
-    "perfil": "administrativo"
+    "perfil": "operativo"
   },
   {
     "id": "emp-1000921684",
@@ -642,7 +642,7 @@ export const EMPLEADOS_ACTIVOS_BASE = [
     "cargo": "Lider Gestion Asistencial",
     "email": "lidercisenvigado@unionsaludvida.com",
     "estado": "Activo",
-    "perfil": "administrativo"
+    "perfil": "operativo"
   },
   {
     "id": "emp-1001939392",
@@ -692,7 +692,7 @@ export const EMPLEADOS_ACTIVOS_BASE = [
     "cargo": "Lider Gestion Humana",
     "email": "lidergestionhumana@unionsaludvida.com",
     "estado": "Activo",
-    "perfil": "administrativo"
+    "perfil": "operativo"
   },
   {
     "id": "emp-1234093059",
@@ -972,7 +972,7 @@ export const EMPLEADOS_ACTIVOS_BASE = [
     "cargo": "Lider Medico",
     "email": "liderciscopacabana@unionsaludvida.com",
     "estado": "Activo",
-    "perfil": "administrativo"
+    "perfil": "operativo"
   },
   {
     "id": "emp-1005663234",
@@ -1022,7 +1022,7 @@ export const EMPLEADOS_ACTIVOS_BASE = [
     "cargo": "Lider Asistencial",
     "email": "liderasistencial@unionsaludvida.com",
     "estado": "Activo",
-    "perfil": "administrativo"
+    "perfil": "operativo"
   },
   {
     "id": "emp-1044938036",
@@ -1742,7 +1742,7 @@ export const EMPLEADOS_ACTIVOS_BASE = [
     "cargo": "Lider Medico",
     "email": "lidercissanignacio@unionsaludvida.com",
     "estado": "Activo",
-    "perfil": "administrativo"
+    "perfil": "operativo"
   },
   {
     "id": "emp-1128418305",
@@ -1772,7 +1772,7 @@ export const EMPLEADOS_ACTIVOS_BASE = [
     "cargo": "Lider Medico",
     "email": "lidercisaranjuez@unionsaludvida.com",
     "estado": "Activo",
-    "perfil": "administrativo"
+    "perfil": "operativo"
   },
   {
     "id": "emp-1061685747",
@@ -1992,7 +1992,7 @@ export const EMPLEADOS_ACTIVOS_BASE = [
     "cargo": "Lider Gestion Asistencial",
     "email": "gestionasistenciallopezdemesa@unionsaludvida.com",
     "estado": "Activo",
-    "perfil": "administrativo"
+    "perfil": "operativo"
   },
   {
     "id": "emp-1039469545",
@@ -2002,7 +2002,7 @@ export const EMPLEADOS_ACTIVOS_BASE = [
     "cargo": "Lider Medico",
     "email": "liderciscaldas@unionsaludvida.com",
     "estado": "Activo",
-    "perfil": "administrativo"
+    "perfil": "operativo"
   },
   {
     "id": "emp-1003398632",
@@ -2162,7 +2162,7 @@ export const EMPLEADOS_ACTIVOS_BASE = [
     "cargo": "Lider Gestion Asistencial",
     "email": "claudia.castilla@unionsaludvida.com",
     "estado": "Activo",
-    "perfil": "administrativo"
+    "perfil": "operativo"
   },
   {
     "id": "emp-43628138",
@@ -2262,7 +2262,7 @@ export const EMPLEADOS_ACTIVOS_BASE = [
     "cargo": "Lider Medico",
     "email": "cristina.duque@unionsaludvida.com",
     "estado": "Activo",
-    "perfil": "administrativo"
+    "perfil": "operativo"
   },
   {
     "id": "emp-1028005794",
@@ -2392,7 +2392,7 @@ export const EMPLEADOS_ACTIVOS_BASE = [
     "cargo": "Director Administrativo y Financiero",
     "email": "daniel.pelaez@unionsaludvida.com",
     "estado": "Activo",
-    "perfil": "directivo"
+    "perfil": "operativo"
   },
   {
     "id": "emp-1020487057",
@@ -2622,7 +2622,7 @@ export const EMPLEADOS_ACTIVOS_BASE = [
     "cargo": "Analista Nomina",
     "email": "nomina@unionsaludvida.com",
     "estado": "Activo",
-    "perfil": "administrativo"
+    "perfil": "operativo"
   },
   {
     "id": "emp-1047442961",
@@ -2742,7 +2742,7 @@ export const EMPLEADOS_ACTIVOS_BASE = [
     "cargo": "Lider Gestion Asistencial",
     "email": "lidercismonteria@unionsaludvida.com",
     "estado": "Activo",
-    "perfil": "administrativo"
+    "perfil": "operativo"
   },
   {
     "id": "emp-1128283058",
@@ -2982,7 +2982,7 @@ export const EMPLEADOS_ACTIVOS_BASE = [
     "cargo": "Auxiliar Tic",
     "email": "soporte@unionsaludvida.com",
     "estado": "Activo",
-    "perfil": "administrativo"
+    "perfil": "operativo"
   },
   {
     "id": "emp-1000416383",
@@ -3112,7 +3112,7 @@ export const EMPLEADOS_ACTIVOS_BASE = [
     "cargo": "Lider Gestion Asistencial",
     "email": "gestionasistencialsanignacio@unionsaludvida.com",
     "estado": "Activo",
-    "perfil": "administrativo"
+    "perfil": "operativo"
   },
   {
     "id": "emp-43998614",
@@ -3232,7 +3232,7 @@ export const EMPLEADOS_ACTIVOS_BASE = [
     "cargo": "Lider Gestion Asistencial",
     "email": "diana.norena@unionsaludvida.com",
     "estado": "Activo",
-    "perfil": "administrativo"
+    "perfil": "operativo"
   },
   {
     "id": "emp-43453341",
@@ -3482,7 +3482,7 @@ export const EMPLEADOS_ACTIVOS_BASE = [
     "cargo": "Lider Financiero",
     "email": "andres.arias@unionsaludvida.com",
     "estado": "Activo",
-    "perfil": "administrativo"
+    "perfil": "operativo"
   },
   {
     "id": "emp-1000659876",
@@ -3562,7 +3562,7 @@ export const EMPLEADOS_ACTIVOS_BASE = [
     "cargo": "Lider Medico",
     "email": "lidercismanrique@unionsaludvida.com",
     "estado": "Activo",
-    "perfil": "administrativo"
+    "perfil": "operativo"
   },
   {
     "id": "emp-1129516553",
@@ -3612,7 +3612,7 @@ export const EMPLEADOS_ACTIVOS_BASE = [
     "cargo": "Director Asistencial",
     "email": "direccionasistencial@unionsaludvida.com",
     "estado": "Activo",
-    "perfil": "directivo"
+    "perfil": "operativo"
   },
   {
     "id": "emp-1002157926",
@@ -3752,7 +3752,7 @@ export const EMPLEADOS_ACTIVOS_BASE = [
     "cargo": "Lider Gestion Asistencial",
     "email": "gestionasistencialurabasur@unionsaludvida.com",
     "estado": "Activo",
-    "perfil": "administrativo"
+    "perfil": "operativo"
   },
   {
     "id": "emp-1007315752",
@@ -4002,7 +4002,7 @@ export const EMPLEADOS_ACTIVOS_BASE = [
     "cargo": "Comunicadora B",
     "email": "felipe.osorno@unionsaludvida.com",
     "estado": "Activo",
-    "perfil": "administrativo"
+    "perfil": "operativo"
   },
   {
     "id": "emp-1017274443",
@@ -4212,7 +4212,7 @@ export const EMPLEADOS_ACTIVOS_BASE = [
     "cargo": "Lider Gestion Asistencial",
     "email": "gina.arrieta@unionsaludvida.com",
     "estado": "Activo",
-    "perfil": "administrativo"
+    "perfil": "operativo"
   },
   {
     "id": "emp-1083037694",
@@ -4282,7 +4282,7 @@ export const EMPLEADOS_ACTIVOS_BASE = [
     "cargo": "Lider Gestion Asistencial",
     "email": "gestionasistenciallaceja@unionsaludvida.com",
     "estado": "Activo",
-    "perfil": "administrativo"
+    "perfil": "operativo"
   },
   {
     "id": "emp-1128439839",
@@ -4472,7 +4472,7 @@ export const EMPLEADOS_ACTIVOS_BASE = [
     "cargo": "Lider Gestion Asistencial",
     "email": "irama.collante@unionsaludvida.com",
     "estado": "Activo",
-    "perfil": "administrativo"
+    "perfil": "operativo"
   },
   {
     "id": "emp-45560879",
@@ -4742,7 +4742,7 @@ export const EMPLEADOS_ACTIVOS_BASE = [
     "cargo": "Lider Medico",
     "email": "javier.madrigal@unionsaludvida.com",
     "estado": "Activo",
-    "perfil": "administrativo"
+    "perfil": "operativo"
   },
   {
     "id": "emp-44005917",
@@ -4792,7 +4792,7 @@ export const EMPLEADOS_ACTIVOS_BASE = [
     "cargo": "Lider Medico",
     "email": "lidercissabaneta@unionsaludvida.com",
     "estado": "Activo",
-    "perfil": "administrativo"
+    "perfil": "operativo"
   },
   {
     "id": "emp-1113040527",
@@ -4862,7 +4862,7 @@ export const EMPLEADOS_ACTIVOS_BASE = [
     "cargo": "Lider Gestion Asistencial",
     "email": "liderciscristorey@unionsaludvida.com",
     "estado": "Activo",
-    "perfil": "administrativo"
+    "perfil": "operativo"
   },
   {
     "id": "emp-1235257142",
@@ -4952,7 +4952,7 @@ export const EMPLEADOS_ACTIVOS_BASE = [
     "cargo": "Lider Gestion Asistencial",
     "email": "gestionasistencialurabasur@unionsaludvida.com",
     "estado": "Activo",
-    "perfil": "administrativo"
+    "perfil": "operativo"
   },
   {
     "id": "emp-1002187393",
@@ -5132,7 +5132,7 @@ export const EMPLEADOS_ACTIVOS_BASE = [
     "cargo": "Medico General",
     "email": "john.ramirez@unionsaludvida.com",
     "estado": "Activo",
-    "perfil": "total"
+    "perfil": "administrativo"
   },
   {
     "id": "emp-98480228",
@@ -5872,7 +5872,7 @@ export const EMPLEADOS_ACTIVOS_BASE = [
     "cargo": "Lider Gestion Asistencial",
     "email": "gestionasistencialporvenir@unionsaludvida.com",
     "estado": "Activo",
-    "perfil": "administrativo"
+    "perfil": "operativo"
   },
   {
     "id": "emp-1000098388",
@@ -5922,7 +5922,7 @@ export const EMPLEADOS_ACTIVOS_BASE = [
     "cargo": "Analista de TIC - A",
     "email": "analistatic2@unionsaludvida.com",
     "estado": "Activo",
-    "perfil": "administrativo"
+    "perfil": "operativo"
   },
   {
     "id": "emp-1037634743",
@@ -6152,7 +6152,7 @@ export const EMPLEADOS_ACTIVOS_BASE = [
     "cargo": "Lider Medico",
     "email": "junior.hidalgo@unionsaludvida.com",
     "estado": "Activo",
-    "perfil": "administrativo"
+    "perfil": "operativo"
   },
   {
     "id": "emp-1091654996",
@@ -6552,7 +6552,7 @@ export const EMPLEADOS_ACTIVOS_BASE = [
     "cargo": "Lider Medico",
     "email": "lidergestac@unionsaludvida.com",
     "estado": "Activo",
-    "perfil": "administrativo"
+    "perfil": "operativo"
   },
   {
     "id": "emp-1001852351",
@@ -6612,7 +6612,7 @@ export const EMPLEADOS_ACTIVOS_BASE = [
     "cargo": "Lider Medico",
     "email": "lidercisuraba@unionsaludvida.com",
     "estado": "Activo",
-    "perfil": "administrativo"
+    "perfil": "operativo"
   },
   {
     "id": "emp-1140860375",
@@ -6882,7 +6882,7 @@ export const EMPLEADOS_ACTIVOS_BASE = [
     "cargo": "Lider Gestion Asistencial",
     "email": "liderciscityplaza@unionsaludvida.com",
     "estado": "Activo",
-    "perfil": "administrativo"
+    "perfil": "operativo"
   },
   {
     "id": "emp-1152698446",
@@ -7002,7 +7002,7 @@ export const EMPLEADOS_ACTIVOS_BASE = [
     "cargo": "Lider Gestion Asistencial",
     "email": "marcela.mejia@unionsaludvida.com",
     "estado": "Activo",
-    "perfil": "administrativo"
+    "perfil": "operativo"
   },
   {
     "id": "emp-1001782572",
@@ -7272,7 +7272,7 @@ export const EMPLEADOS_ACTIVOS_BASE = [
     "cargo": "Lider Gestion Asistencial",
     "email": "gestionasistencialrionegro@unionsaludvida.com",
     "estado": "Activo",
-    "perfil": "administrativo"
+    "perfil": "operativo"
   },
   {
     "id": "emp-1118806907",
@@ -7382,7 +7382,7 @@ export const EMPLEADOS_ACTIVOS_BASE = [
     "cargo": "Auxiliar Gestion Humana B",
     "email": "seleccion@unionsaludvida.com",
     "estado": "Activo",
-    "perfil": "administrativo"
+    "perfil": "operativo"
   },
   {
     "id": "emp-1045683019",
@@ -7752,7 +7752,7 @@ export const EMPLEADOS_ACTIVOS_BASE = [
     "cargo": "Auxiliar Gestion Humana B",
     "email": "auxgestiondocumental@unionsaludvida.com",
     "estado": "Activo",
-    "perfil": "administrativo"
+    "perfil": "operativo"
   },
   {
     "id": "emp-1047469537",
@@ -7802,7 +7802,7 @@ export const EMPLEADOS_ACTIVOS_BASE = [
     "cargo": "Lider Medico",
     "email": "lucas.osorio@unionsaludvida.com",
     "estado": "Activo",
-    "perfil": "administrativo"
+    "perfil": "operativo"
   },
   {
     "id": "emp-1235539927",
@@ -7872,7 +7872,7 @@ export const EMPLEADOS_ACTIVOS_BASE = [
     "cargo": "Analista de TIC - A",
     "email": "analistatic1@unionsaludvida.com",
     "estado": "Activo",
-    "perfil": "administrativo"
+    "perfil": "operativo"
   },
   {
     "id": "emp-1001232966",
@@ -8062,7 +8062,7 @@ export const EMPLEADOS_ACTIVOS_BASE = [
     "cargo": "Auxiliar Finanzas",
     "email": "luz.correa@unionsaludvida.com",
     "estado": "Activo",
-    "perfil": "administrativo"
+    "perfil": "operativo"
   },
   {
     "id": "emp-1037524086",
@@ -8352,7 +8352,7 @@ export const EMPLEADOS_ACTIVOS_BASE = [
     "cargo": "Auxiliar Contable",
     "email": "auxiliarcontable@unionsaludvida.com",
     "estado": "Activo",
-    "perfil": "administrativo"
+    "perfil": "operativo"
   },
   {
     "id": "emp-1047390273",
@@ -8642,7 +8642,7 @@ export const EMPLEADOS_ACTIVOS_BASE = [
     "cargo": "Gesis",
     "email": "analistadedatos@unionsaludvida.com",
     "estado": "Activo",
-    "perfil": "administrativo"
+    "perfil": "operativo"
   },
   {
     "id": "emp-1037570349",
@@ -9332,7 +9332,7 @@ export const EMPLEADOS_ACTIVOS_BASE = [
     "cargo": "Profesional Gestion Humana - B",
     "email": "profesionalgh@unionsaludvida.com",
     "estado": "Activo",
-    "perfil": "administrativo"
+    "perfil": "operativo"
   },
   {
     "id": "emp-1000944725",
@@ -9442,7 +9442,7 @@ export const EMPLEADOS_ACTIVOS_BASE = [
     "cargo": "Auxiliar Gestion Humana",
     "email": "auxgestionhumana@unionsaludvida.com",
     "estado": "Activo",
-    "perfil": "administrativo"
+    "perfil": "operativo"
   },
   {
     "id": "emp-1152472145",
@@ -9692,7 +9692,7 @@ export const EMPLEADOS_ACTIVOS_BASE = [
     "cargo": "Director General",
     "email": "catalina.cardona@unionsaludvida.com",
     "estado": "Activo",
-    "perfil": "directivo"
+    "perfil": "operativo"
   },
   {
     "id": "emp-57462425",
@@ -10032,7 +10032,7 @@ export const EMPLEADOS_ACTIVOS_BASE = [
     "cargo": "Comunicadora B",
     "email": "comunicacionesgestac@unionsaludvida.com",
     "estado": "Activo",
-    "perfil": "administrativo"
+    "perfil": "operativo"
   },
   {
     "id": "emp-1143362985",
@@ -10382,7 +10382,7 @@ export const EMPLEADOS_ACTIVOS_BASE = [
     "cargo": "Lider De Tecnologia De Inf Y Proyectos",
     "email": "lidertic@unionsaludvida.com",
     "estado": "Activo",
-    "perfil": "administrativo"
+    "perfil": "operativo"
   },
   {
     "id": "emp-1015483595",
@@ -11032,7 +11032,7 @@ export const EMPLEADOS_ACTIVOS_BASE = [
     "cargo": "Lider Medico",
     "email": "lidercisfabricato@unionsaludvida.com",
     "estado": "Activo",
-    "perfil": "administrativo"
+    "perfil": "operativo"
   },
   {
     "id": "emp-1118539328",
@@ -11172,7 +11172,7 @@ export const EMPLEADOS_ACTIVOS_BASE = [
     "cargo": "Analista de TIC - A",
     "email": "analistatic3@unionsaludvida.com",
     "estado": "Activo",
-    "perfil": "administrativo"
+    "perfil": "operativo"
   },
   {
     "id": "emp-1005567801",
@@ -11222,7 +11222,7 @@ export const EMPLEADOS_ACTIVOS_BASE = [
     "cargo": "Lider Gestion Asistencial",
     "email": "sandra.ricardo@unionsaludvida.com",
     "estado": "Activo",
-    "perfil": "administrativo"
+    "perfil": "operativo"
   },
   {
     "id": "emp-1045721168",
@@ -11422,7 +11422,7 @@ export const EMPLEADOS_ACTIVOS_BASE = [
     "cargo": "Profesional Gestion Humana - B",
     "email": "profesionalgh2@unionsaludvida.com",
     "estado": "Activo",
-    "perfil": "administrativo"
+    "perfil": "operativo"
   },
   {
     "id": "emp-1037630071",
@@ -11722,7 +11722,7 @@ export const EMPLEADOS_ACTIVOS_BASE = [
     "cargo": "Lider Gestion Asistencial",
     "email": "sirly.lopez@unionsaludvida.com",
     "estado": "Activo",
-    "perfil": "administrativo"
+    "perfil": "operativo"
   },
   {
     "id": "emp-1065871449",
@@ -12032,7 +12032,7 @@ export const EMPLEADOS_ACTIVOS_BASE = [
     "cargo": "Lider Gestion Asistencial",
     "email": "tatiana.muriel@unionsaludvida.com",
     "estado": "Activo",
-    "perfil": "administrativo"
+    "perfil": "operativo"
   },
   {
     "id": "emp-1066185315",
@@ -12272,7 +12272,7 @@ export const EMPLEADOS_ACTIVOS_BASE = [
     "cargo": "Comunicadora A",
     "email": "valentina.restrepo@unionsaludvida.com",
     "estado": "Activo",
-    "perfil": "administrativo"
+    "perfil": "operativo"
   },
   {
     "id": "emp-1001011524",
@@ -12682,7 +12682,7 @@ export const EMPLEADOS_ACTIVOS_BASE = [
     "cargo": "Profesional Contratacion y Seleccion",
     "email": "yecenia.ospina@unionsaludvida.com",
     "estado": "Activo",
-    "perfil": "administrativo"
+    "perfil": "operativo"
   },
   {
     "id": "emp-1017237926",
@@ -12742,7 +12742,7 @@ export const EMPLEADOS_ACTIVOS_BASE = [
     "cargo": "Analista Administrativo",
     "email": "yeni.bedoya@unionsaludvida.com",
     "estado": "Activo",
-    "perfil": "administrativo"
+    "perfil": "operativo"
   },
   {
     "id": "emp-1015447476",
@@ -12972,7 +12972,7 @@ export const EMPLEADOS_ACTIVOS_BASE = [
     "cargo": "Lider Gestion Asistencial",
     "email": "yulisa.castano@unionsaludvida.com",
     "estado": "Activo",
-    "perfil": "administrativo"
+    "perfil": "operativo"
   },
   {
     "id": "emp-1214739131",
