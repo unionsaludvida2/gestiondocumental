@@ -28,7 +28,21 @@ Thumbs.db
 desktop.ini
 
 # Protección de Datos Personales (Habeas Data) y Exclusión de Datos Estáticos
-# Los colaboradores activos se sincronizan en vivo desde OneDrive / Cloud a IndexedDB
 EMPLEADOS_ACTIVOS.csv
 EMPLEADOS_ACTIVOS.csv.bak
 
+# Archivos de configuración local, datos y cachés obsoletos (Política 100% Web)
+# Toda la información se consulta en vivo desde Google Sheets, OneDrive y Google Drive
+usuarios.conf
+*.conf
+*.dat
+*.tsv
+Historico_Documentos_USV.csv
+google_sheets_live.csv
+inventario_calidad.dat
+repositorio.dat
+auditoria.dat
+maestro.dat
+columnas_*.tsv
+prepare_updates.py
+sync_cache.py
