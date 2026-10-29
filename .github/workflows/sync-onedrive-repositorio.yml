@@ -1,4 +1,4 @@
-name: Sincronización Automática OneDrive a Repositorio
+name: Sincronización Automática OneDrive a Biblioteca
 
 on:
   schedule:
@@ -10,11 +10,11 @@ on:
       - '.github/workflows/sync-onedrive-repositorio.yml'
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  sync-onedrive:
-    name: Sincronizar REPOSITORIO_DOCUMENTAL de OneDrive a repositorio.dat
+  sincronizar-vinculos:
+    name: Comparar Vínculos de OneDrive y Actualizar Biblioteca
     runs-on: ubuntu-latest
     steps:
       - name: Checkout del repositorio
@@ -25,7 +25,7 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Descargar CSV de OneDrive y generar repositorio.dat
+      - name: Ejecutar Comparación y Sincronización Cloud
         run: |
           python - << 'EOF'
           import urllib.request
@@ -33,89 +33,115 @@ jobs:
           import csv
           import io
           import json
-          import os
-          import time
+          import sys
 
           ONEDRIVE_CSV_URL = (
               "https://unionsaludvida-my.sharepoint.com/:x:/p/plantillas/"
               "IQCctVunBodCQq97XWMPrue7AaIRpd-pVgSUuZrMBWBcA2A?e=revQbX&download=1"
           )
+          GOOGLE_SHEETS_CSV_URL = (
+              "https://docs.google.com/spreadsheets/d/"
+              "1ecwTurb2IyuO9qs4_PkAsQrULENh3J-RXEWbl5Ihhug/export?format=csv"
+          )
+          GOOGLE_SCRIPT_CONF_URL = (
+              "https://script.google.com/macros/s/"
+              "AKfycbx4-82Ls3Zu5gdzXlAhezZ6ew9tnAece8xSDMQ8QmXcu7UCnMxwqB48ISG_LwNDUgMiQQ/exec"
+          )
 
+          print("=================================================================")
+          print("  Sincronizador Automático de Vínculos OneDrive -> Biblioteca")
+          print("=================================================================")
+
+          # 1. Descargar catálogo de OneDrive
+          print("1. Descargando REPOSITORIO_DOCUMENTAL desde OneDrive...")
           cj = http.cookiejar.CookieJar()
           opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cj))
           opener.addheaders = [('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)')]
-
-          print("Conectando con archivo REPOSITORIO_DOCUMENTAL de OneDrive...")
-          with opener.open(ONEDRIVE_CSV_URL, timeout=30) as resp:
-              raw_bytes = resp.read()
+          
+          try:
+              with opener.open(ONEDRIVE_CSV_URL, timeout=30) as resp:
+                  raw_bytes = resp.read()
+          except Exception as e_od:
+              print(f"❌ Error descargando OneDrive CSV: {e_od}")
+              sys.exit(1)
 
           if len(raw_bytes) < 100:
-              raise ValueError("Respuesta de OneDrive vacía o insuficiente")
+              print("❌ Archivo de OneDrive vacío o insuficiente.")
+              sys.exit(1)
 
-          csv_text = raw_bytes.decode('utf-8-sig', errors='replace')
-          if 'Código' not in csv_text and ';' not in csv_text:
-              raise ValueError("El archivo recibido de OneDrive no tiene formato CSV válido")
+          try:
+              csv_od = raw_bytes.decode('windows-1252')
+          except Exception:
+              csv_od = raw_bytes.decode('utf-8-sig', errors='replace')
 
-          reader = csv.reader(io.StringIO(csv_text), delimiter=';')
-          rows = [r for r in reader if r and len(r) >= 2]
+          reader_od = list(csv.reader(io.StringIO(csv_od), delimiter=';'))
+          od_map = {}
+          for r in reader_od[1:]:
+              if len(r) >= 8 and r[0].strip():
+                  cod = r[0].strip().upper()
+                  link = r[7].strip() or r[6].strip()
+                  if link and link.startswith('http'):
+                      od_map[cod] = link
 
-          items = []
-          for r in rows[1:]:
-              if not r or not r[0].strip():
-                  continue
-              codigo = r[0].strip()
-              documento = r[1].strip() if len(r) > 1 else ''
-              extension = r[2].strip() if len(r) > 2 else ''
-              carpeta = r[3].strip() if len(r) > 3 else ''
-              tipo_doc = r[4].strip() if len(r) > 4 else ''
-              mod = r[5].strip() if len(r) > 5 else ''
-              edicion = r[6].strip() if len(r) > 6 else ''
-              descarga = r[7].strip() if len(r) > 7 else ''
+          print(f"   ✅ Se identificaron {len(od_map)} códigos en OneDrive con vínculo directo.")
 
-              ext_clean = extension.lstrip('.').lower()
-              formato = 'Word' if ext_clean in ['docx', 'doc'] else ('Excel' if ext_clean in ['xlsx', 'xls', 'csv'] else ('PDF' if ext_clean == 'pdf' else ext_clean.upper()))
+          # 2. Descargar catálogo actual de Biblioteca_Pruebas
+          print("2. Consultando inventario activo en Google Sheets (Biblioteca_Pruebas)...")
+          try:
+              req_bp = urllib.request.Request(GOOGLE_SHEETS_CSV_URL, headers={'User-Agent': 'Mozilla/5.0'})
+              with urllib.request.urlopen(req_bp, timeout=30) as resp_bp:
+                  csv_bp = resp_bp.read().decode('utf-8', errors='replace')
+          except Exception as e_bp:
+              print(f"❌ Error descargando Biblioteca_Pruebas: {e_bp}")
+              sys.exit(1)
 
-              items.append({
-                  'codigo': codigo,
-                  'titulo': documento,
-                  'documento': documento,
-                  'extension': extension,
-                  'formato': formato,
-                  'carpeta': carpeta,
-                  'proceso': carpeta,
-                  'tipoDocumento': tipo_doc,
-                  'modificacion': mod,
-                  'vinculoEdicion': edicion,
-                  'vinculoDescarga': descarga,
-                  'sharepointUrl': edicion or descarga,
-                  'downloadUrl': descarga or edicion,
-                  'disponible': bool(descarga or edicion)
-              })
+          reader_bp = list(csv.reader(io.StringIO(csv_bp)))
+          bp_rows = reader_bp[1:] if len(reader_bp) > 1 else []
+          print(f"   ✅ Se cargaron {len(bp_rows)} documentos desde Google Sheets.")
 
-          res_obj = {
-              'version': '1.0',
-              'empresa': 'Unión para la salud y la vida S.A.S.',
-              'ultimaActualizacion': time.strftime('%Y-%m-%dT%H:%M:%SZ'),
-              'total': len(items),
-              'documentos': items
+          # 3. Detectar diferencias en los vínculos
+          cambios = []
+          for r in bp_rows:
+              if len(r) > 4 and r[4].strip():
+                  cod = r[4].strip().upper()
+                  current_dir = r[23].strip() if len(r) > 23 else ''
+                  od_link = od_map.get(cod)
+
+                  # Si OneDrive tiene un link y es diferente al registrado en la biblioteca
+                  if od_link and od_link != current_dir:
+                      cambios.append({
+                          'codigo': cod,
+                          'vinculoDirecto': od_link,
+                          'usuario': 'Sincronizador Automático OneDrive',
+                          'detalle': 'Actualización automática de vínculo por cruce con REPOSITORIO_DOCUMENTAL'
+                      })
+
+          print(f"3. Comparación completada: {len(cambios)} documentos requieren actualización de vínculo.")
+
+          # 4. Si hay cambios, enviar actualización a Google Apps Script
+          if not cambios:
+              print("✅ Todos los vínculos de Biblioteca_Pruebas coinciden con OneDrive. Sin cambios pendientes.")
+              sys.exit(0)
+
+          print(f"4. Enviando {len(cambios)} actualizaciones a Google Apps Script...")
+          payload = {
+              "accion": "actualizar_vinculos_lote",
+              "cambios": cambios
           }
+          json_data = json.dumps(payload, ensure_ascii=False).encode('utf-8')
 
-          with open('repositorio.dat', 'w', encoding='utf-8') as f:
-              json.dump(res_obj, f, ensure_ascii=False, indent=2)
+          req_gas = urllib.request.Request(
+              GOOGLE_SCRIPT_CONF_URL,
+              data=json_data,
+              headers={'Content-Type': 'application/json; charset=utf-8', 'User-Agent': 'Mozilla/5.0'}
+          )
 
-          print(f"✅ repositorio.dat generado exitosamente con {len(items)} documentos.")
+          try:
+              with urllib.request.urlopen(req_gas, timeout=60) as resp_gas:
+                  gas_result = resp_gas.read().decode('utf-8')
+              print(f"   Respuesta de Google Apps Script: {gas_result}")
+              print(f"✅ Se actualizaron exitosamente {len(cambios)} vínculos en Biblioteca_Pruebas y se reportaron en Historico_Documentos.")
+          except Exception as e_gas:
+              print(f"❌ Error comunicando con Google Apps Script: {e_gas}")
+              sys.exit(1)
           EOF
-
-      - name: Confirmar y Publicar repositorio.dat en GitHub
-        run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          
-          if [ -n "$(git status --porcelain repositorio.dat)" ]; then
-            git add repositorio.dat
-            git commit -m "chore(sync): Sincronizar repositorio.dat con OneDrive [skip ci]"
-            git push
-            echo "✅ repositorio.dat actualizado y publicado en GitHub Pages."
-          else
-            echo "ℹ️ No hay cambios pendientes en repositorio.dat."
-          fi
