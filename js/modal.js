@@ -1,219 +1,138 @@
 /**
 
  * Módulo de Gestión de Modales y Ficha de Detalle de Documentos
-
  * Unión para la salud y la vida S.A.S.
-
  */
 
-
-
-import { sharepointService, determinarEstrategiaDescarga, esDocumentoFMT, normalizarAreaDoc } from './sharepoint-service.js?v=11.7.15';
-
-import { staffService } from './staff-service.js?v=11.7.15';
-
-import { filterEngine } from './filters.js?v=11.7.15';
-
-
-
+import { sharepointService, determinarEstrategiaDescarga, esDocumentoFMT, normalizarAreaDoc } from './sharepoint-service.js?v=11.9.2';
+import { staffService } from './staff-service.js?v=11.9.2';
+import { filterEngine } from './filters.js?v=11.9.2';
 const STORAGE_KEY_USER_PROFILE = 'agy_user_profile';
 
-
-
 export class ModalManager {
-
   constructor() {
-
     this.modalContainer = null;
-
     this.drawerContainer = null;
-
     this.documentoDrawerActivo = null;
-
   }
 
-
-
   init() {
-
     this.crearContenedoresModal();
 
     this.vincularEventosGlobales();
-
   }
 
-
-
   crearContenedoresModal() {
-
     let container = document.getElementById('modals-root');
 
     if (!container && document.body) {
-
       container = document.createElement('div');
-
       container.id = 'modals-root';
 
       document.body.appendChild(container);
-
     }
 
     this.modalContainer = container;
-
-
-
     let drawer = document.getElementById('drawer-root');
 
     if (!drawer && document.body) {
-
       drawer = document.createElement('div');
-
       drawer.id = 'drawer-root';
 
       document.body.appendChild(drawer);
-
     }
 
     this.drawerContainer = drawer;
-
   }
 
-
-
   vincularEventosGlobales() {
-
     document.addEventListener('keydown', (e) => {
-
       if (e.key === 'Escape') {
-
         // Si hay un modal abierto
 
         const backdrop = this.modalContainer?.querySelector('.modal-backdrop');
 
         if (backdrop) {
-
           if (backdrop.dataset.preventClose === 'true') {
-
             const card = backdrop.querySelector('.modal-card');
 
             if (card) {
-
               card.classList.remove('animate-shake');
 
               void card.offsetWidth;
 
               card.classList.add('animate-shake');
-
             }
 
             return; // Bloqueado: modal obligatorio
-
           }
 
           this.cerrarModal();
 
           return;
-
         }
-
-
 
         // Si el drawer lateral está abierto
 
         if (this.drawerContainer?.querySelector('.doc-drawer.active')) {
-
           this.cerrarDrawer();
-
         }
-
       }
-
     });
 
-
-
     if (this.modalContainer) {
-
       this.modalContainer.addEventListener('click', (e) => {
-
         if (e.target && e.target.classList && e.target.classList.contains('modal-backdrop')) {
-
           if (e.target.dataset && e.target.dataset.preventClose === 'true') {
-
             const card = e.target.querySelector('.modal-card');
 
             if (card) {
-
               card.classList.remove('animate-shake');
 
               void card.offsetWidth;
 
               card.classList.add('animate-shake');
-
             }
 
             return; // Bloqueado: modal obligatorio
-
           }
 
           this.cerrarModal();
-
         }
-
       });
-
     }
-
   }
 
-
-
   cerrarModal() {
-
     if (this.modalContainer) {
-
       this.modalContainer.innerHTML = '';
 
       document.body.classList.remove('modal-open');
-
     }
 
     // Prevenir que el gestor de contraseñas de producción contamine el buscador principal con la cédula
 
     try {
-
       const searchInput = document.getElementById('search-input');
-
       const sesion = staffService.obtenerSesionActiva() || staffService.obtenerUsuarioRecordado();
 
       if (searchInput && sesion && sesion.identificacion) {
-
         const val = (searchInput.value || '').trim();
-
         const cedula = String(sesion.identificacion).trim();
 
         if (val && (val === cedula || val.replace(/\D/g, '') === cedula.replace(/\D/g, ''))) {
-
           searchInput.value = '';
 
           searchInput.dispatchEvent(new Event('input', { bubbles: true }));
-
         }
-
       }
-
     } catch { }
-
   }
 
-
-
   cerrarDrawer() {
-
     if (!this.drawerContainer) return;
 
     const drawer = this.drawerContainer.querySelector('.doc-drawer');
-
     const backdrop = this.drawerContainer.querySelector('.doc-drawer-backdrop');
 
     if (drawer) drawer.classList.remove('active');
@@ -222,113 +141,66 @@ export class ModalManager {
 
     this.documentoDrawerActivo = null;
 
-
-
     // Deseleccionar fila de tabla si existe
 
     document.querySelectorAll('.docs-table tbody tr.table-row-selected').forEach((r) => {
-
       r.classList.remove('table-row-selected');
-
     });
 
-
-
     setTimeout(() => {
-
       if (this.drawerContainer && !this.documentoDrawerActivo) {
-
         this.drawerContainer.innerHTML = '';
-
       }
-
     }, 300);
-
   }
-
-
 
   /**
 
    * Modal para solicitar contraseña de activación del Modo Administrativo / Edición
-
    */
 
   abrirModalPasswordEdicion(onPasswordCorrecto) {
-
     document.body.classList.add('modal-open');
-
-
 
     // Identificación y correo sugeridos para el perfil administrativo
 
     const sesion = staffService.obtenerSesionActiva() || staffService.obtenerUsuarioRecordado();
-
     const docSugerido = (sesion && sesion.identificacion && sesion.identificacion !== 'OPERATIVO' && staffService.esUsuarioAdministrativo(sesion.identificacion))
-
       ? sesion.identificacion
-
       : (localStorage.getItem('agy_last_admin_doc') || '');
 
-
-
     const empSugerido = docSugerido ? (staffService.buscarPorDocumento(docSugerido) || staffService.configuracion?.usuariosRegistrados?.[docSugerido]) : null;
-
     const emailGuardado = (sesion && sesion.email && staffService.esUsuarioAdministrativo(sesion.identificacion))
-
       ? sesion.email
-
       : (localStorage.getItem('agy_last_admin_email') || empSugerido?.email || '');
 
     const usuarioEmailSugerido = emailGuardado ? String(emailGuardado).trim().toLowerCase().split('@')[0] : '';
-
-
-
     const togglePasswordBtn = (btnId, inputId) => {
-
       const btn = document.getElementById(btnId);
-
       const inp = document.getElementById(inputId);
 
       if (btn && inp) {
-
         btn.addEventListener('click', (e) => {
-
           e.preventDefault();
 
           const esPwd = inp.type === 'password';
-
           inp.type = esPwd ? 'text' : 'password';
-
           btn.textContent = esPwd ? '🙈' : '👁️';
-
         });
-
       }
-
     };
 
-
-
     const bindEmailPrefixInput = (inputId) => {
-
       const inp = document.getElementById(inputId);
 
       if (!inp) return;
 
       inp.addEventListener('input', () => {
-
         if (inp.value.includes('@')) {
-
           inp.value = inp.value.split('@')[0].trim().toLowerCase();
-
         }
-
       });
-
     };
-
-
 
     // ─────────────────────────────────────────────────────────────
 
@@ -337,7 +209,6 @@ export class ModalManager {
     // ─────────────────────────────────────────────────────────────
 
     const renderLogin = () => {
-
       this.modalContainer.innerHTML = `
 
         <div class="modal-backdrop">
@@ -358,9 +229,7 @@ export class ModalManager {
 
             </div>
 
-
-
-            <div class="modal-body" style="gap: 12px;">
+<div class="modal-body" style="gap: 12px;">
 
               <div style="text-align: center; margin-bottom: 2px;">
 
@@ -376,15 +245,11 @@ export class ModalManager {
 
               </div>
 
-
-
-              <form id="form-pwd-edicion" autocomplete="off" style="display: flex; flex-direction: column; gap: 10px;">
+<form id="form-pwd-edicion" autocomplete="off" style="display: flex; flex-direction: column; gap: 10px;">
 
                 <input type="text" name="fake_user_edit" style="position: absolute; opacity: 0; pointer-events: none; width: 0; height: 0; left: -9999px;" tabindex="-1" autocomplete="username" />
 
-                
-
-                <div class="form-group" style="margin-bottom: 0;">
+<div class="form-group" style="margin-bottom: 0;">
 
                   <label for="input-email-edit" style="font-size: 0.82rem; font-weight: 600; color: #334155; display: block; margin-bottom: 4px;">Correo Institucional:</label>
 
@@ -424,9 +289,7 @@ export class ModalManager {
 
                 </div>
 
-
-
-                <div class="form-group" style="margin-bottom: 0;">
+<div class="form-group" style="margin-bottom: 0;">
 
                   <label for="input-pwd-edit" style="font-size: 0.82rem; font-weight: 600; color: #334155; display: block; margin-bottom: 4px;">Contraseña de Acceso:</label>
 
@@ -466,15 +329,11 @@ export class ModalManager {
 
                 </div>
 
-
-
-                <div id="pwd-error-msg" style="color: #dc2626; font-size: 0.80rem; font-weight: 600; display: none; background: #fef2f2; border: 1px solid #fecaca; border-radius: 6px; padding: 7px 10px; line-height: 1.35;">
+<div id="pwd-error-msg" style="color: #dc2626; font-size: 0.80rem; font-weight: 600; display: none; background: #fef2f2; border: 1px solid #fecaca; border-radius: 6px; padding: 7px 10px; line-height: 1.35;">
 
                 </div>
 
-
-
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px; padding-top: 4px; border-top: 1px dashed #e2e8f0;">
+<div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px; padding-top: 4px; border-top: 1px dashed #e2e8f0;">
 
                   <button type="button" id="link-goto-olvido" style="background: none; border: none; color: #0284c7; font-size: 0.79rem; font-weight: 600; cursor: pointer; text-decoration: underline; padding: 3px 0;">
 
@@ -495,9 +354,7 @@ export class ModalManager {
 
             </div>
 
-
-
-            <div class="modal-footer" style="justify-content: space-between;">
+<div class="modal-footer" style="justify-content: space-between;">
 
               <button type="button" class="btn btn-secondary" id="btn-modal-cancel">Cancelar</button>
 
@@ -515,111 +372,68 @@ export class ModalManager {
 
       `;
 
-
-
       togglePasswordBtn('btn-toggle-pwd-login', 'input-pwd-edit');
 
       bindEmailPrefixInput('input-email-edit');
 
-
-
       const inputEmail = document.getElementById('input-email-edit');
-
       const inputPwd = document.getElementById('input-pwd-edit');
-
       const errorMsg = document.getElementById('pwd-error-msg');
-
       const form = document.getElementById('form-pwd-edicion');
-
-
-
       const validar = async (e) => {
-
         if (e) e.preventDefault();
 
         const emailPrefix = inputEmail ? inputEmail.value.trim().toLowerCase().split('@')[0] : '';
-
         const emailCompleto = emailPrefix ? `${emailPrefix}@unionsaludvida.com` : '';
-
         const val = inputPwd ? inputPwd.value : '';
 
-
-
         if (!emailPrefix) {
-
           if (errorMsg) {
-
             errorMsg.textContent = '❌ Por favor escribe tu usuario de correo institucional.';
-
             errorMsg.style.display = 'block';
-
           }
 
           inputEmail?.focus();
 
           return;
-
         }
 
-
-
         if (!val) {
-
           if (errorMsg) {
-
             errorMsg.textContent = '❌ Por favor escribe tu contraseña de acceso.';
-
             errorMsg.style.display = 'block';
-
           }
 
           inputPwd?.focus();
 
           return;
-
         }
-
-
 
         const res = await staffService.validarClaveEdicion(val, emailCompleto);
 
         if (res.ok) {
-
           try {
-
             if (res.usuario?.identificacion) {
-
               localStorage.setItem('agy_last_admin_doc', res.usuario.identificacion);
-
             }
 
             localStorage.setItem('agy_last_admin_email', emailCompleto);
-
           } catch { }
 
           this.cerrarModal();
 
           if (typeof onPasswordCorrecto === 'function') onPasswordCorrecto(res.usuario);
-
         } else {
-
           if (errorMsg) {
-
             errorMsg.textContent = res.error ? `❌ ${res.error}` : '❌ Contraseña incorrecta. Intenta nuevamente.';
-
             errorMsg.style.display = 'block';
-
           }
 
           inputPwd?.focus();
 
           inputPwd?.select();
-
         }
-
       };
-
-
 
       // Permitir inicio de sesión directo con tecla Enter
       inputEmail?.addEventListener('keydown', (e) => {
@@ -648,34 +462,18 @@ export class ModalManager {
       document.getElementById('btn-submit-pwd')?.addEventListener('click', validar);
 
       document.getElementById('btn-modal-close')?.addEventListener('click', () => this.cerrarModal());
-
       document.getElementById('btn-modal-cancel')?.addEventListener('click', () => this.cerrarModal());
-
-
-
       document.getElementById('link-goto-registro')?.addEventListener('click', () => renderRegistro());
-
       document.getElementById('link-goto-olvido')?.addEventListener('click', () => renderOlvido());
 
-
-
       setTimeout(() => {
-
         if (inputEmail && !inputEmail.value) {
-
           inputEmail.focus();
-
         } else {
-
           inputPwd?.focus();
-
         }
-
       }, 50);
-
     };
-
-
 
     // ─────────────────────────────────────────────────────────────
 
@@ -684,7 +482,6 @@ export class ModalManager {
     // ─────────────────────────────────────────────────────────────
 
     const renderRegistro = () => {
-
       this.modalContainer.innerHTML = `
 
         <div class="modal-backdrop">
@@ -705,9 +502,7 @@ export class ModalManager {
 
             </div>
 
-
-
-            <div class="modal-body" style="gap: 12px; max-height: 82vh; overflow-y: auto;">
+<div class="modal-body" style="gap: 12px; max-height: 82vh; overflow-y: auto;">
 
               <div style="text-align: center; margin-bottom: 2px;">
 
@@ -723,9 +518,7 @@ export class ModalManager {
 
               </div>
 
-
-
-              <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 8px 12px; font-size: 0.77rem; color: #166534; display: flex; align-items: center; gap: 8px;">
+<div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 8px 12px; font-size: 0.77rem; color: #166534; display: flex; align-items: center; gap: 8px;">
 
                 <span style="font-size: 1.1rem;">🛡️</span>
 
@@ -733,9 +526,7 @@ export class ModalManager {
 
               </div>
 
-
-
-              <form id="form-reg-edicion" autocomplete="off" style="display: flex; flex-direction: column; gap: 10px;">
+<form id="form-reg-edicion" autocomplete="off" style="display: flex; flex-direction: column; gap: 10px;">
 
                 <div class="form-group" style="margin-bottom: 0;">
 
@@ -773,9 +564,7 @@ export class ModalManager {
 
                 </div>
 
-
-
-                <div class="form-group" style="margin-bottom: 0;">
+<div class="form-group" style="margin-bottom: 0;">
 
                   <label for="input-reg-doc" style="font-size: 0.82rem; font-weight: 600; color: #334155; display: block; margin-bottom: 4px;">Documento de Identidad (Cédula):</label>
 
@@ -801,9 +590,7 @@ export class ModalManager {
 
                 </div>
 
-
-
-                <div class="form-group" style="margin-bottom: 0;">
+<div class="form-group" style="margin-bottom: 0;">
 
                   <label for="input-reg-pwd" style="font-size: 0.82rem; font-weight: 600; color: #334155; display: block; margin-bottom: 4px;">Nueva Contraseña (mínimo 6 caracteres):</label>
 
@@ -833,9 +620,7 @@ export class ModalManager {
 
                 </div>
 
-
-
-                <div class="form-group" style="margin-bottom: 0;">
+<div class="form-group" style="margin-bottom: 0;">
 
                   <label for="input-reg-pwd2" style="font-size: 0.82rem; font-weight: 600; color: #334155; display: block; margin-bottom: 4px;">Confirmar Contraseña:</label>
 
@@ -865,9 +650,7 @@ export class ModalManager {
 
                 </div>
 
-
-
-                <div id="reg-error-msg" style="color: #dc2626; font-size: 0.80rem; font-weight: 600; display: none; background: #fef2f2; border: 1px solid #fecaca; border-radius: 6px; padding: 7px 10px; line-height: 1.35;">
+<div id="reg-error-msg" style="color: #dc2626; font-size: 0.80rem; font-weight: 600; display: none; background: #fef2f2; border: 1px solid #fecaca; border-radius: 6px; padding: 7px 10px; line-height: 1.35;">
 
                 </div>
 
@@ -876,9 +659,7 @@ export class ModalManager {
 
             </div>
 
-
-
-            <div class="modal-footer" style="justify-content: space-between;">
+<div class="modal-footer" style="justify-content: space-between;">
 
               <button type="button" class="btn btn-secondary" id="btn-reg-back">← Volver</button>
 
@@ -896,219 +677,136 @@ export class ModalManager {
 
       `;
 
-
-
       togglePasswordBtn('btn-toggle-pwd-reg1', 'input-reg-pwd');
 
       togglePasswordBtn('btn-toggle-pwd-reg2', 'input-reg-pwd2');
 
       bindEmailPrefixInput('input-reg-email');
 
-
-
       const inputDoc = document.getElementById('input-reg-doc');
-
       const inputEmail = document.getElementById('input-reg-email');
-
       const inputPwd = document.getElementById('input-reg-pwd');
-
       const inputPwd2 = document.getElementById('input-reg-pwd2');
-
       const errorMsg = document.getElementById('reg-error-msg');
-
       const form = document.getElementById('form-reg-edicion');
-
-
-
       const registrar = async (e) => {
-
         if (e) e.preventDefault();
 
         const docVal = inputDoc ? inputDoc.value.trim() : '';
-
         const emailPrefix = inputEmail ? inputEmail.value.trim().toLowerCase().split('@')[0] : '';
-
         const emailVal = emailPrefix ? `${emailPrefix}@unionsaludvida.com` : '';
-
         const p1 = inputPwd ? inputPwd.value : '';
-
         const p2 = inputPwd2 ? inputPwd2.value : '';
 
-
-
         if (!emailPrefix) {
-
           if (errorMsg) {
-
             errorMsg.textContent = '❌ Por favor ingresa tu correo institucional.';
-
             errorMsg.style.display = 'block';
-
           }
 
           inputEmail?.focus();
 
           return;
-
         }
 
-
-
         if (!docVal) {
-
           if (errorMsg) {
-
             errorMsg.textContent = '❌ Por favor ingresa tu documento de identidad.';
-
             errorMsg.style.display = 'block';
-
           }
 
           inputDoc?.focus();
 
           return;
-
         }
-
-
 
         // VALIDACIÓN PREVIA ESTRICTA DE PERFIL ADMINISTRATIVO
 
         if (!staffService.esUsuarioAdministrativo(docVal)) {
-
           if (errorMsg) {
-
             errorMsg.textContent = `❌ Registro denegado: El documento ${docVal} no cuenta con perfil Administrativo asignado en el sistema. Solo usuarios autorizados como Administrativos pueden realizar el registro de contraseña.`;
-
             errorMsg.style.display = 'block';
-
           }
 
           inputDoc?.focus();
 
           return;
-
         }
-
-
 
         // VALIDACIÓN: PREVENIR RE-REGISTRO SI YA TIENE CONTRASEÑA
 
         const regCheck = staffService.configuracion?.usuariosRegistrados?.[docVal];
 
         if (regCheck && regCheck.passwordHash) {
-
           if (errorMsg) {
-
             errorMsg.textContent = `❌ El usuario administrativo asociado a la cédula ${docVal} ya tiene una contraseña registrada. Utiliza la opción "¿Olvidaste tu contraseña?" para restablecerla.`;
-
             errorMsg.style.display = 'block';
-
           }
 
           inputDoc?.focus();
 
           return;
-
         }
-
-
 
         // VALIDACIÓN ESTRICTA: CORREO INSTITUCIONAL DEBE COINCIDIR CON LA CÉDULA
 
         const empCheck = staffService.buscarPorDocumento(docVal) || {};
-
         const emailEsperado = staffService.normalizarCorreoInstitucional(
-
           empCheck.email || regCheck?.email || (docVal === '8160602' ? 'john.ramirez@unionsaludvida.com' : '')
-
         );
 
         if (emailEsperado && emailEsperado !== emailVal) {
-
           if (errorMsg) {
-
             errorMsg.textContent = `❌ Los datos no coinciden: El correo ingresado (${emailVal}) no corresponde a la cédula ${docVal} en los registros institucionales.`;
-
             errorMsg.style.display = 'block';
-
           }
 
           inputEmail?.focus();
 
           return;
-
         }
 
-
-
         if (!p1 || p1.length < 6) {
-
           if (errorMsg) {
-
             errorMsg.textContent = '❌ La contraseña debe tener al menos 6 caracteres.';
-
             errorMsg.style.display = 'block';
-
           }
 
           inputPwd?.focus();
 
           return;
-
         }
 
-
-
         if (p1 !== p2) {
-
           if (errorMsg) {
-
             errorMsg.textContent = '❌ Las contraseñas no coinciden. Por favor verifica.';
-
             errorMsg.style.display = 'block';
-
           }
 
           inputPwd2?.focus();
 
           return;
-
         }
-
-
 
         const res = await staffService.registrarPasswordAdmin(docVal, p1, emailVal);
 
         if (res.ok) {
-
           try {
-
             localStorage.setItem('agy_last_admin_doc', docVal);
 
             if (emailVal) localStorage.setItem('agy_last_admin_email', emailVal);
-
           } catch { }
 
           this.cerrarModal();
 
           if (typeof onPasswordCorrecto === 'function') onPasswordCorrecto(res.usuario);
-
         } else {
-
           if (errorMsg) {
-
             errorMsg.textContent = res.error ? `❌ ${res.error}` : '❌ Error al registrar la contraseña.';
-
             errorMsg.style.display = 'block';
-
           }
-
         }
-
       };
-
-
 
       // Permitir registro directo con tecla Enter
       inputEmail?.addEventListener('keydown', (e) => {
@@ -1144,12 +842,8 @@ export class ModalManager {
       document.getElementById('btn-submit-reg')?.addEventListener('click', registrar);
 
       document.getElementById('btn-reg-back')?.addEventListener('click', () => renderLogin());
-
       document.getElementById('btn-modal-close-reg')?.addEventListener('click', () => this.cerrarModal());
-
     };
-
-
 
     // ─────────────────────────────────────────────────────────────
 
@@ -1158,7 +852,6 @@ export class ModalManager {
     // ─────────────────────────────────────────────────────────────
 
     const renderOlvido = () => {
-
       this.modalContainer.innerHTML = `
 
         <div class="modal-backdrop">
@@ -1179,9 +872,7 @@ export class ModalManager {
 
             </div>
 
-
-
-            <div class="modal-body" style="gap: 12px; max-height: 82vh; overflow-y: auto;">
+<div class="modal-body" style="gap: 12px; max-height: 82vh; overflow-y: auto;">
 
               <div style="text-align: center; margin-bottom: 2px;">
 
@@ -1197,9 +888,7 @@ export class ModalManager {
 
               </div>
 
-
-
-              <form id="form-rec-edicion" autocomplete="off" style="display: flex; flex-direction: column; gap: 10px;">
+<form id="form-rec-edicion" autocomplete="off" style="display: flex; flex-direction: column; gap: 10px;">
 
                 <div class="form-group" style="margin-bottom: 0;">
 
@@ -1237,9 +926,7 @@ export class ModalManager {
 
                 </div>
 
-
-
-                <div class="form-group" style="margin-bottom: 0;">
+<div class="form-group" style="margin-bottom: 0;">
 
                   <label for="input-rec-doc" style="font-size: 0.82rem; font-weight: 600; color: #334155; display: block; margin-bottom: 4px;">Documento de Identidad (Cédula Administrativa):</label>
 
@@ -1265,9 +952,7 @@ export class ModalManager {
 
                 </div>
 
-
-
-                <div class="form-group" style="margin-bottom: 0;">
+<div class="form-group" style="margin-bottom: 0;">
 
                   <label for="input-rec-pwd" style="font-size: 0.82rem; font-weight: 600; color: #334155; display: block; margin-bottom: 4px;">Nueva Contraseña Personal (mínimo 6 caracteres):</label>
 
@@ -1297,9 +982,7 @@ export class ModalManager {
 
                 </div>
 
-
-
-                <div class="form-group" style="margin-bottom: 0;">
+<div class="form-group" style="margin-bottom: 0;">
 
                   <label for="input-rec-pwd2" style="font-size: 0.82rem; font-weight: 600; color: #334155; display: block; margin-bottom: 4px;">Confirmar Nueva Contraseña:</label>
 
@@ -1329,9 +1012,7 @@ export class ModalManager {
 
                 </div>
 
-
-
-                <div id="rec-error-msg" style="color: #dc2626; font-size: 0.80rem; font-weight: 600; display: none; background: #fef2f2; border: 1px solid #fecaca; border-radius: 6px; padding: 7px 10px; line-height: 1.35;">
+<div id="rec-error-msg" style="color: #dc2626; font-size: 0.80rem; font-weight: 600; display: none; background: #fef2f2; border: 1px solid #fecaca; border-radius: 6px; padding: 7px 10px; line-height: 1.35;">
 
                 </div>
 
@@ -1340,9 +1021,7 @@ export class ModalManager {
 
             </div>
 
-
-
-            <div class="modal-footer" style="justify-content: space-between;">
+<div class="modal-footer" style="justify-content: space-between;">
 
               <button type="button" class="btn btn-secondary" id="btn-rec-back">← Volver</button>
 
@@ -1360,167 +1039,101 @@ export class ModalManager {
 
       `;
 
-
-
       togglePasswordBtn('btn-toggle-pwd-rec2', 'input-rec-pwd');
 
       togglePasswordBtn('btn-toggle-pwd-rec3', 'input-rec-pwd2');
 
       bindEmailPrefixInput('input-rec-email');
 
-
-
       const inputEmail = document.getElementById('input-rec-email');
-
       const inputDoc = document.getElementById('input-rec-doc');
-
       const inputPwd = document.getElementById('input-rec-pwd');
-
       const inputPwd2 = document.getElementById('input-rec-pwd2');
-
       const errorMsg = document.getElementById('rec-error-msg');
-
       const form = document.getElementById('form-rec-edicion');
-
-
-
       const restablecer = async (e) => {
-
         if (e) e.preventDefault();
 
         const emailPrefix = inputEmail ? inputEmail.value.trim().toLowerCase().split('@')[0] : '';
-
         const emailCompleto = emailPrefix ? `${emailPrefix}@unionsaludvida.com` : '';
-
         const docVal = inputDoc ? inputDoc.value.trim() : '';
-
         const p1 = inputPwd ? inputPwd.value : '';
-
         const p2 = inputPwd2 ? inputPwd2.value : '';
 
-
-
         if (!emailPrefix) {
-
           if (errorMsg) {
-
             errorMsg.textContent = '❌ Por favor ingresa tu usuario de correo institucional.';
-
             errorMsg.style.display = 'block';
-
           }
 
           inputEmail?.focus();
 
           return;
-
         }
-
-
 
         if (!docVal) {
-
           if (errorMsg) {
-
             errorMsg.textContent = '❌ Por favor ingresa tu documento de identidad (cédula).';
-
             errorMsg.style.display = 'block';
-
           }
 
           inputDoc?.focus();
 
           return;
-
         }
-
-
 
         if (!staffService.esUsuarioAdministrativo(docVal)) {
-
           if (errorMsg) {
-
             errorMsg.textContent = `❌ Operación denegada: El documento ${docVal} no cuenta con perfil Administrativo asignado.`;
-
             errorMsg.style.display = 'block';
-
           }
 
           inputDoc?.focus();
 
           return;
-
         }
 
-
-
         if (!p1 || p1.length < 6) {
-
           if (errorMsg) {
-
             errorMsg.textContent = '❌ La nueva contraseña debe tener al menos 6 caracteres.';
-
             errorMsg.style.display = 'block';
-
           }
 
           inputPwd?.focus();
 
           return;
-
         }
 
-
-
         if (p1 !== p2) {
-
           if (errorMsg) {
-
             errorMsg.textContent = '❌ Las contraseñas no coinciden. Por favor verifica.';
-
             errorMsg.style.display = 'block';
-
           }
 
           inputPwd2?.focus();
 
           return;
-
         }
-
-
 
         const res = await staffService.recuperarPasswordAdmin(docVal, emailCompleto, p1);
 
         if (res.ok) {
-
           try {
-
             localStorage.setItem('agy_last_admin_doc', docVal);
 
             localStorage.setItem('agy_last_admin_email', emailCompleto);
-
           } catch { }
 
           this.cerrarModal();
 
           if (typeof onPasswordCorrecto === 'function') onPasswordCorrecto(res.usuario);
-
         } else {
-
           if (errorMsg) {
-
             errorMsg.textContent = res.error ? `❌ ${res.error}` : '❌ Error al restablecer la contraseña.';
-
             errorMsg.style.display = 'block';
-
           }
-
         }
-
       };
-
-
 
       // Permitir restablecimiento directo con tecla Enter
       inputEmail?.addEventListener('keydown', (e) => {
@@ -1556,42 +1169,27 @@ export class ModalManager {
       document.getElementById('btn-submit-rec')?.addEventListener('click', restablecer);
 
       document.getElementById('btn-rec-back')?.addEventListener('click', () => renderLogin());
-
       document.getElementById('btn-modal-close-rec')?.addEventListener('click', () => this.cerrarModal());
-
     };
-
-
 
     // Iniciar siempre en la vista de Login
 
     renderLogin();
-
   }
-
-
 
   /**
 
    * Modal para dar la opción al hacer clic en el candado desbloqueado:
-
    * Solo bloquear modo edición (manteniendo al usuario identificado) vs Salir y Cerrar Sesión
-
    */
 
   abrirModalOpcionesBloqueo({ usuario, onBloquearSoloEdicion, onCerrarSesionCompleta }) {
-
     if (!this.modalContainer) return;
 
     document.body.classList.add('modal-open');
 
-
-
     const nombre = usuario?.nombre || 'Usuario Administrativo';
-
     const doc = (usuario?.identificacion && usuario.identificacion !== 'OPERATIVO') ? usuario.identificacion : '';
-
-
 
     this.modalContainer.innerHTML = `
 
@@ -1613,9 +1211,7 @@ export class ModalManager {
 
           </div>
 
-
-
-          <div class="modal-body" style="gap: 14px; text-align: center; padding: 18px 20px;">
+<div class="modal-body" style="gap: 14px; text-align: center; padding: 18px 20px;">
 
             <div style="font-size: 2.3rem; line-height: 1; margin-bottom: 2px;">🛡️</div>
 
@@ -1637,9 +1233,7 @@ export class ModalManager {
 
             </div>
 
-
-
-            <!-- Opciones -->
+<!-- Opciones -->
 
             <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 6px; text-align: left;">
 
@@ -1667,9 +1261,7 @@ export class ModalManager {
 
               </button>
 
-
-
-              <!-- Opción 2: Cerrar sesión voluntariamente -->
+<!-- Opción 2: Cerrar sesión voluntariamente -->
 
               <button type="button" id="btn-opt-cerrar-sesion-completa" style="display: flex; align-items: flex-start; gap: 12px; padding: 12px 14px; border: 1.5px solid #fecaca; background: #fef2f2; border-radius: 8px; cursor: pointer; transition: all 0.2s ease;">
 
@@ -1697,9 +1289,7 @@ export class ModalManager {
 
           </div>
 
-
-
-          <div class="modal-footer" style="justify-content: flex-end;">
+<div class="modal-footer" style="justify-content: flex-end;">
 
             <button type="button" class="btn btn-secondary" id="btn-lock-modal-cancel">
 
@@ -1715,124 +1305,69 @@ export class ModalManager {
 
     `;
 
-
-
     this.modalContainer.querySelector('#btn-lock-modal-close')?.addEventListener('click', () => this.cerrarModal());
-
     this.modalContainer.querySelector('#btn-lock-modal-cancel')?.addEventListener('click', () => this.cerrarModal());
 
-
-
     this.modalContainer.querySelector('#btn-opt-bloquear-solo-edicion')?.addEventListener('click', () => {
-
       this.cerrarModal();
 
       if (typeof onBloquearSoloEdicion === 'function') onBloquearSoloEdicion();
-
     });
 
-
-
     this.modalContainer.querySelector('#btn-opt-cerrar-sesion-completa')?.addEventListener('click', () => {
-
       this.cerrarModal();
 
       if (typeof onCerrarSesionCompleta === 'function') onCerrarSesionCompleta();
-
     });
-
   }
-
-
 
   /**
 
    * Panel Lateral Deslizable (Drawer) con Ficha Técnica Completa, Historial, Registros Derivados y Acciones
-
    */
 
   abrirDrawerDocumento(doc, modoEdicion, onEditarSharePoint, onDescargar, onActualizarDoc = null, onEliminarDoc = null, pestanaInicial = null) {
-
     if (!this.drawerContainer) {
-
       this.crearContenedoresModal();
-
     }
 
-
-
     this.documentoDrawerActivo = doc.id;
-
-
-
     const sesionActiva = staffService.obtenerSesionActiva() || staffService.obtenerUsuarioRecordado();
-
     const perfilActivo = (sesionActiva?.perfil === 'administrativo' && modoEdicion) ? 'administrativo' : (localStorage.getItem(STORAGE_KEY_USER_PROFILE) || 'operativo');
-
     const esAdmin = perfilActivo === 'administrativo' || perfilActivo === 'total' || perfilActivo === 'administrador';
-
     const puedeGestionarCatalogo = esAdmin && modoEdicion;
-
-
-
     const extUpper = (doc.extension || '').toUpperCase();
-
     const badgeExtClass =
 
       (extUpper.includes('XLS') || extUpper.includes('CSV'))
-
         ? 'badge-xls'
-
         : (extUpper.includes('PDF') ? 'badge-pdf' : 'badge-doc');
 
     const badgeEstadoClass = doc.disponible ? 'badge-disponible' : 'badge-nodisponible';
-
-
-
     const estrategiaDescarga = determinarEstrategiaDescarga(doc);
-
     const conteos = staffService.obtenerConteoDescargasDocumentos();
-
     const numDescargas = conteos[(doc.codigo || '').trim().toUpperCase()] || 0;
-
-
-
     const historialBruto = staffService.obtenerHistoricoDocumental(doc.codigo);
-
     const rawVer = staffService.normalizarVersion(doc.version || '1');
-
     const tipoCambio = doc.tipoCambio && doc.tipoCambio.trim() ? doc.tipoCambio.trim() : '';
-
-
-
     const seenKeys = new Set();
-
     const historialReal = (historialBruto || [])
-
       .filter((h) => {
-
         if (!h) return false;
 
         if (h.tipoEvento === 'CAMBIO_VERSION' && staffService.sonVersionesIguales(h.versionAnterior, h.versionNueva)) {
-
           return false;
-
         }
 
         const fEf = (() => {
-
           if (h.tipoEvento === 'EDICION_SHAREPOINT' && h.fechaModificacionActual && h.fechaModificacionActual !== 'N/A' && h.fechaModificacionActual !== 'Sincronizado') {
-
             return h.fechaModificacionActual.trim();
-
           }
 
           return (h.fechaHora || h.fechaModificacionActual || doc.modificacion || 'Sincronizado').trim();
-
         })();
 
         const vNorm = staffService.normalizarVersion(h.versionNueva || doc.version || '1');
-
         const key = `${(h.tipoEvento || '').toUpperCase()}_${fEf}_${vNorm}`;
 
         if (seenKeys.has(key)) return false;
@@ -1840,17 +1375,11 @@ export class ModalManager {
         seenKeys.add(key);
 
         return true;
-
       })
-
       .sort((a, b) => {
-
         const getT = (item) => {
-
           const fEf = (item.tipoEvento === 'EDICION_SHAREPOINT' && item.fechaModificacionActual && item.fechaModificacionActual !== 'N/A')
-
             ? item.fechaModificacionActual
-
             : (item.fechaHora || item.fechaModificacionActual || '');
 
           const t = staffService.parsearFechaMilisegundos(fEf);
@@ -1858,22 +1387,16 @@ export class ModalManager {
           if (t > 0) return t;
 
           if (item.timestamp) {
-
             const t2 = staffService.parsearFechaMilisegundos(item.timestamp);
 
             if (t2 > 0) return t2;
-
           }
 
           return 0;
-
         };
 
         return getT(b) - getT(a);
-
       });
-
-
 
     this.drawerContainer.innerHTML = `
 
@@ -1881,9 +1404,7 @@ export class ModalManager {
 
       <aside class="doc-drawer active" id="doc-drawer-panel" role="complementary" aria-label="Panel de inspección de documento">
 
-        
-
-        <!-- Cabecera del Panel Lateral -->
+<!-- Cabecera del Panel Lateral -->
 
         <div class="doc-drawer-header">
 
@@ -1909,9 +1430,7 @@ export class ModalManager {
 
         </div>
 
-
-
-        <!-- Pestañas del Drawer -->
+<!-- Pestañas del Drawer -->
 
         <div class="doc-drawer-tabs">
 
@@ -1945,9 +1464,7 @@ export class ModalManager {
 
         </div>
 
-
-
-        <!-- Encabezado Fijo de Registros Derivados (Excluido de la barra de desplazamiento) -->
+<!-- Encabezado Fijo de Registros Derivados (Excluido de la barra de desplazamiento) -->
 
         ${!doc.esRegistro && (esDocumentoFMT(doc.codigo) || (Array.isArray(doc.registrosDerivados) && doc.registrosDerivados.length > 0))
 
@@ -1983,15 +1500,11 @@ export class ModalManager {
 
       }
 
-
-
-        <!-- Contenido Desplazable -->
+<!-- Contenido Desplazable -->
 
         <div class="doc-drawer-body">
 
-          
-
-          <!-- PESTAÑA: FICHA TÉCNICA -->
+<!-- PESTAÑA: FICHA TÉCNICA -->
 
           <div class="drawer-tab-content" id="drawer-tab-ficha" style="display: flex; flex-direction: column; gap: 14px;">
 
@@ -2011,9 +1524,7 @@ export class ModalManager {
 
             </div>
 
-
-
-            <!-- Banner Notificación de Registros Derivados en Ficha Técnica -->
+<!-- Banner Notificación de Registros Derivados en Ficha Técnica -->
 
             ${Array.isArray(doc.registrosDerivados) && doc.registrosDerivados.length > 0
 
@@ -2059,9 +1570,7 @@ export class ModalManager {
 
       }
 
-
-
-            <!-- Grid de Metadatos -->
+<!-- Grid de Metadatos -->
 
             <div class="doc-metadata-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
 
@@ -2147,9 +1656,7 @@ export class ModalManager {
 
             </div>
 
-
-
-            <!-- Accesos a SharePoint y Ubicación (Exclusivo Modo Edición) -->
+<!-- Accesos a SharePoint y Ubicación (Exclusivo Modo Edición) -->
 
             ${modoEdicion
 
@@ -2174,7 +1681,6 @@ export class ModalManager {
                         <span>📁 Ubicación en Repositorio</span>
 
                         ${tieneEnlace && rutaTexto !== 'No se encuentra disponible'
-
               ? `
 
                             <button type="button" class="btn-drawer-folder" id="btn-drawer-open-folder" style="border:none; background:transparent; color:var(--primary); font-size:0.75rem; font-weight:700; cursor:pointer; text-decoration:underline;">
@@ -2184,7 +1690,6 @@ export class ModalManager {
                             </button>
 
                             `
-
               : `
 
                             <span style="font-size: 0.72rem; color: #dc2626; font-weight: 700;">
@@ -2194,7 +1699,6 @@ export class ModalManager {
                             </span>
 
                             `
-
             }
 
                       </div>
@@ -2215,9 +1719,7 @@ export class ModalManager {
 
       }
 
-
-
-            ${doc.descargable === false
+${doc.descargable === false
 
         ? `
 
@@ -2233,9 +1735,7 @@ export class ModalManager {
 
       }
 
-
-
-            ${estrategiaDescarga.esPdf
+${estrategiaDescarga.esPdf
 
         ? `
 
@@ -2253,9 +1753,7 @@ export class ModalManager {
 
           </div>
 
-
-
-          <!-- PESTAÑA: HISTORIAL & VERSIONES -->
+<!-- PESTAÑA: HISTORIAL & VERSIONES -->
 
           <div class="drawer-tab-content" id="drawer-tab-historial" style="display: none; flex-direction: column; gap: 12px;">
 
@@ -2267,9 +1765,7 @@ export class ModalManager {
 
             </div>
 
-
-
-            <div class="version-timeline">
+<div class="version-timeline">
 
               ${historialReal && historialReal.length > 0
 
@@ -2299,9 +1795,7 @@ export class ModalManager {
 
                       : '#7c3aed';
 
-
-
-            const fechaEfectiva = (() => {
+const fechaEfectiva = (() => {
 
               if (h.tipoEvento === 'EDICION_SHAREPOINT' && h.fechaModificacionActual && h.fechaModificacionActual !== 'N/A' && h.fechaModificacionActual !== 'Sincronizado') {
 
@@ -2313,9 +1807,7 @@ export class ModalManager {
 
             })();
 
-
-
-            const descripcionHito = (() => {
+const descripcionHito = (() => {
 
               if (h.tipoEvento === 'EDICION_SHAREPOINT') {
 
@@ -2351,13 +1843,9 @@ export class ModalManager {
 
             })();
 
+const vItem = staffService.formatearVersion(h.versionNueva || doc.version || '01');
 
-
-            const vItem = staffService.formatearVersion(h.versionNueva || doc.version || '01');
-
-
-
-            return `
+return `
 
                           <div class="timeline-item ${esActual ? 'current' : ''}">
 
@@ -2439,9 +1927,7 @@ export class ModalManager {
 
           </div>
 
-
-
-          <!-- PESTAÑA: REGISTROS DERIVADOS -->
+<!-- PESTAÑA: REGISTROS DERIVADOS -->
 
           ${!doc.esRegistro && (esDocumentoFMT(doc.codigo) || (Array.isArray(doc.registrosDerivados) && doc.registrosDerivados.length > 0))
 
@@ -2461,9 +1947,7 @@ export class ModalManager {
 
             let cantCoincidentes = 0;
 
-
-
-            const evaluados = doc.registrosDerivados.map((reg) => {
+const evaluados = doc.registrosDerivados.map((reg) => {
 
               if (palabras.length === 0) return { reg, coincide: true };
 
@@ -2481,9 +1965,7 @@ export class ModalManager {
 
             });
 
-
-
-            const hayFiltro = palabras.length > 0 && cantCoincidentes > 0 && cantCoincidentes < doc.registrosDerivados.length;
+const hayFiltro = palabras.length > 0 && cantCoincidentes > 0 && cantCoincidentes < doc.registrosDerivados.length;
 
             const bannerHtml = hayFiltro ? `
 
@@ -2501,9 +1983,7 @@ export class ModalManager {
 
                       ` : '';
 
-
-
-            const cardsHtml = evaluados.map(({ reg, coincide }) => {
+const cardsHtml = evaluados.map(({ reg, coincide }) => {
 
               const esXls = (reg.extension && reg.extension.toUpperCase().includes('XLS')) || reg.formato === 'Excel';
 
@@ -2540,7 +2020,6 @@ export class ModalManager {
                               <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
 
                                 ${modoEdicion
-
                   ? `
 
                                   ${puedeGestionarCatalogo
@@ -2564,9 +2043,7 @@ export class ModalManager {
                     ? `
 
                                     ${reg.descargable === false
-
                       ? `<button type="button" class="btn btn-secondary" disabled style="width: 28px; height: 28px; padding: 0; font-size: 0.82rem; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; border-radius: 6px; color:#92400e; background:#fef3c7; cursor:not-allowed;" title="Descarga restringida"><span>🔒</span></button>`
-
                       : `
 
                                       <button type="button" class="btn btn-secondary btn-reg-download" data-reg-id="${reg.id || reg.codigo}" style="width: 28px; height: 28px; padding: 0; font-size: 0.82rem; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; border-radius: 6px;" title="Descargar registro en PDF">
@@ -2576,7 +2053,6 @@ export class ModalManager {
                                       </button>
 
                                       `
-
                     }
 
                                     <button type="button" class="btn btn-primary btn-reg-edit" data-reg-id="${reg.id || reg.codigo}" style="width: 28px; height: 28px; padding: 0; font-size: 0.82rem; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; border-radius: 6px;" title="Editar registro en SharePoint">
@@ -2608,15 +2084,10 @@ export class ModalManager {
                   }
 
                                   `
-
                   : !reg.disponible
-
                     ? `<button class="btn btn-disabled" disabled style="padding: 4px 8px; font-size: 0.72rem;" title="Registro no disponible en SharePoint">No Disponible</button>`
-
                     : reg.descargable === false
-
                       ? `<button type="button" class="btn btn-secondary" disabled style="padding: 4px 8px; font-size: 0.72rem; color:#92400e; background:#fef3c7; border: 1px solid #fcd34d; cursor:not-allowed;" title="Descarga restringida">🔒 Bloqueado</button>`
-
                       : `
 
                                       <button type="button" class="btn btn-primary btn-reg-download" data-reg-id="${reg.id || reg.codigo}" style="padding: 4px 10px; font-size: 0.74rem; font-weight: 700; display: inline-flex; align-items: center; gap: 4px; border-radius: 6px;" title="Descargar registro en PDF">
@@ -2626,7 +2097,6 @@ export class ModalManager {
                                       </button>
 
                                       `
-
                 }
 
                               </div>
@@ -2639,9 +2109,7 @@ export class ModalManager {
 
             }).join('');
 
-
-
-            return bannerHtml + cardsHtml;
+return bannerHtml + cardsHtml;
 
           })()}
 
@@ -2683,13 +2151,9 @@ export class ModalManager {
 
       }
 
+</div>
 
-
-        </div>
-
-
-
-        <!-- Pie de Acciones del Drawer -->
+<!-- Pie de Acciones del Drawer -->
 
         <div class="doc-drawer-footer" style="display: grid; grid-template-columns: ${modoEdicion ? (puedeGestionarCatalogo ? '1fr 1fr 1fr' : '1fr 1fr') : '1fr'}; gap: 8px; padding: 12px 18px; border-top: 1px solid #e2e8f0; background: #ffffff; align-items: center;">
 
@@ -2706,7 +2170,6 @@ export class ModalManager {
               </button>
 
               ${puedeGestionarCatalogo
-
           ? `
 
                   <button type="button" class="btn" id="btn-drawer-edit-meta" style="height: 40px; border-radius: 8px; font-size: 0.76rem; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 0 8px; background: #e0f2fe; color: #0369a1; border: 1.5px solid #bae6fd; cursor: pointer; transition: all 0.2s ease;" title="Editar Ficha Técnica / Metadatos">
@@ -2718,9 +2181,7 @@ export class ModalManager {
                   </button>
 
                   `
-
           : ''
-
         }
 
               <button type="button" class="btn" id="btn-drawer-download" style="height: 40px; border-radius: 8px; font-size: 0.76rem; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 0 8px; background: #ecfdf5; color: #047857; border: 1.5px solid #a7f3d0; cursor: pointer; transition: all 0.2s ease; ${!doc.disponible ? 'opacity: 0.5; cursor: not-allowed;' : ''}" ${!doc.disponible ? 'disabled' : ''} title="Descargar documento">
@@ -2755,270 +2216,177 @@ export class ModalManager {
 
         </div>
 
-
-
-      </aside>
+</aside>
 
     `;
-
-
 
     // Vincular Eventos de Pestañas
 
     this.drawerContainer.querySelectorAll('.doc-drawer-tab-btn').forEach((btn) => {
-
       btn.addEventListener('click', () => {
-
         const tab = btn.getAttribute('data-tab');
-
         this.drawerContainer.querySelectorAll('.doc-drawer-tab-btn').forEach((b) => b.classList.remove('active'));
 
         btn.classList.add('active');
 
-
-
         this.drawerContainer.querySelectorAll('.drawer-tab-content').forEach((c) => {
-
           c.style.display = 'none';
-
         });
 
         const content = this.drawerContainer.querySelector(`#drawer-tab-${tab}`);
 
         if (content) content.style.display = 'flex';
 
-
-
         const fixedRegHeader = this.drawerContainer.querySelector('#drawer-registros-fixed-header');
 
         if (fixedRegHeader) {
-
           fixedRegHeader.style.display = (tab === 'registros') ? 'block' : 'none';
-
         }
-
       });
-
     });
-
-
 
     // Activar pestaña inicial si se solicitó registros o si hubo coincidencia en un registro derivado
 
     const debeAbrirRegistros = (pestanaInicial === 'registros' || (!pestanaInicial && Boolean(doc.registroCoincidente))) && (esDocumentoFMT(doc.codigo) || (Array.isArray(doc.registrosDerivados) && doc.registrosDerivados.length > 0));
 
     if (debeAbrirRegistros) {
-
       const btnReg = this.drawerContainer.querySelector('.doc-drawer-tab-btn[data-tab="registros"]');
 
       if (btnReg) {
-
         btnReg.click();
-
       }
-
     }
-
-
 
     // Toggle para mostrar/ocultar todos los registros derivados en el Drawer
 
     const btnToggleDrawerReg = this.drawerContainer.querySelector('.btn-drawer-toggle-todos-reg');
 
     if (btnToggleDrawerReg) {
-
       btnToggleDrawerReg.addEventListener('click', (e) => {
-
         e.stopPropagation();
 
         const ocultos = this.drawerContainer.querySelectorAll('.drawer-reg-filtrado-oculto');
-
         const estanOcultos = Array.from(ocultos).some((c) => c.style.display === 'none');
 
         ocultos.forEach((c) => {
-
           c.style.display = estanOcultos ? 'flex' : 'none';
-
         });
 
         btnToggleDrawerReg.textContent = estanOcultos ? 'Ver solo coincidentes' : `Ver todos (${(doc.registrosDerivados || []).length})`;
-
       });
-
     }
-
-
 
     // Descarga y edición individual de Registros Derivados en el Drawer
 
     this.drawerContainer.querySelectorAll('.btn-reg-download').forEach((btn) => {
-
       btn.addEventListener('click', async (e) => {
-
         e.stopPropagation();
 
         const regId = btn.getAttribute('data-reg-id');
-
         const reg = (doc.registrosDerivados || []).find((r) => (r.id && r.id === regId) || (r.codigo && r.codigo === regId) || (regId === 'undefined' && r.codigo === 'FMT-GIC-015-2'));
 
         if (reg && onDescargar) {
-
           if (!reg.downloadUrl || reg.downloadUrl === doc.downloadUrl || reg.downloadUrl === '#') {
-
             const odDirecto = sharepointService?.buscarEnOneDriveMap?.(sharepointService._ultimoOnedriveMap, reg.codigo, reg.titulo, true);
 
             if (odDirecto && (odDirecto.downloadUrl || odDirecto.vinculoDescarga)) {
-
               reg.downloadUrl = odDirecto.downloadUrl || odDirecto.vinculoDescarga;
-
               reg.sharepointUrl = odDirecto.sharepointUrl || odDirecto.vinculoEdicion || reg.downloadUrl;
-
             }
-
           }
 
           if (!reg.downloadUrl || reg.downloadUrl === doc.downloadUrl || reg.downloadUrl === '#') {
-
             if (window.__agyApp) window.__agyApp.mostrarToast(`📄 El registro "${reg.titulo}" no tiene un archivo individual cargado en SharePoint.`, 'info');
 
             return;
-
           }
 
           btn.classList.add('btn-downloading');
 
           const iconSpan = btn.querySelector('span') || btn;
-
           const origHtml = iconSpan.innerHTML;
-
           iconSpan.innerHTML = '⏳';
 
           try {
-
             await onDescargar(reg);
-
           } finally {
-
             btn.classList.remove('btn-downloading');
 
             iconSpan.innerHTML = origHtml;
-
           }
-
         }
-
       });
-
     });
 
-
-
     this.drawerContainer.querySelectorAll('.btn-reg-edit').forEach((btn) => {
-
       btn.addEventListener('click', (e) => {
-
         e.stopPropagation();
 
         const regId = btn.getAttribute('data-reg-id');
-
         const reg = (doc.registrosDerivados || []).find((r) => (r.id && r.id === regId) || (r.codigo && r.codigo === regId) || (regId === 'undefined' && r.codigo === 'FMT-GIC-015-2'));
 
         if (reg && onEditarSharePoint) {
-
           if (!reg.sharepointUrl || reg.sharepointUrl === doc.sharepointUrl || reg.sharepointUrl === '#') {
-
             if (window.__agyApp) window.__agyApp.mostrarToast(`📄 El registro "${reg.titulo}" no tiene un archivo individual cargado en SharePoint para editar.`, 'info');
 
             return;
-
           }
 
           onEditarSharePoint(reg);
-
         }
-
       });
-
     });
-
-
 
     // Modificar Metadatos del Registro Derivado desde el Drawer
 
     this.drawerContainer.querySelectorAll('.btn-reg-meta').forEach((btn) => {
-
       btn.addEventListener('click', (e) => {
-
         e.stopPropagation();
 
         if (!modoEdicion || !puedeGestionarCatalogo) {
-
           if (window.__agyApp) window.__agyApp.mostrarToast('🔒 No tiene permisos para modificar metadatos.', 'warning');
 
           return;
-
         }
 
         const regId = btn.getAttribute('data-reg-id');
-
         const reg = (doc.registrosDerivados || []).find((r) => (r.id && r.id === regId) || (r.codigo && r.codigo === regId) || (regId === 'undefined' && r.codigo === 'FMT-GIC-015-2'));
 
         if (reg) {
-
           this.abrirModalEditarDocumento(reg, {
-
             docPadre: doc,
-
             onGuardar: (docAct) => {
-
               if (window.__agyApp) {
-
                 window.__agyApp.actualizarDocumentoEnApp(doc);
-
               }
 
               const docActualizado = this.obtenerDocumentosActuales().find((d) => (d.codigo || '').toUpperCase() === (doc.codigo || '').toUpperCase()) || doc;
 
               this.abrirDrawerDocumento(docActualizado, modoEdicion, onEditarSharePoint, onDescargar, onActualizarDoc, onEliminarDoc, 'registros');
-
             }
-
           });
-
         }
-
       });
-
     });
-
-
 
     // Retirar Registro Derivado desde el Drawer
 
     this.drawerContainer.querySelectorAll('.btn-reg-delete').forEach((btn) => {
-
       btn.addEventListener('click', (e) => {
-
         e.stopPropagation();
 
         if (!modoEdicion || !puedeGestionarCatalogo) {
-
           if (window.__agyApp) window.__agyApp.mostrarToast('🔒 No tiene permisos para retirar registros derivados.', 'warning');
 
           return;
-
         }
 
         const regId = btn.getAttribute('data-reg-id');
-
         const reg = (doc.registrosDerivados || []).find((r) => (r.id && r.id === regId) || (r.codigo && r.codigo === regId) || (regId === 'undefined' && r.codigo === 'FMT-GIC-015-2'));
 
         if (reg) {
-
           this.abrirModalEliminarDocumento(reg, {
-
             onConfirmar: async (motivo, borradoFisico) => {
-
               await sharepointService.eliminarDocumento(doc.codigo, motivo || 'Retiro de registro derivado', borradoFisico, reg.id, true, reg.titulo);
 
               const idxReg = (doc.registrosDerivados || []).findIndex(r => r.id === reg.id || r.codigo === reg.codigo);
@@ -3026,318 +2394,194 @@ export class ModalManager {
               if (idxReg >= 0) doc.registrosDerivados.splice(idxReg, 1);
 
               if (window.__agyApp) {
-
                 window.__agyApp.actualizarDocumentoEnApp(doc);
-
               }
 
               const docActualizado = this.obtenerDocumentosActuales().find((d) => (d.codigo || '').toUpperCase() === (doc.codigo || '').toUpperCase()) || doc;
 
               this.abrirDrawerDocumento(docActualizado, modoEdicion, onEditarSharePoint, onDescargar, onActualizarDoc, onEliminarDoc, 'registros');
-
             }
-
           });
-
         }
-
       });
-
     });
-
-
 
     // Vincular Creación de Registro Derivado desde el Drawer
 
     const handlerCrearRegistro = () => {
-
       if (!modoEdicion || !puedeGestionarCatalogo) {
-
         if (window.__agyApp) window.__agyApp.mostrarToast('🔒 No tiene permisos para crear registros derivados.', 'warning');
 
         return;
-
       }
 
       this.abrirModalNuevoDocumento({
-
         esRegistro: true,
-
         docPadre: doc,
-
         onGuardar: (nuevoDoc) => {
-
           if (window.__agyApp) {
-
             window.__agyApp.agregarNuevoDocumentoEnApp(nuevoDoc);
-
           }
 
           const codPadre = (nuevoDoc.documentoPadreCodigo || nuevoDoc.codigoPadre || (nuevoDoc.codigo ? nuevoDoc.codigo.replace(/-(\d+)$/, '') : (doc.codigo || ''))).trim().toUpperCase();
-
           const docActualizado = this.obtenerDocumentosActuales().find((d) => (d.codigo || '').toUpperCase() === codPadre && !d.esRegistro) || doc;
 
           if (docActualizado) {
-
             this.abrirDrawerDocumento(docActualizado, modoEdicion, onEditarSharePoint, onDescargar, onActualizarDoc, onEliminarDoc, 'registros');
 
             setTimeout(() => {
-
               const tabBtn = this.drawerContainer?.querySelector('.doc-drawer-tab-btn[data-tab="registros"]');
 
               if (tabBtn) tabBtn.click();
-
             }, 60);
-
           }
-
         }
-
       });
-
     };
 
     this.drawerContainer.querySelector('#btn-drawer-crear-registro')?.addEventListener('click', handlerCrearRegistro);
 
     this.drawerContainer.querySelector('#btn-drawer-crear-primer-registro')?.addEventListener('click', handlerCrearRegistro);
 
-
-
     // Salto directo a la pestaña de registros desde el banner de la Ficha Técnica
 
     this.drawerContainer.querySelector('#btn-ir-a-tab-registros')?.addEventListener('click', () => {
-
       const tabBtn = this.drawerContainer?.querySelector('.doc-drawer-tab-btn[data-tab="registros"]');
 
       if (tabBtn) tabBtn.click();
-
     });
-
-
 
     // Vincular Cierre
 
     this.drawerContainer.querySelector('#btn-drawer-close')?.addEventListener('click', () => this.cerrarDrawer());
-
     this.drawerContainer.querySelector('#drawer-backdrop')?.addEventListener('click', () => this.cerrarDrawer());
-
-
 
     // Vincular Acciones
 
     this.drawerContainer.querySelector('#btn-drawer-open-folder')?.addEventListener('click', () => {
-
       sharepointService.abrirCarpetaUbicacion(doc);
 
       staffService.registrarAuditoria('CARPETA', {
-
         documentoCodigo: doc.codigo,
-
         documentoTitulo: doc.titulo,
-
         documentoExtension: doc.extension
-
       });
-
     });
-
-
 
     const btnDrawerDown = this.drawerContainer.querySelector('#btn-drawer-download');
 
     btnDrawerDown?.addEventListener('click', async () => {
-
       const estrategiaDescarga = determinarEstrategiaDescarga(doc);
 
       if (estrategiaDescarga.esPdf) {
-
         const textoOriginal = btnDrawerDown.innerHTML;
-
         btnDrawerDown.disabled = true;
 
         btnDrawerDown.classList.add('btn-downloading');
 
         btnDrawerDown.innerHTML = '<span>⏳</span> <span>Descargando...</span>';
 
-
-
         try {
-
           if (typeof onDescargar === 'function') {
-
             await onDescargar(doc);
-
           } else {
-
             await sharepointService.descargarDocumento(doc, modoEdicion);
-
           }
-
         } finally {
-
           btnDrawerDown.disabled = false;
 
           btnDrawerDown.classList.remove('btn-downloading');
 
           btnDrawerDown.innerHTML = textoOriginal;
-
         }
-
       } else {
-
         if (typeof onDescargar === 'function') {
-
           onDescargar(doc);
-
         } else {
-
           sharepointService.descargarDocumento(doc, modoEdicion);
-
         }
-
       }
-
     });
-
-
 
     this.drawerContainer.querySelector('#btn-drawer-edit-sp')?.addEventListener('click', () => {
-
       if (typeof onEditarSharePoint === 'function') {
-
         onEditarSharePoint(doc);
-
       } else {
-
         sharepointService.abrirEnEdicion(doc);
-
       }
-
     });
 
-
-
     this.drawerContainer.querySelector('#btn-drawer-edit-meta')?.addEventListener('click', () => {
-
       this.abrirModalEditarDocumento(doc, {
-
         onGuardar: (docAct) => {
-
           if (typeof onActualizarDoc === 'function') onActualizarDoc(docAct);
 
           this.abrirDrawerDocumento(docAct, modoEdicion, onEditarSharePoint, onDescargar, onActualizarDoc, onEliminarDoc);
-
         }
-
       });
-
     });
-
   }
-
-
 
   /**
 
    * Alias de compatibilidad: redirige la apertura de detalle hacia el nuevo Drawer lateral
-
    */
 
   abrirDetalleDocumento(doc, modoEdicion, onEditarSharePoint, onDescargar, onActualizarDoc = null, onEliminarDoc = null) {
-
     this.abrirDrawerDocumento(doc, modoEdicion, onEditarSharePoint, onDescargar, onActualizarDoc, onEliminarDoc);
-
   }
-
-
 
   /**
 
    * Modal de Configuración General del Sistema
-
    */
 
   abrirConfiguracion({
-
     perfilActual = 'operativo',
-
     modoEdicion = false,
-
     documentos = [],
-
     onCambiarPerfil = null,
-
     onSincronizar = null,
-
     onCambiarVista = null,
-
     vistaCatalogoActual = 'tabla',
-
     activeTab = 'preferencias',
-
     successMsgPerfil = null
-
   }) {
-
     if (!this.modalContainer) return;
 
     document.body.classList.add('modal-open');
 
-
-
     const sesionActiva = staffService.obtenerSesionActiva() || staffService.obtenerUsuarioRecordado();
-
     const vistaActivaReal = staffService.obtenerPreferenciaVistaCatalogo(sesionActiva?.identificacion) || vistaCatalogoActual || 'tabla';
-
     vistaCatalogoActual = vistaActivaReal;
-
     let perfilSeleccionado = perfilActual;
-
     const perfilBaseUsuario = Boolean(
-
       sesionActiva && (
-
         sesionActiva.identificacion === '8160602' ||
-
         sesionActiva.perfil === 'administrativo' ||
-
         sesionActiva.perfil === 'total' ||
-
         sesionActiva.perfil === 'administrador'
-
       )
-
     );
 
     const esAdmin = perfilSeleccionado === 'administrativo' || perfilSeleccionado === 'total' || perfilSeleccionado === 'administrador' || perfilBaseUsuario;
-
     const esOperativo = perfilSeleccionado === 'operativo' && !perfilBaseUsuario;
 
     if (!esAdmin && (activeTab === 'perfiles' || activeTab === 'maestras')) {
-
       activeTab = 'preferencias';
-
     }
 
     if (esOperativo && (activeTab === 'sincronizar' || activeTab === 'edicion' || activeTab === 'perfiles' || activeTab === 'maestras')) {
-
       activeTab = 'preferencias';
-
     }
-
-
 
     // Conteo de documentos por perfil según las nuevas reglas
 
     const conteoAdminTotal = documentos.length;
-
     const conteoDirectivo = documentos.length; // Directivo ve todos los documentos
 
     const conteoAdmin = documentos.filter((d) => d.permisoAdministrativo === true || d.permisoOperativo === true).length;
-
     const conteoOperativo = documentos.filter((d) => d.permisoOperativo === true).length;
-
-
 
     this.modalContainer.innerHTML = `
 
@@ -3345,9 +2589,7 @@ export class ModalManager {
 
         <div class="modal-card modal-card-settings animate-scale-up" style="width: 820px; max-width: 95vw; height: 540px; min-height: 540px; display: flex; flex-direction: column; overflow: hidden; padding: 0;">
 
-          
-
-          <!-- Cabecera del Modal -->
+<!-- Cabecera del Modal -->
 
           <div class="modal-header" style="background: linear-gradient(135deg, #1f4260 0%, #265072 50%, #376c95 100%); color: #ffffff; padding: 16px 22px; display: flex; justify-content: space-between; align-items: center;">
 
@@ -3381,9 +2623,7 @@ export class ModalManager {
 
           </div>
 
-
-
-          <!-- Barra de Pestañas -->
+<!-- Barra de Pestañas -->
 
           <div class="settings-tabs-nav">
 
@@ -3439,15 +2679,11 @@ export class ModalManager {
 
           </div>
 
-
-
-          <!-- Contenedor Desplazable de Contenido -->
+<!-- Contenedor Desplazable de Contenido -->
 
           <div class="modal-body" style="padding: 0; overflow-y: auto; flex: 1; display: flex; flex-direction: column;">
 
-            
-
-            <!-- PESTAÑA: PERFILES (ASIGNACIÓN Y GESTIÓN DE PERFILES DE EMPLEADOS) - EXCLUSIVO ACCESO TOTAL -->
+<!-- PESTAÑA: PERFILES (ASIGNACIÓN Y GESTIÓN DE PERFILES DE EMPLEADOS) - EXCLUSIVO ACCESO TOTAL -->
 
             ${esAdmin
 
@@ -3475,8 +2711,6 @@ export class ModalManager {
 
                     </div>
 
-
-
                     <!-- Buscador en vivo con lista desplegable -->
 
                     <div style="position: relative;">
@@ -3498,8 +2732,6 @@ export class ModalManager {
                       <div id="staff-search-dropdown" style="display: none; position: absolute; top: 38px; left: 0; right: 0; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; box-shadow: 0 8px 16px rgba(0,0,0,0.12); max-height: 170px; overflow-y: auto; z-index: 50;"></div>
 
                     </div>
-
-
 
                     <!-- Ficha del Colaborador Seleccionado & Asignación -->
 
@@ -3525,8 +2757,6 @@ export class ModalManager {
 
                         </div>
 
-
-
                         <div style="display: flex; align-items: center; gap: 8px;">
 
                           <div>
@@ -3534,7 +2764,6 @@ export class ModalManager {
                             <label style="font-size: 0.74rem; font-weight: 700; color: var(--brand-navy); display: block; margin-bottom: 2px;">
 
                               Rol a Asignar:
-
                             </label>
 
                             <div style="height: 34px; padding: 0 10px; border: 1.5px solid var(--primary, #376c95); border-radius: 6px; font-size: 0.82rem; font-weight: 700; color: #1d4ed8; background: #eff6ff; display: flex; align-items: center; gap: 6px;">
@@ -3546,8 +2775,6 @@ export class ModalManager {
                             <input type="hidden" id="select-special-profile" value="administrativo" />
 
                           </div>
-
-
 
                           <button 
 
@@ -3575,8 +2802,6 @@ export class ModalManager {
 
                   </div>
 
-
-
                   <!-- Tabla de Colaboradores con Rol Administrativo Asignado -->
 
                   <div style="display: flex; flex-direction: column; gap: 6px; flex: 1; min-height: 0;">
@@ -3595,13 +2820,9 @@ export class ModalManager {
 
                       </div>
 
-
-
                       <input type="text" id="search-special-profiles" placeholder="🔍 Filtrar administrativos..." style="height: 28px; padding: 0 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.76rem; width: 200px;" />
 
                     </div>
-
-
 
                     <div style="flex: 1; max-height: 160px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 6px; background: #ffffff;">
 
@@ -3634,8 +2855,6 @@ export class ModalManager {
                   </div>
 
                 </div>
-
-
 
                 <!-- PESTAÑA: TABLAS MAESTRAS (PREFIJOS, TIPOS DE DOCUMENTO Y ÁREAS) -->
 
@@ -3685,8 +2904,6 @@ export class ModalManager {
 
                   </div>
 
-
-
                   <!-- SECCIÓN 1: TIPOS DE DOCUMENTO Y PREFIJOS -->
 
                   <div id="section-maestra-tipos" style="display: flex; flex-direction: column; gap: 10px; flex: 1; min-height: 0;">
@@ -3702,8 +2919,6 @@ export class ModalManager {
                       </button>
 
                     </div>
-
-
 
                     <!-- Formulario Crear/Editar Tipo de Documento -->
 
@@ -3767,8 +2982,6 @@ export class ModalManager {
 
                     </div>
 
-
-
                     <!-- Tabla de Tipos de Documento -->
 
                     <div style="flex: 1; max-height: 240px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 6px; background: #ffffff;">
@@ -3799,8 +3012,6 @@ export class ModalManager {
 
                   </div>
 
-
-
                   <!-- SECCIÓN 2: ÁREAS INSTITUCIONALES Y PROCESOS ASOCIADOS -->
 
                   <div id="section-maestra-areas" style="display: none; flex-direction: column; gap: 10px; flex: 1; min-height: 0;">
@@ -3816,8 +3027,6 @@ export class ModalManager {
                       </button>
 
                     </div>
-
-
 
                     <!-- Formulario Crear/Editar Área y Procesos -->
 
@@ -3881,8 +3090,6 @@ export class ModalManager {
 
                     </div>
 
-
-
                     <!-- Tabla de Áreas y Procesos -->
 
                     <div style="flex: 1; max-height: 240px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 6px; background: #ffffff;">
@@ -3913,8 +3120,6 @@ export class ModalManager {
 
                   </div>
 
-
-
                   <!-- SECCIÓN 3: TIPOS DE PROCESO (MACROPROCESOS) -->
 
                   <div id="section-maestra-tipos-proceso" style="display: none; flex-direction: column; gap: 10px; flex: 1; min-height: 0;">
@@ -3930,8 +3135,6 @@ export class ModalManager {
                       </button>
 
                     </div>
-
-
 
                     <!-- Formulario Crear/Editar Tipo de Proceso -->
 
@@ -3967,8 +3170,6 @@ export class ModalManager {
 
                     </div>
 
-
-
                     <!-- Tabla de Tipos de Proceso -->
 
                     <div style="flex: 1; max-height: 240px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 6px; background: #ffffff;">
@@ -4003,9 +3204,7 @@ export class ModalManager {
 
       }
 
-
-
-            <!-- PESTAÑA: PREFERENCIAS (DISEÑO DEL CATÁLOGO) -->
+<!-- PESTAÑA: PREFERENCIAS (DISEÑO DEL CATÁLOGO) -->
 
             <div class="settings-tab-content" id="tab-content-preferencias" style="display: ${activeTab === 'preferencias' ? 'flex' : 'none'}; flex-direction: column; gap: 14px; padding: 18px 22px;">
 
@@ -4027,9 +3226,7 @@ export class ModalManager {
 
               </div>
 
-
-
-              <div class="view-mode-selector-grid">
+<div class="view-mode-selector-grid">
 
                 <div class="view-mode-card ${vistaCatalogoActual === 'tarjetas' ? 'active' : ''}" id="card-view-mode-tarjetas" data-view="tarjetas">
 
@@ -4049,9 +3246,7 @@ export class ModalManager {
 
                 </div>
 
-
-
-                <div class="view-mode-card ${vistaCatalogoActual === 'tabla' ? 'active' : ''}" id="card-view-mode-tabla" data-view="tabla">
+<div class="view-mode-card ${vistaCatalogoActual === 'tabla' ? 'active' : ''}" id="card-view-mode-tabla" data-view="tabla">
 
                   <div class="view-mode-card-header">
 
@@ -4071,9 +3266,7 @@ export class ModalManager {
 
               </div>
 
-
-
-              <div id="view-mode-feedback-msg" style="display:none; margin-top:10px; padding:8px 12px; background:#ecfdf5; border:1px solid #a7f3d0; color:#065f46; border-radius:6px; font-size:0.78rem; font-weight:600;">
+<div id="view-mode-feedback-msg" style="display:none; margin-top:10px; padding:8px 12px; background:#ecfdf5; border:1px solid #a7f3d0; color:#065f46; border-radius:6px; font-size:0.78rem; font-weight:600;">
 
                 ✅ Preferencia de vista actualizada correctamente
 
@@ -4081,9 +3274,7 @@ export class ModalManager {
 
             </div>
 
-
-
-            <!-- PESTAÑA: ACTUALIZAR DATOS & RUTAS DE CONEXIÓN -->
+<!-- PESTAÑA: ACTUALIZAR DATOS & RUTAS DE CONEXIÓN -->
 
             <div class="settings-tab-content" id="tab-content-sincronizar" style="display: none;">
 
@@ -4103,9 +3294,7 @@ export class ModalManager {
 
               </div>
 
-
-
-              <!-- Bloque 1: Sincronización Manual Inmediata -->
+<!-- Bloque 1: Sincronización Manual Inmediata -->
 
               <div style="background: #edf5fa; border: 1.5px solid #cddde9; border-radius: 8px; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px;">
 
@@ -4155,9 +3344,7 @@ export class ModalManager {
 
               </div>
 
-
-
-              <!-- Bloque 2: Configuración de Rutas de Archivos (Exclusivo para Acceso Total / Administrador) -->
+<!-- Bloque 2: Configuración de Rutas de Archivos (Exclusivo para Acceso Total / Administrador) -->
 
               ${esAdmin
 
@@ -4201,8 +3388,6 @@ export class ModalManager {
 
                     </div>
 
-
-
                     <!-- Inputs de las 2 Rutas de SharePoint / OneDrive -->
 
                     <div style="display: grid; grid-template-columns: 1fr; gap: 8px;">
@@ -4212,7 +3397,6 @@ export class ModalManager {
                         <label style="font-size: 0.74rem; font-weight: 700; color: #334155; display: block; margin-bottom: 2px;">
 
                           1. EMPLEADOS_ACTIVOS.csv (Matriz de Colaboradores Activos):
-
                         </label>
 
                         <input 
@@ -4229,14 +3413,11 @@ export class ModalManager {
 
                       </div>
 
-
-
                       <div>
 
                         <label style="font-size: 0.74rem; font-weight: 700; color: #334155; display: block; margin-bottom: 2px;">
 
                           2. REPOSITORIO_DOCUMENTAL.csv (Repositorio de Documentos):
-
                         </label>
 
                         <input 
@@ -4254,8 +3435,6 @@ export class ModalManager {
                       </div>
 
                     </div>
-
-
 
                     <!-- Botones de Guardar / Restablecer Rutas (Visibles cuando está desbloqueado) -->
 
@@ -4287,13 +3466,9 @@ export class ModalManager {
 
             </div>
 
+</div>
 
-
-          </div>
-
-
-
-          <!-- Pie del Modal -->
+<!-- Pie del Modal -->
 
           <div class="modal-footer" style="padding: 12px 24px; background: #f8fafc; border-top: 1px solid var(--border-subtle); display: flex; justify-content: flex-end;">
 
@@ -4305,52 +3480,32 @@ export class ModalManager {
 
           </div>
 
-
-
-        </div>
+</div>
 
       </div>
 
     `;
 
-
-
     // Manejo de cambio de pestañas
 
     const tabs = this.modalContainer.querySelectorAll('.settings-tab-btn');
-
     const contents = {
-
       perfiles: document.getElementById('tab-content-perfiles'),
-
       maestras: document.getElementById('tab-content-maestras'),
-
       preferencias: document.getElementById('tab-content-preferencias'),
-
       sincronizar: document.getElementById('tab-content-sincronizar')
-
     };
-
-
 
     // Aplicar visibilidad de pestaña activa inicial
 
     Object.keys(contents).forEach((k) => {
-
       if (contents[k]) {
-
         contents[k].style.display = k === activeTab ? 'flex' : 'none';
-
       }
-
     });
 
-
-
     tabs.forEach((tab) => {
-
       tab.addEventListener('click', () => {
-
         tabs.forEach((t) => t.classList.remove('active'));
 
         tab.classList.add('active');
@@ -4358,177 +3513,107 @@ export class ModalManager {
         const target = tab.getAttribute('data-tab');
 
         Object.keys(contents).forEach((k) => {
-
           if (contents[k]) contents[k].style.display = k === target ? 'flex' : 'none';
-
         });
-
-
 
         // Cargar datos al abrir pestaña perfiles
 
         if (target === 'perfiles' && typeof renderListaColaboradoresEspeciales === 'function') {
-
           renderListaColaboradoresEspeciales();
-
         }
 
         // Cargar datos al abrir pestaña tablas maestras
 
         if (target === 'maestras') {
-
           if (typeof renderTablaMaestraTipos === 'function') renderTablaMaestraTipos();
 
           if (typeof renderTablaMaestraAreas === 'function') renderTablaMaestraAreas();
-
         }
-
       });
-
     });
-
-
 
     // ─── SELECTOR DE VISTA DUAL (TARJETAS VS TABLA) ───
 
     const cardTarjetas = document.getElementById('card-view-mode-tarjetas');
-
     const cardTabla = document.getElementById('card-view-mode-tabla');
-
     const feedbackVista = document.getElementById('view-mode-feedback-msg');
-
-
-
     const cambiarModoVisual = (nuevoModo) => {
-
       if (nuevoModo === 'tarjetas') {
-
         cardTarjetas?.classList.add('active');
 
         cardTabla?.classList.remove('active');
 
         if (cardTarjetas?.querySelector('.view-mode-status')) {
-
           cardTarjetas.querySelector('.view-mode-status').textContent = '✓ Activo';
-
         }
 
         if (cardTabla?.querySelector('.view-mode-status')) {
-
           cardTabla.querySelector('.view-mode-status').textContent = '';
-
         }
-
       } else {
-
         cardTabla?.classList.add('active');
 
         cardTarjetas?.classList.remove('active');
 
         if (cardTabla?.querySelector('.view-mode-status')) {
-
           cardTabla.querySelector('.view-mode-status').textContent = '✓ Activo';
-
         }
 
         if (cardTarjetas?.querySelector('.view-mode-status')) {
-
           cardTarjetas.querySelector('.view-mode-status').textContent = '';
-
         }
-
       }
-
-
 
       localStorage.setItem('usv_vista_catalogo', nuevoModo);
 
       staffService.guardarPreferenciaUsuario('vistaCatalogo', nuevoModo);
 
-
-
       if (feedbackVista) {
-
         feedbackVista.style.display = 'block';
 
         setTimeout(() => {
-
           if (feedbackVista) feedbackVista.style.display = 'none';
-
         }, 2200);
-
       }
-
-
 
       if (typeof onCambiarVista === 'function') {
-
         onCambiarVista(nuevoModo);
-
       }
-
     };
 
-
-
     cardTarjetas?.addEventListener('click', () => cambiarModoVisual('tarjetas'));
-
     cardTabla?.addEventListener('click', () => cambiarModoVisual('tabla'));
-
-
 
     // ─── PERFILES ESPECIALES A EMPLEADOS ACTIVOS (Lógica) ───
 
     let empleadoSeleccionadoParaPerfil = null;
-
     let grupoColaboradoresActual = 'administrativo';
-
-
-
     const renderListaColaboradoresEspeciales = (filtro = '') => {
-
       const tbody = document.getElementById('tbody-special-profiles');
 
       if (!tbody) return;
 
-
-
       const q = (filtro || '').toLowerCase().trim();
-
       const todos = staffService.obtenerColaboradoresConPerfilesEspeciales();
-
-
-
       const countAdmEl = document.getElementById('count-group-administrativo');
 
       if (countAdmEl) countAdmEl.textContent = todos.length;
 
-
-
       let lista = todos;
 
       if (q) {
-
         lista = lista.filter((u) => {
-
           const t = `${u.nombre || ''} ${u.identificacion || ''} ${u.cargo || ''} ${u.email || ''}`.toLowerCase();
 
           return t.includes(q);
-
         });
-
       }
-
-
 
       // Ordenar colaboradores estrictamente por orden alfabético A-Z
 
       lista.sort((a, b) => (a.nombre || '').localeCompare(b.nombre || '', 'es', { sensitivity: 'base' }));
 
-
-
       if (lista.length === 0) {
-
         tbody.innerHTML = `
 
           <tr>
@@ -4544,32 +3629,19 @@ export class ModalManager {
         `;
 
         return;
-
       }
 
-
-
       tbody.innerHTML = lista
-
         .map((u) => {
-
           const esRaiz = u.identificacion === '8160602' || u.esRaiz;
-
-
 
           // Comprobar si el usuario está bloqueado por tasa límite o bloqueo permanente
 
           const lockInfo = staffService.obtenerEstadoBloqueo(u.identificacion);
-
           const estaBloqueado = lockInfo.bloqueado;
-
           const badgeBloqueo = estaBloqueado
-
             ? `<span style="background:${lockInfo.tipo === 'cuenta' ? '#fee2e2' : '#fef3c7'}; color:${lockInfo.tipo === 'cuenta' ? '#991b1b' : '#92400e'}; border:1px solid ${lockInfo.tipo === 'cuenta' ? '#fca5a5' : '#fde68a'}; font-size:0.68rem; font-weight:700; padding:1px 6px; border-radius:10px; margin-left:4px; display:inline-block;" title="${lockInfo.error}">🔒 ${lockInfo.tipo === 'cuenta' ? 'Cuenta Bloqueada' : `Bloqueo Temporal (${lockInfo.minutosRestantes}m)`}</span>`
-
             : '';
-
-
 
           return `
 
@@ -4624,111 +3696,69 @@ export class ModalManager {
             </tr>
 
           `;
-
         })
-
         .join('');
-
-
 
       // Eventos del botón Desbloquear usuario (Superadministrador)
 
       tbody.querySelectorAll('.btn-unlock-inline-user').forEach((btnUnlock) => {
-
         btnUnlock.addEventListener('click', () => {
-
           const docNum = btnUnlock.getAttribute('data-doc');
-
           btnUnlock.disabled = true;
-
           btnUnlock.textContent = 'Desbloqueando...';
-
           const res = staffService.desbloquearUsuario(docNum);
 
           if (res.ok) {
-
             renderListaColaboradoresEspeciales(document.getElementById('search-special-profiles')?.value || '');
-
           }
-
         });
-
       });
-
-
 
       // Eventos de eliminar rol administrativo
 
       tbody.querySelectorAll('.btn-remove-special-profile').forEach((btn) => {
-
         btn.addEventListener('click', async () => {
-
           const docNum = btn.getAttribute('data-doc');
 
           if (confirm('¿Deseas remover el rol administrativo a este colaborador? Volverá al acceso operativo genérico.')) {
-
             await staffService.removerPerfilPersonalizado(docNum);
 
             if (window.antigravityApp?.mostrarToast) {
-
               window.antigravityApp.mostrarToast('✅ Rol administrativo removido correctamente.', 'success');
-
             }
 
             renderListaColaboradoresEspeciales(document.getElementById('search-special-profiles')?.value || '');
-
           }
-
         });
-
       });
-
     };
-
-
 
     // Buscador interactivo de empleados activos
 
     const inputSearchStaff = document.getElementById('input-search-staff-special');
-
     const dropdownStaff = document.getElementById('staff-search-dropdown');
-
     const cardSelectedStaff = document.getElementById('selected-staff-card');
 
-
-
     if (inputSearchStaff && dropdownStaff) {
-
       inputSearchStaff.addEventListener('input', (e) => {
-
         const query = e.target.value.trim();
 
         if (query.length < 2) {
-
           dropdownStaff.style.display = 'none';
 
           return;
-
         }
-
-
 
         const resultados = staffService.buscarColaboradores(query, 8);
 
         if (resultados.length === 0) {
-
           dropdownStaff.innerHTML = '<div style="padding: 10px 14px; font-size: 0.78rem; color: #94a3b8; text-align: center;">No se encontraron empleados activos con ese criterio.</div>';
-
           dropdownStaff.style.display = 'block';
 
           return;
-
         }
 
-
-
         dropdownStaff.innerHTML = resultados
-
           .map((emp) => `
 
             <div class="staff-dropdown-item" data-doc="${emp.identificacion}" style="padding: 8px 12px; border-bottom: 1px solid #f1f5f9; cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: background 0.15s ease;">
@@ -4746,132 +3776,73 @@ export class ModalManager {
             </div>
 
           `)
-
           .join('');
-
-
 
         dropdownStaff.style.display = 'block';
 
-
-
         dropdownStaff.querySelectorAll('.staff-dropdown-item').forEach((item) => {
-
           item.addEventListener('mouseenter', () => { item.style.background = '#f0f7ff'; });
-
           item.addEventListener('mouseleave', () => { item.style.background = '#ffffff'; });
 
           item.addEventListener('click', () => {
-
             const docNum = item.getAttribute('data-doc');
-
             const emp = staffService.buscarPorDocumento(docNum);
 
             if (emp) {
-
               empleadoSeleccionadoParaPerfil = emp;
-
               inputSearchStaff.value = `${emp.nombre} (CC ${emp.identificacion})`;
-
               dropdownStaff.style.display = 'none';
-
-
 
               // Mostrar ficha
 
               if (cardSelectedStaff) {
-
                 document.getElementById('sel-staff-nombre').textContent = emp.nombre;
-
                 document.getElementById('sel-staff-doc').textContent = emp.identificacion;
-
                 document.getElementById('sel-staff-cargo').textContent = emp.cargo;
-
                 document.getElementById('sel-staff-perfil-base').textContent = `Perfil base por cargo: ${staffService.determinarPerfil(emp.cargo, '')}`;
-
                 document.getElementById('sel-staff-email').textContent = emp.email || 'N/A';
-
                 document.getElementById('sel-staff-sede').textContent = emp.sede || 'Principal';
-
                 cardSelectedStaff.style.display = 'block';
-
               }
-
             }
-
           });
-
         });
-
       });
-
-
 
       // Cerrar dropdown al hacer clic fuera
 
       document.addEventListener('click', (e) => {
-
         if (!e.target.closest('#input-search-staff-special') && !e.target.closest('#staff-search-dropdown')) {
-
           dropdownStaff.style.display = 'none';
-
         }
-
       });
-
-
 
       // Guardar asignación
 
       document.getElementById('btn-save-special-profile')?.addEventListener('click', async () => {
-
         if (!empleadoSeleccionadoParaPerfil) {
-
           alert('Por favor busca y selecciona un colaborador primero.');
 
           return;
-
         }
-
-
 
         const perfilEspecial = 'administrativo';
-
         const msg = document.getElementById('special-profile-msg');
-
         const btnSave = document.getElementById('btn-save-special-profile');
-
-
-
         const nombreColab = empleadoSeleccionadoParaPerfil.nombre;
-
         const idColab = empleadoSeleccionadoParaPerfil.identificacion;
 
-
-
         if (btnSave) {
-
           btnSave.disabled = true;
-
           btnSave.textContent = 'Asignando...';
-
         }
-
-
 
         await staffService.asignarPerfilPersonalizado(idColab, perfilEspecial);
 
-
-
         if (btnSave) {
-
           btnSave.disabled = false;
-
           btnSave.textContent = 'Asignar Rol Administrativo 🛡️';
-
         }
-
-
 
         // Restablecer el buscador y la vista al estado inicial
 
@@ -4883,60 +3854,34 @@ export class ModalManager {
 
         empleadoSeleccionadoParaPerfil = null;
 
-
-
         // Notificación de éxito
 
         if (window.antigravityApp?.mostrarToast) {
-
           window.antigravityApp.mostrarToast(`✅ Rol Administrativo asignado con éxito a ${nombreColab}.`, 'success');
-
         }
 
-
-
         renderListaColaboradoresEspeciales(document.getElementById('search-special-profiles')?.value || '');
-
       });
-
-
 
       document.getElementById('search-special-profiles')?.addEventListener('input', (e) => {
-
         renderListaColaboradoresEspeciales(e.target.value);
-
       });
-
     }
-
-
 
     if (esAdmin) {
-
       renderListaColaboradoresEspeciales();
-
     }
-
-
 
     // ─── TABLAS MAESTRAS (Lógica) ───
 
     const sectionTipos = document.getElementById('section-maestra-tipos');
-
     const sectionAreas = document.getElementById('section-maestra-areas');
-
     const sectionTiposProceso = document.getElementById('section-maestra-tipos-proceso');
-
     const btnSubtabTipos = document.getElementById('btn-subtab-tipos');
-
     const btnSubtabAreas = document.getElementById('btn-subtab-areas');
-
     const btnSubtabTiposProceso = document.getElementById('btn-subtab-tipos-proceso');
 
-
-
     btnSubtabTipos?.addEventListener('click', () => {
-
       btnSubtabTipos.classList.add('active');
 
       btnSubtabAreas?.classList.remove('active');
@@ -4950,13 +3895,9 @@ export class ModalManager {
       if (sectionTiposProceso) sectionTiposProceso.style.display = 'none';
 
       renderTablaMaestraTipos(document.getElementById('search-maestra-tipos')?.value || '');
-
     });
 
-
-
     btnSubtabAreas?.addEventListener('click', () => {
-
       btnSubtabAreas.classList.add('active');
 
       btnSubtabTipos?.classList.remove('active');
@@ -4970,13 +3911,9 @@ export class ModalManager {
       if (sectionTiposProceso) sectionTiposProceso.style.display = 'none';
 
       renderTablaMaestraAreas(document.getElementById('search-maestra-areas')?.value || '');
-
     });
 
-
-
     btnSubtabTiposProceso?.addEventListener('click', () => {
-
       btnSubtabTiposProceso.classList.add('active');
 
       btnSubtabTipos?.classList.remove('active');
@@ -4990,53 +3927,32 @@ export class ModalManager {
       if (sectionAreas) sectionAreas.style.display = 'none';
 
       renderTablaMaestraTiposProceso(document.getElementById('search-maestra-tipos-proceso')?.value || '');
-
     });
 
-
-
     const renderTablaMaestraTipos = (filtro = '') => {
-
       const tbody = document.getElementById('tbody-maestra-tipos');
-
       const countEl = document.getElementById('count-maestra-tipos');
 
       if (!tbody) return;
 
-
-
       const q = (filtro || '').toLowerCase().trim();
-
       let tipos = [...staffService.obtenerTiposDocumento()]
-
         .sort((a, b) => (a.nombre || '').localeCompare(b.nombre || '', 'es'));
 
       if (countEl) countEl.textContent = tipos.length;
 
-
-
       if (q) {
-
         tipos = tipos.filter((t) => (t.nombre || '').toLowerCase().includes(q) || (t.prefijo || '').toLowerCase().includes(q) || (t.descripcion || '').toLowerCase().includes(q));
-
       }
 
-
-
       if (tipos.length === 0) {
-
         tbody.innerHTML = '<tr><td colspan="4" style="padding: 14px; text-align: center; color: #94a3b8;">No hay tipos de documento que coincidan.</td></tr>';
 
         return;
-
       }
 
-
-
       tbody.innerHTML = tipos
-
         .map(
-
           (t) => `
 
           <tr style="border-bottom: 1px solid #f1f5f9;">
@@ -5070,43 +3986,23 @@ export class ModalManager {
           </tr>
 
         `
-
         )
-
         .join('');
 
-
-
       tbody.querySelectorAll('.btn-edit-tipo-doc').forEach((btn) => {
-
         btn.onclick = () => {
-
           const id = btn.getAttribute('data-id');
-
           const nom = btn.getAttribute('data-nombre');
-
           const pref = btn.getAttribute('data-prefijo');
-
           const desc = btn.getAttribute('data-desc');
-
-
-
           const formBox = document.getElementById('form-box-tipo-doc');
-
           const titleBox = document.getElementById('title-form-tipo-doc');
-
           const inputId = document.getElementById('input-tipo-id');
-
           const inputNom = document.getElementById('input-tipo-nombre');
-
           const inputPref = document.getElementById('input-tipo-prefijo');
-
           const inputDesc = document.getElementById('input-tipo-desc');
 
-
-
           if (formBox) {
-
             formBox.style.display = 'block';
 
             if (titleBox) titleBox.textContent = `✏️ Modificar Tipo: ${nom}`;
@@ -5120,102 +4016,59 @@ export class ModalManager {
             if (inputDesc) inputDesc.value = desc;
 
             inputNom?.focus();
-
           }
-
         };
-
       });
 
-
-
       tbody.querySelectorAll('.btn-delete-tipo-doc').forEach((btn) => {
-
         btn.onclick = async () => {
-
           const id = btn.getAttribute('data-id');
-
           const nom = btn.getAttribute('data-nombre');
 
           if (confirm(`¿Estás seguro de eliminar el tipo de documento "${nom}" de la tabla maestra?`)) {
-
             await staffService.eliminarTipoDocumento(id);
 
             renderTablaMaestraTipos(document.getElementById('search-maestra-tipos')?.value || '');
-
           }
-
         };
-
       });
-
     };
 
-
-
     const renderTablaMaestraAreas = (filtro = '') => {
-
       const tbody = document.getElementById('tbody-maestra-areas');
-
       const countEl = document.getElementById('count-maestra-areas');
 
       if (!tbody) return;
 
-
-
       const q = (filtro || '').toLowerCase().trim();
-
       let areas = [...staffService.obtenerAreasInstitucionales()]
-
         .sort((a, b) => (a.nombre || '').localeCompare(b.nombre || '', 'es'));
 
       if (countEl) countEl.textContent = areas.length;
 
-
-
       if (q) {
-
         areas = areas.filter((a) => {
-
           const matchNom = (a.nombre || '').toLowerCase().includes(q);
-
           const matchSig = (a.sigla || '').toLowerCase().includes(q);
-
           const matchProcs = Array.isArray(a.procesos) && a.procesos.some((p) => p.toLowerCase().includes(q));
 
           return matchNom || matchSig || matchProcs;
-
         });
-
       }
 
-
-
       if (areas.length === 0) {
-
         tbody.innerHTML = '<tr><td colspan="4" style="padding: 14px; text-align: center; color: #94a3b8;">No hay áreas ni procesos que coincidan.</td></tr>';
 
         return;
-
       }
 
-
-
       tbody.innerHTML = areas
-
         .map(
-
           (a) => {
-
             const procsList = Array.isArray(a.procesos) ? a.procesos : [];
-
             const procsHtml = procsList.length > 0
-
               ? procsList.map((p) => `<span style="background: #f1f5f9; color: #1e293b; border: 1px solid #cbd5e1; padding: 2px 7px; border-radius: 4px; font-size: 0.72rem; font-weight: 500; display: inline-block; margin: 2px 3px 2px 0;">${p}</span>`).join('')
-
               : '<span style="color: #94a3b8; font-style: italic; font-size: 0.72rem;">Sin procesos asignados</span>';
-
-
 
             return `
 
@@ -5250,45 +4103,24 @@ export class ModalManager {
             </tr>
 
             `;
-
           }
-
         )
-
         .join('');
 
-
-
       tbody.querySelectorAll('.btn-edit-area').forEach((btn) => {
-
         btn.onclick = () => {
-
           const id = btn.getAttribute('data-id');
-
           const nom = btn.getAttribute('data-nombre');
-
           const sig = btn.getAttribute('data-sigla');
-
           const procs = btn.getAttribute('data-procesos') || '';
-
-
-
           const formBox = document.getElementById('form-box-area');
-
           const titleBox = document.getElementById('title-form-area');
-
           const inputId = document.getElementById('input-area-id');
-
           const inputNom = document.getElementById('input-area-nombre');
-
           const inputSig = document.getElementById('input-area-sigla');
-
           const inputProcs = document.getElementById('input-area-procesos');
 
-
-
           if (formBox) {
-
             formBox.style.display = 'block';
 
             if (titleBox) titleBox.textContent = `✏️ Modificar Área: ${nom}`;
@@ -5302,81 +4134,48 @@ export class ModalManager {
             if (inputProcs) inputProcs.value = procs;
 
             inputNom?.focus();
-
           }
-
         };
-
       });
 
-
-
       tbody.querySelectorAll('.btn-delete-area').forEach((btn) => {
-
         btn.onclick = async () => {
-
           const id = btn.getAttribute('data-id');
-
           const nom = btn.getAttribute('data-nombre');
 
           if (confirm(`¿Estás seguro de eliminar el área "${nom}" y sus procesos asociados de la tabla maestra?`)) {
-
             await staffService.eliminarAreaInstitucional(id);
 
             renderTablaMaestraAreas(document.getElementById('search-maestra-areas')?.value || '');
-
           }
-
         };
-
       });
-
     };
 
-
-
     const renderTablaMaestraTiposProceso = (filtro = '') => {
-
       const tbody = document.getElementById('tbody-maestra-tipos-proceso');
-
       const countEl = document.getElementById('count-maestra-tipos-proceso');
 
       if (!tbody) return;
 
-
-
       const q = (filtro || '').toLowerCase().trim();
-
       let tipos = [...staffService.obtenerTiposProceso()]
-
         .sort((a, b) => (a.nombre || '').localeCompare(b.nombre || '', 'es'));
 
       if (countEl) countEl.textContent = tipos.length;
 
-
-
       if (q) {
-
         tipos = tipos.filter((t) => (t.nombre || '').toLowerCase().includes(q));
-
       }
 
-
-
       if (tipos.length === 0) {
-
         tbody.innerHTML = '<tr><td colspan="2" style="padding: 14px; text-align: center; color: #94a3b8;">No hay tipos de proceso que coincidan.</td></tr>';
 
         return;
-
       }
 
-
-
       tbody.innerHTML = tipos
-
         .map(
-
           (tp) => `
 
           <tr style="border-bottom: 1px solid #f1f5f9;">
@@ -5410,35 +4209,19 @@ export class ModalManager {
           </tr>
 
         `
-
         )
-
         .join('');
 
-
-
       tbody.querySelectorAll('.btn-edit-tipo-proc').forEach((btn) => {
-
         btn.onclick = () => {
-
           const id = btn.getAttribute('data-id');
-
           const nom = btn.getAttribute('data-nombre');
-
-
-
           const formBox = document.getElementById('form-box-tipo-proceso');
-
           const titleBox = document.getElementById('title-form-tipo-proceso');
-
           const inputId = document.getElementById('input-tipo-proceso-id');
-
           const inputNom = document.getElementById('input-tipo-proceso-nombre');
 
-
-
           if (formBox) {
-
             formBox.style.display = 'block';
 
             if (titleBox) titleBox.textContent = `✏️ Modificar Tipo de Proceso: ${nom}`;
@@ -5448,59 +4231,35 @@ export class ModalManager {
             if (inputNom) inputNom.value = nom;
 
             inputNom?.focus();
-
           }
-
         };
-
       });
 
-
-
       tbody.querySelectorAll('.btn-delete-tipo-proc').forEach((btn) => {
-
         btn.onclick = async () => {
-
           const id = btn.getAttribute('data-id');
-
           const nom = btn.getAttribute('data-nombre');
 
           if (confirm(`¿Estás seguro de eliminar el tipo de proceso "${nom}" de la tabla maestra?`)) {
-
             await staffService.eliminarTipoProceso(id);
 
             renderTablaMaestraTiposProceso(document.getElementById('search-maestra-tipos-proceso')?.value || '');
-
           }
-
         };
-
       });
-
     };
-
-
 
     // Botones de Crear Tipo y Crear Área y Crear Tipo de Proceso
 
     document.getElementById('btn-nuevo-tipo-doc')?.addEventListener('click', () => {
-
       const formBox = document.getElementById('form-box-tipo-doc');
-
       const titleBox = document.getElementById('title-form-tipo-doc');
-
       const inputId = document.getElementById('input-tipo-id');
-
       const inputNom = document.getElementById('input-tipo-nombre');
-
       const inputPref = document.getElementById('input-tipo-prefijo');
-
       const inputDesc = document.getElementById('input-tipo-desc');
 
-
-
       if (formBox) {
-
         formBox.style.display = 'block';
 
         if (titleBox) titleBox.textContent = '➕ Agregar Nuevo Tipo de Documento';
@@ -5514,125 +4273,68 @@ export class ModalManager {
         if (inputDesc) inputDesc.value = '';
 
         inputNom?.focus();
-
       }
-
     });
 
-
-
     document.getElementById('btn-cancel-tipo-doc')?.addEventListener('click', () => {
-
       const formBox = document.getElementById('form-box-tipo-doc');
 
       if (formBox) formBox.style.display = 'none';
-
     });
 
-
-
     document.getElementById('btn-save-tipo-doc')?.addEventListener('click', async () => {
-
       const inputId = document.getElementById('input-tipo-id');
-
       const inputNom = document.getElementById('input-tipo-nombre');
-
       const inputPref = document.getElementById('input-tipo-prefijo');
-
       const inputDesc = document.getElementById('input-tipo-desc');
-
       const btnSave = document.getElementById('btn-save-tipo-doc');
-
-
-
       const nom = (inputNom?.value || '').trim();
-
       const pref = (inputPref?.value || '').trim().toUpperCase();
-
       const desc = (inputDesc?.value || '').trim();
 
-
-
       if (!nom || !pref) {
-
         alert('Por favor completa el nombre y el prefijo del tipo de documento.');
 
         return;
-
       }
-
-
 
       if (btnSave) {
-
         btnSave.disabled = true;
-
         btnSave.textContent = 'Guardando...';
-
       }
-
-
 
       await staffService.guardarTipoDocumento({
-
         id: inputId?.value || null,
-
         nombre: nom,
-
         prefijo: pref,
-
         descripcion: desc
-
       });
 
-
-
       if (btnSave) {
-
         btnSave.disabled = false;
-
         btnSave.textContent = '💾 Guardar Tipo';
-
       }
-
-
 
       const formBox = document.getElementById('form-box-tipo-doc');
 
       if (formBox) formBox.style.display = 'none';
 
       renderTablaMaestraTipos(document.getElementById('search-maestra-tipos')?.value || '');
-
     });
-
-
 
     document.getElementById('search-maestra-tipos')?.addEventListener('input', (e) => {
-
       renderTablaMaestraTipos(e.target.value);
-
     });
 
-
-
     document.getElementById('btn-nueva-area')?.addEventListener('click', () => {
-
       const formBox = document.getElementById('form-box-area');
-
       const titleBox = document.getElementById('title-form-area');
-
       const inputId = document.getElementById('input-area-id');
-
       const inputNom = document.getElementById('input-area-nombre');
-
       const inputSig = document.getElementById('input-area-sigla');
-
       const inputProcs = document.getElementById('input-area-procesos');
 
-
-
       if (formBox) {
-
         formBox.style.display = 'block';
 
         if (titleBox) titleBox.textContent = '➕ Agregar Nueva Área y Procesos';
@@ -5646,123 +4348,68 @@ export class ModalManager {
         if (inputProcs) inputProcs.value = '';
 
         inputNom?.focus();
-
       }
-
     });
 
-
-
     document.getElementById('btn-cancel-area')?.addEventListener('click', () => {
-
       const formBox = document.getElementById('form-box-area');
 
       if (formBox) formBox.style.display = 'none';
-
     });
 
-
-
     document.getElementById('btn-save-area')?.addEventListener('click', async () => {
-
       const inputId = document.getElementById('input-area-id');
-
       const inputNom = document.getElementById('input-area-nombre');
-
       const inputSig = document.getElementById('input-area-sigla');
-
       const inputProcs = document.getElementById('input-area-procesos');
-
       const btnSave = document.getElementById('btn-save-area');
-
-
-
       const nom = (inputNom?.value || '').trim();
-
       const sig = (inputSig?.value || '').trim().toUpperCase();
-
       const rawProcs = (inputProcs?.value || '').split(/[,\n]+/).map((p) => p.trim()).filter((p) => p.length > 0);
 
-
-
       if (!nom || !sig) {
-
         alert('Por favor completa el nombre del área y la sigla.');
 
         return;
-
       }
-
-
 
       if (btnSave) {
-
         btnSave.disabled = true;
-
         btnSave.textContent = 'Guardando...';
-
       }
-
-
 
       await staffService.guardarAreaInstitucional({
-
         id: inputId?.value || null,
-
         nombre: nom,
-
         sigla: sig,
-
         procesos: rawProcs
-
       });
 
-
-
       if (btnSave) {
-
         btnSave.disabled = false;
-
         btnSave.textContent = '💾 Guardar Área';
-
       }
-
-
 
       const formBox = document.getElementById('form-box-area');
 
       if (formBox) formBox.style.display = 'none';
 
       renderTablaMaestraAreas(document.getElementById('search-maestra-areas')?.value || '');
-
     });
-
-
 
     document.getElementById('search-maestra-areas')?.addEventListener('input', (e) => {
-
       renderTablaMaestraAreas(e.target.value);
-
     });
-
-
 
     // Eventos Tipo de Proceso
 
     document.getElementById('btn-nuevo-tipo-proceso')?.addEventListener('click', () => {
-
       const formBox = document.getElementById('form-box-tipo-proceso');
-
       const titleBox = document.getElementById('title-form-tipo-proceso');
-
       const inputId = document.getElementById('input-tipo-proceso-id');
-
       const inputNom = document.getElementById('input-tipo-proceso-nombre');
 
-
-
       if (formBox) {
-
         formBox.style.display = 'block';
 
         if (titleBox) titleBox.textContent = '➕ Agregar Nuevo Tipo de Proceso';
@@ -5772,130 +4419,78 @@ export class ModalManager {
         if (inputNom) inputNom.value = '';
 
         inputNom?.focus();
-
       }
-
     });
 
-
-
     document.getElementById('btn-cancel-tipo-proceso')?.addEventListener('click', () => {
-
       const formBox = document.getElementById('form-box-tipo-proceso');
 
       if (formBox) formBox.style.display = 'none';
-
     });
 
-
-
     document.getElementById('btn-save-tipo-proceso')?.addEventListener('click', async () => {
-
       const inputId = document.getElementById('input-tipo-proceso-id');
-
       const inputNom = document.getElementById('input-tipo-proceso-nombre');
-
       const btnSave = document.getElementById('btn-save-tipo-proceso');
-
-
-
       const nom = (inputNom?.value || '').trim();
 
       if (!nom) {
-
         alert('Por favor escribe el nombre del tipo de proceso.');
 
         return;
-
       }
-
-
 
       if (btnSave) {
-
         btnSave.disabled = true;
-
         btnSave.textContent = 'Guardando...';
-
       }
-
-
 
       await staffService.guardarTipoProceso({
-
         id: inputId?.value || null,
-
         nombre: nom
-
       });
 
-
-
       if (btnSave) {
-
         btnSave.disabled = false;
-
         btnSave.textContent = '💾 Guardar Tipo';
-
       }
-
-
 
       const formBox = document.getElementById('form-box-tipo-proceso');
 
       if (formBox) formBox.style.display = 'none';
 
       renderTablaMaestraTiposProceso(document.getElementById('search-maestra-tipos-proceso')?.value || '');
-
     });
-
-
 
     document.getElementById('search-maestra-tipos-proceso')?.addEventListener('input', (e) => {
-
       renderTablaMaestraTiposProceso(e.target.value);
-
     });
 
-
-
     if (esAdmin) {
-
       renderTablaMaestraTipos();
 
       renderTablaMaestraAreas();
 
       renderTablaMaestraTiposProceso();
-
     }
-
-
 
     // ─── GESTIÓN DE PREFERENCIAS DE VISTA (Tarjetas vs Tabla) ───
 
     const cardsViewMode = this.modalContainer.querySelectorAll('.view-mode-card');
 
     cardsViewMode.forEach((card) => {
-
       card.addEventListener('click', () => {
-
         const nuevaVista = card.getAttribute('data-view');
 
         if (!nuevaVista) return;
 
-
-
         cardsViewMode.forEach((c) => {
-
           c.classList.remove('active');
 
           const st = c.querySelector('.view-mode-status');
 
           if (st) st.textContent = '';
-
         });
-
-
 
         card.classList.add('active');
 
@@ -5903,93 +4498,56 @@ export class ModalManager {
 
         if (stAct) stAct.textContent = '✓ Activo';
 
-
-
         // Guardar preferencia
 
         try {
-
           localStorage.setItem('usv_vista_catalogo', nuevaVista);
-
         } catch { }
-
-
 
         const colab = staffService.obtenerSesionActiva() || staffService.obtenerUsuarioRecordado();
 
         if (colab && colab.identificacion) {
-
           staffService.guardarPreferenciaVistaCatalogo(colab.identificacion, nuevaVista);
-
         }
-
-
 
         // Notificar a la app principal
 
         if (typeof onCambiarVista === 'function') {
-
           onCambiarVista(nuevaVista);
-
         }
-
-
 
         const msgFeedback = this.modalContainer.querySelector('#view-mode-feedback-msg');
 
         if (msgFeedback) {
-
           msgFeedback.style.display = 'block';
-
           msgFeedback.textContent = `✅ Diseño del catálogo cambiado a: ${nuevaVista === 'tabla' ? 'Vista de Tabla' : 'Vista de Cuadrícula'}.`;
-
           setTimeout(() => { msgFeedback.style.display = 'none'; }, 3000);
-
         }
-
       });
-
     });
-
-
 
     // ─── GESTIÓN DE CAMBIO DE CONTRASEÑA PERSONAL (si aplica) ───
 
     this.modalContainer.querySelectorAll('.btn-toggle-pwd-visibility').forEach((btn) => {
-
       btn.addEventListener('click', (e) => {
-
         e.preventDefault();
 
         const targetId = btn.getAttribute('data-target');
-
         const input = this.modalContainer.querySelector(`#${targetId}`);
 
         if (input) {
-
           input.type = input.type === 'password' ? 'text' : 'password';
-
           btn.textContent = input.type === 'password' ? '👁️' : '🙈';
-
         }
-
       });
-
     });
-
-
 
     // Disparar sincronización desde el modal
 
     document.getElementById('btn-modal-sync-trigger')?.addEventListener('click', async () => {
-
       const spinner = document.getElementById('modal-sync-spinner');
-
       const btnText = document.getElementById('modal-sync-btn-text');
-
       const statusMsg = document.getElementById('modal-sync-status-msg');
-
-
 
       if (spinner) spinner.classList.add('spinning');
 
@@ -5997,226 +4555,130 @@ export class ModalManager {
 
       if (statusMsg) statusMsg.textContent = '⏳ Descargando catálogo en tiempo real desde OneDrive...';
 
-
-
       if (typeof onSincronizar === 'function') {
-
         try {
-
           await onSincronizar();
 
           if (statusMsg) {
-
             const hora = staffService.formatearHoraSolo(new Date());
-
             statusMsg.innerHTML = `✅ <strong>Sincronización completada exitosamente</strong> a las ${hora}.`;
-
           }
-
         } catch (err) {
-
           if (statusMsg) statusMsg.textContent = `❌ Error al sincronizar: ${err.message}`;
-
         } finally {
-
           if (spinner) spinner.classList.remove('spinning');
 
           if (btnText) btnText.textContent = 'Actualizar Datos Ahora';
-
         }
-
       }
-
     });
-
-
 
     // ─── RUTAS DE CONEXIÓN DE DATOS CENTRALES (Lógica) ───
 
     const inputRouteEmp = this.modalContainer.querySelector('#input-route-empleados');
-
     const inputRouteRepo = this.modalContainer.querySelector('#input-route-repositorio');
-
     const btnUnlockRoutes = this.modalContainer.querySelector('#btn-unlock-routes');
-
     const routesAuthBox = this.modalContainer.querySelector('#routes-auth-box');
-
     const routesActionBar = this.modalContainer.querySelector('#routes-action-bar');
-
     const routesSaveMsg = this.modalContainer.querySelector('#routes-save-msg');
-
-
-
     const cargarRutasEnInputs = () => {
-
       const rutas = staffService.obtenerRutasConfiguradas();
 
       if (inputRouteEmp) inputRouteEmp.value = rutas.empleadosCsv;
 
       if (inputRouteRepo) inputRouteRepo.value = rutas.repositorioCsv;
-
     };
-
-
 
     cargarRutasEnInputs();
 
-
-
     if (btnUnlockRoutes) {
-
       btnUnlockRoutes.addEventListener('click', () => {
-
         btnUnlockRoutes.style.display = 'none';
 
         if (inputRouteEmp) {
-
           inputRouteEmp.disabled = false;
-
           inputRouteEmp.style.background = '#ffffff';
 
           inputRouteEmp.focus();
-
         }
 
         if (inputRouteRepo) {
-
           inputRouteRepo.disabled = false;
-
           inputRouteRepo.style.background = '#ffffff';
-
         }
 
         if (routesActionBar) routesActionBar.style.display = 'flex';
-
       });
-
     }
 
-
-
     this.modalContainer.querySelector('#btn-save-routes')?.addEventListener('click', async () => {
-
       const nuevasRutas = {
-
         empleadosCsv: inputRouteEmp?.value,
-
         repositorioCsv: inputRouteRepo?.value
-
       };
 
       staffService.guardarRutasConfiguradas(nuevasRutas);
 
-
-
       if (routesSaveMsg) {
-
         routesSaveMsg.style.display = 'block';
-
         routesSaveMsg.style.color = '#166534';
-
         routesSaveMsg.textContent = '✅ Rutas actualizadas correctamente. Sincronizando con nuevas rutas...';
-
         setTimeout(() => { routesSaveMsg.style.display = 'none'; }, 4000);
-
       }
 
-
-
       try {
-
         await staffService.inicializar();
 
         await sharepointService.obtenerDocumentos(true);
-
       } catch { }
-
     });
 
-
-
     this.modalContainer.querySelector('#btn-reset-routes')?.addEventListener('click', () => {
-
       if (confirm('¿Restablecer las rutas de SharePoint a sus valores originales por defecto?')) {
-
         localStorage.removeItem('agy_sgc_custom_routes');
 
         cargarRutasEnInputs();
 
         if (routesSaveMsg) {
-
           routesSaveMsg.style.display = 'block';
-
           routesSaveMsg.style.color = '#1e40af';
-
           routesSaveMsg.textContent = 'ℹ️ Rutas restablecidas a los valores por defecto.';
-
           setTimeout(() => { routesSaveMsg.style.display = 'none'; }, 3000);
-
         }
-
       }
-
     });
-
-
-
-
-
-
 
     // Sincronizar y cerrar modal al presionar "Listo" o "✕"
 
     const cerrarYSincronizar = (e) => {
-
       if (e) {
-
         e.preventDefault();
 
         e.stopPropagation();
-
       }
 
       try {
-
         if (typeof onCambiarPerfil === 'function' && perfilSeleccionado && perfilSeleccionado !== perfilActual) {
-
           onCambiarPerfil(perfilSeleccionado);
-
         }
 
         const iconEl = document.getElementById('header-profile-icon');
-
         const nameEl = document.getElementById('header-profile-name');
-
         const pillBtn = document.getElementById('btn-profile-pill');
-
         const iconos = {
-
           total: '🛡️',
-
           administrador: '🛡️',
-
           operativo: '👷',
-
           administrativo: '💼',
-
           directivo: '👑'
-
         };
 
         const nombres = {
-
           total: 'Acceso Total',
-
           administrador: 'Acceso Total',
-
           operativo: 'Operativo',
-
           administrativo: 'Administrativo',
-
           directivo: 'Directivo'
-
         };
 
         if (iconEl) iconEl.textContent = iconos[perfilSeleccionado] || '👤';
@@ -6224,94 +4686,53 @@ export class ModalManager {
         if (nameEl) nameEl.textContent = nombres[perfilSeleccionado] || perfilSeleccionado;
 
         if (pillBtn) pillBtn.title = `Perfil de acceso activo: ${nombres[perfilSeleccionado] || perfilSeleccionado}. Haz clic para cambiar perfil o ver configuración.`;
-
       } catch (err) {
-
         console.error('Error al sincronizar perfil al cerrar:', err);
-
       } finally {
-
         this.cerrarModal();
-
       }
-
     };
-
-
 
     this.modalContainer.querySelector('#btn-settings-close')?.addEventListener('click', cerrarYSincronizar);
 
     this.modalContainer.querySelector('#btn-settings-close-bottom')?.addEventListener('click', cerrarYSincronizar);
-
   }
-
-
 
   /**
 
    * Modal de Autenticación de Colaborador (Primer ingreso, login por contraseña y gestión de sesión)
-
    */
 
   abrirModalAutenticacion(staffService, onLoginExitoso, onLogout, esObligatorio = false) {
-
     document.body.classList.add('modal-open');
-
-
 
     const sesionActiva = (typeof staffService.obtenerUsuarioAdministradorEnCache === 'function' && staffService.obtenerUsuarioAdministradorEnCache())
 
       || staffService.obtenerSesionActiva();
 
-
-
     const iconosPerfil = {
-
       directivo: '👑',
-
       administrativo: '💼',
-
       operativo: '👷',
-
       total: '🛡️',
-
       administrador: '🛡️'
-
     };
-
-
 
     const coloresPerfil = {
-
       directivo: '#7c3aed',
-
       administrativo: '#0284c7',
-
       operativo: '#16a34a',
-
       total: '#dc2626',
-
       administrador: '#dc2626'
-
     };
-
-
 
     const descripcionesPermisos = {
-
       total: 'Acceso Total: Creación, modificación, recodificación y retiro de documentos, configuración de rutas y auditoría institucional.',
-
       administrador: 'Acceso Total: Creación, modificación, recodificación y retiro de documentos, configuración de rutas y auditoría institucional.',
-
       directivo: 'Perfil Directivo: Visualización del 100% del catálogo documental, dashboard de analítica estratégica, auditoría y modo edición.',
-
       administrativo: 'Perfil Administrativo: Documentos operativos y administrativos, métricas en Dashboard y activación de modo edición.',
-
       operativo: 'Perfil Asistencial / Operativo: Consulta directa y descarga de formatos, guías y procedimientos asistenciales autorizados.'
-
     };
-
-
 
     // ─────────────────────────────────────────────────────────────
 
@@ -6320,16 +4741,10 @@ export class ModalManager {
     // ─────────────────────────────────────────────────────────────
 
     const renderSesionActiva = (sesion) => {
-
       const pNorm = (sesion.perfil || 'operativo').toLowerCase();
-
       const icono = iconosPerfil[pNorm] || '👤';
-
       const color = coloresPerfil[pNorm] || '#0284c7';
-
       const descPermiso = descripcionesPermisos[pNorm] || descripcionesPermisos.operativo;
-
-
 
       this.modalContainer.innerHTML = `
 
@@ -6351,9 +4766,7 @@ export class ModalManager {
 
             </div>
 
-
-
-            <div class="modal-body" style="gap: 14px; max-height: 80vh; overflow-y: auto;">
+<div class="modal-body" style="gap: 14px; max-height: 80vh; overflow-y: auto;">
 
               <div style="text-align: center; padding: 6px 0 2px;">
 
@@ -6377,9 +4790,7 @@ export class ModalManager {
 
               </div>
 
-
-
-              <!-- Ficha de Datos Institucionales -->
+<!-- Ficha de Datos Institucionales -->
 
               <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px 14px; display: flex; flex-direction: column; gap: 7px; font-size: 0.83rem;">
 
@@ -6417,9 +4828,7 @@ export class ModalManager {
 
               </div>
 
-
-
-              <!-- Opción de Cambiar Contraseña Administrativa -->
+<!-- Opción de Cambiar Contraseña Administrativa -->
 
               <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 4px;">
 
@@ -6433,9 +4842,7 @@ export class ModalManager {
 
             </div>
 
-
-
-            <div class="modal-footer" style="justify-content: space-between;">
+<div class="modal-footer" style="justify-content: space-between;">
 
               <button type="button" class="btn btn-secondary" id="btn-auth-logout" style="color: #dc2626;">
 
@@ -6457,27 +4864,18 @@ export class ModalManager {
 
       `;
 
-
-
       this.modalContainer.querySelector('#btn-auth-close')?.addEventListener('click', () => this.cerrarModal());
-
       this.modalContainer.querySelector('#btn-auth-done')?.addEventListener('click', () => this.cerrarModal());
-
       this.modalContainer.querySelector('#btn-cambiar-password')?.addEventListener('click', () => renderCambiarPassword(sesion));
 
       this.modalContainer.querySelector('#btn-auth-logout')?.addEventListener('click', () => {
-
         staffService.cerrarSesion();
 
         this.cerrarModal();
 
         if (onLogout) onLogout();
-
       });
-
     };
-
-
 
     // ─────────────────────────────────────────────────────────────
 
@@ -6486,7 +4884,6 @@ export class ModalManager {
     // ─────────────────────────────────────────────────────────────
 
     const renderCambiarPassword = (sesionActual) => {
-
       this.modalContainer.innerHTML = `
 
         <div class="modal-backdrop">
@@ -6507,9 +4904,7 @@ export class ModalManager {
 
             </div>
 
-
-
-            <div class="modal-body" style="gap: 12px; max-height: 80vh; overflow-y: auto;">
+<div class="modal-body" style="gap: 12px; max-height: 80vh; overflow-y: auto;">
 
               <div style="text-align: center; padding: 4px 0;">
 
@@ -6529,9 +4924,7 @@ export class ModalManager {
 
               </div>
 
-
-
-              <form id="form-cambiar-pwd" style="display: flex; flex-direction: column; gap: 10px;">
+<form id="form-cambiar-pwd" style="display: flex; flex-direction: column; gap: 10px;">
 
                 <div>
 
@@ -6551,9 +4944,7 @@ export class ModalManager {
 
                 </div>
 
-
-
-                <div>
+<div>
 
                   <label style="display: block; font-size: 0.80rem; font-weight: 600; color: #334155; margin-bottom: 3px;">
 
@@ -6571,9 +4962,7 @@ export class ModalManager {
 
                 </div>
 
-
-
-                <div>
+<div>
 
                   <label style="display: block; font-size: 0.80rem; font-weight: 600; color: #334155; margin-bottom: 3px;">
 
@@ -6591,9 +4980,7 @@ export class ModalManager {
 
                 </div>
 
-
-
-                <div id="cambiar-pwd-msg" style="display: none; font-size: 0.80rem; font-weight: 600; border-radius: 6px; padding: 7px 10px; line-height: 1.35;">
+<div id="cambiar-pwd-msg" style="display: none; font-size: 0.80rem; font-weight: 600; border-radius: 6px; padding: 7px 10px; line-height: 1.35;">
 
                 </div>
 
@@ -6601,9 +4988,7 @@ export class ModalManager {
 
             </div>
 
-
-
-            <div class="modal-footer" style="justify-content: space-between;">
+<div class="modal-footer" style="justify-content: space-between;">
 
               <button type="button" class="btn btn-secondary" id="btn-pwd-cancel">
 
@@ -6625,33 +5010,20 @@ export class ModalManager {
 
       `;
 
-
-
       const setupToggle = (btnId, inputId) => {
-
         const btn = document.getElementById(btnId);
-
         const inp = document.getElementById(inputId);
 
         if (btn && inp) {
-
           btn.addEventListener('click', (e) => {
-
             e.preventDefault();
 
             const esPwd = inp.type === 'password';
-
             inp.type = esPwd ? 'text' : 'password';
-
             btn.textContent = esPwd ? '🙈' : '👁️';
-
           });
-
         }
-
       };
-
-
 
       setupToggle('btn-toggle-pwd-act', 'input-pwd-actual');
 
@@ -6659,165 +5031,93 @@ export class ModalManager {
 
       setupToggle('btn-toggle-pwd-conf', 'input-pwd-confirm');
 
-
-
       const inputAct = document.getElementById('input-pwd-actual');
-
       const inputNue = document.getElementById('input-pwd-nueva');
-
       const inputConf = document.getElementById('input-pwd-confirm');
-
       const msgBox = document.getElementById('cambiar-pwd-msg');
-
       const form = document.getElementById('form-cambiar-pwd');
-
-
-
       const ejecutarCambio = async (e) => {
-
         if (e) e.preventDefault();
 
         const pAct = inputAct ? inputAct.value : '';
-
         const pNue = inputNue ? inputNue.value : '';
-
         const pConf = inputConf ? inputConf.value : '';
 
-
-
         if (!pAct) {
-
           if (msgBox) {
-
             msgBox.textContent = '❌ Por favor ingresa tu contraseña actual.';
-
             msgBox.style.background = '#fef2f2';
-
             msgBox.style.color = '#dc2626';
-
             msgBox.style.border = '1px solid #fecaca';
-
             msgBox.style.display = 'block';
-
           }
 
           inputAct?.focus();
 
           return;
-
         }
 
-
-
         if (!pNue || pNue.length < 6) {
-
           if (msgBox) {
-
             msgBox.textContent = '❌ La nueva contraseña debe tener al menos 6 caracteres.';
-
             msgBox.style.background = '#fef2f2';
-
             msgBox.style.color = '#dc2626';
-
             msgBox.style.border = '1px solid #fecaca';
-
             msgBox.style.display = 'block';
-
           }
 
           inputNue?.focus();
 
           return;
-
         }
 
-
-
         if (pNue !== pConf) {
-
           if (msgBox) {
-
             msgBox.textContent = '❌ Las nuevas contraseñas no coinciden.';
-
             msgBox.style.background = '#fef2f2';
-
             msgBox.style.color = '#dc2626';
-
             msgBox.style.border = '1px solid #fecaca';
-
             msgBox.style.display = 'block';
-
           }
 
           inputConf?.focus();
 
           return;
-
         }
-
-
 
         const res = await staffService.cambiarPasswordAdmin(sesionActual.identificacion, pAct, pNue);
 
         if (res.ok) {
-
           if (msgBox) {
-
             msgBox.textContent = '✅ ¡Contraseña actualizada exitosamente!';
-
             msgBox.style.background = '#f0fdf4';
-
             msgBox.style.color = '#16a34a';
-
             msgBox.style.border = '1px solid #bbf7d0';
-
             msgBox.style.display = 'block';
-
           }
 
           setTimeout(() => {
-
             renderSesionActiva(sesionActual);
-
           }, 1200);
-
         } else {
-
           if (msgBox) {
-
             msgBox.textContent = res.error ? `❌ ${res.error}` : '❌ Error al actualizar contraseña.';
-
             msgBox.style.background = '#fef2f2';
-
             msgBox.style.color = '#dc2626';
-
             msgBox.style.border = '1px solid #fecaca';
-
             msgBox.style.display = 'block';
-
           }
-
         }
-
       };
-
-
 
       form?.addEventListener('submit', ejecutarCambio);
 
       document.getElementById('btn-submit-cambiar-pwd')?.addEventListener('click', ejecutarCambio);
 
       document.getElementById('btn-pwd-close')?.addEventListener('click', () => this.cerrarModal());
-
       document.getElementById('btn-pwd-cancel')?.addEventListener('click', () => renderSesionActiva(sesionActual));
-
-
-
       setTimeout(() => inputAct?.focus(), 50);
-
     };
-
-
 
     // ─────────────────────────────────────────────────────────────
 
@@ -6826,14 +5126,9 @@ export class ModalManager {
     // ─────────────────────────────────────────────────────────────
 
     const renderSelectorColaborador = () => {
-
       const listaBase = (Array.isArray(staffService.empleados) && staffService.empleados.length > 0)
-
         ? staffService.empleados
-
         : (Array.isArray(staffService.obtenerColaboradoresBase?.() || []) ? staffService.obtenerColaboradoresBase() : []);
-
-
 
       this.modalContainer.innerHTML = `
 
@@ -6855,9 +5150,7 @@ export class ModalManager {
 
             </div>
 
-
-
-            <div class="modal-body" style="gap: 12px; max-height: 78vh; overflow-y: auto;">
+<div class="modal-body" style="gap: 12px; max-height: 78vh; overflow-y: auto;">
 
               <div>
 
@@ -6875,9 +5168,7 @@ export class ModalManager {
 
               </div>
 
-
-
-              <!-- Buscador Instantáneo -->
+<!-- Buscador Instantáneo -->
 
               <div style="position: relative;">
 
@@ -6901,17 +5192,13 @@ export class ModalManager {
 
               </div>
 
-
-
-              <!-- Lista de Resultados Dinámicos -->
+<!-- Lista de Resultados Dinámicos -->
 
               <div id="staff-results-container" style="max-height: 280px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 8px; background: #f8fafc; padding: 4px; display: flex; flex-direction: column; gap: 4px;">
 
               </div>
 
-
-
-              <!-- Acceso alternativo por correo SharePoint directo -->
+<!-- Acceso alternativo por correo SharePoint directo -->
 
               <div style="border-top: 1px dashed #cbd5e1; padding-top: 10px; margin-top: 4px;">
 
@@ -6949,9 +5236,7 @@ export class ModalManager {
 
             </div>
 
-
-
-            ${!esObligatorio ? `
+${!esObligatorio ? `
 
               <div class="modal-footer" style="justify-content: flex-end;">
 
@@ -6967,42 +5252,24 @@ export class ModalManager {
 
       `;
 
-
-
       const inputFilter = this.modalContainer.querySelector('#input-filter-staff');
-
       const resultsBox = this.modalContainer.querySelector('#staff-results-container');
-
       const inputDirect = this.modalContainer.querySelector('#input-sp-direct-email');
-
       const btnDirect = this.modalContainer.querySelector('#btn-sp-direct-login');
-
-
-
       const renderizarResultados = (filtro = '') => {
-
         const fNorm = filtro.trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
-
         const coincidencias = listaBase.filter((emp) => {
-
           if (!fNorm) return true;
 
           const nom = (emp.nombre || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
-
           const id = (emp.identificacion || '').toString();
-
           const email = (emp.email || '').toLowerCase();
-
           const cargo = (emp.cargo || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
 
           return nom.includes(fNorm) || id.includes(fNorm) || email.includes(fNorm) || cargo.includes(fNorm);
-
         }).slice(0, 30);
 
-
-
         if (coincidencias.length === 0) {
-
           resultsBox.innerHTML = `
 
             <div style="text-align: center; padding: 20px; color: #94a3b8; font-size: 0.82rem;">
@@ -7014,17 +5281,11 @@ export class ModalManager {
           `;
 
           return;
-
         }
 
-
-
         resultsBox.innerHTML = coincidencias.map((emp) => {
-
           const perfil = staffService.determinarPerfil(emp.cargo, emp.identificacion) || emp.perfil || 'operativo';
-
           const icono = iconosPerfil[perfil] || '👤';
-
           const color = coloresPerfil[perfil] || '#0284c7';
 
           return `
@@ -7066,190 +5327,112 @@ export class ModalManager {
             </div>
 
           `;
-
         }).join('');
 
-
-
         resultsBox.querySelectorAll('.staff-select-card').forEach((card) => {
-
           card.addEventListener('mouseenter', () => {
-
             card.style.borderColor = '#0284c7';
-
             card.style.background = '#f0f9ff';
-
           });
 
           card.addEventListener('mouseleave', () => {
-
             card.style.borderColor = '#e2e8f0';
-
             card.style.background = '#ffffff';
-
           });
 
           card.addEventListener('click', async () => {
-
             const email = card.getAttribute('data-email');
-
             const id = card.getAttribute('data-id');
-
             const res = await staffService.iniciarSesionDirecta(email || id);
 
             if (res.ok) {
-
               this.cerrarModal();
 
               if (onLoginExitoso) onLoginExitoso(res.usuario);
-
             }
-
           });
-
         });
-
       };
 
-
-
       inputFilter?.addEventListener('input', (e) => {
-
         renderizarResultados(e.target.value);
-
       });
-
-
 
       renderizarResultados('');
 
-
-
       btnDirect?.addEventListener('click', async () => {
-
         const email = (inputDirect?.value || '').trim();
 
         if (!email || !email.includes('@')) {
-
           alert('Por favor ingresa un correo corporativo válido.');
 
           return;
-
         }
 
         const res = await staffService.iniciarSesionDirecta(email);
 
         if (res.ok) {
-
           this.cerrarModal();
 
           if (onLoginExitoso) onLoginExitoso(res.usuario);
-
         }
-
       });
 
-
-
       this.modalContainer.querySelector('#btn-auth-close')?.addEventListener('click', () => this.cerrarModal());
-
       this.modalContainer.querySelector('#btn-auth-cancel')?.addEventListener('click', () => this.cerrarModal());
-
       setTimeout(() => inputFilter?.focus(), 80);
-
     };
-
-
 
     // DECISIÓN INICIAL: Si hay sesión activa muestra la ficha, de lo contrario el selector directo
 
     if (sesionActiva) {
-
       renderSesionActiva(sesionActiva);
-
     } else {
-
       renderSelectorColaborador();
-
     }
-
   }
-
-
 
   /**
 
    * Obtiene el prefijo de nomenclatura estándar según el tipo de documento (desde Tablas Maestras)
-
    */
 
   obtenerPrefijoTipoDocumento(tipo) {
-
     const tipos = staffService.obtenerTiposDocumento();
-
     const key = (tipo || '')
-
       .normalize('NFD')
-
       .replace(/[\u0300-\u036f]/g, '')
-
       .toLowerCase()
-
       .trim();
 
-
-
     const match = tipos.find((t) => {
-
       const nom = (t.nombre || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
-
       return nom === key || nom.includes(key) || key.includes(nom);
-
     });
-
-
 
     if (match && match.prefijo) return match.prefijo.toUpperCase();
 
     return tipo ? tipo.substring(0, 3).toUpperCase() : 'DOC';
-
   }
-
-
 
   /**
 
    * Obtiene la sigla estándar institucional según el área seleccionada (desde Tablas Maestras)
-
    */
 
   obtenerSiglaArea(area) {
-
     const areas = staffService.obtenerAreasInstitucionales();
-
     const key = (area || '')
-
       .normalize('NFD')
-
       .replace(/[\u0300-\u036f]/g, '')
-
       .toLowerCase()
-
       .trim();
 
-
-
     const match = areas.find((a) => {
-
       const nom = (a.nombre || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
-
       const sig = (a.sigla || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
-
       return nom === key || sig === key || nom.includes(key) || key.includes(nom);
-
     });
-
-
 
     if (match && match.sigla) return match.sigla.toUpperCase();
 
@@ -7258,399 +5441,239 @@ export class ModalManager {
     const palabras = key.split(/\s+/).filter((p) => p.length > 2);
 
     if (palabras.length >= 2) {
-
       return palabras.map((p) => p[0].toUpperCase()).join('').substring(0, 4);
-
     }
 
     return (area || 'GEN').substring(0, 3).toUpperCase();
-
   }
-
-
 
   /**
 
    * Obtiene la colección completa y actualizada de documentos consolidados
-
    * desde la aplicación activa (catálogo en vivo), sharepointService y el motor de filtros.
-
    */
 
   obtenerDocumentosActuales() {
-
     const mapa = new Map();
 
     // 1. Instancia viva de la aplicación (catálogo en memoria en tiempo real)
 
     const appDocs = (typeof window !== 'undefined' && window.__agyApp && Array.isArray(window.__agyApp.documentos))
-
       ? window.__agyApp.documentos
-
       : [];
 
     for (const d of appDocs) {
-
       if (d && d.codigo) {
-
         mapa.set((d.codigo || '').trim().toUpperCase(), d);
-
       }
-
     }
 
     // 2. Colección de sharepointService
 
     const spDocs = Array.isArray(sharepointService?.documentosEnMemoria)
-
       ? sharepointService.documentosEnMemoria
-
       : [];
 
     for (const d of spDocs) {
-
       if (d && d.codigo) {
-
         const cod = (d.codigo || '').trim().toUpperCase();
 
         if (!mapa.has(cod)) mapa.set(cod, d);
-
       }
-
     }
 
     // 3. Documentos originales en filterEngine
 
     const feDocs = (typeof filterEngine !== 'undefined' && Array.isArray(filterEngine?.documentosOriginales))
-
       ? filterEngine.documentosOriginales
-
       : [];
 
     for (const d of feDocs) {
-
       if (d && d.codigo) {
-
         const cod = (d.codigo || '').trim().toUpperCase();
 
         if (!mapa.has(cod)) mapa.set(cod, d);
-
       }
-
     }
 
     return Array.from(mapa.values());
-
   }
-
-
 
   /**
 
    * Calcula el código automático con el consecutivo más alto + 1 con 3 cifras
-
    * Garantiza que nunca se sugiera un código que ya exista en el catálogo institucional.
-
    */
 
   calcularSiguienteCodigo(tipoDoc, area) {
-
     const prefijo = this.obtenerPrefijoTipoDocumento(tipoDoc);
-
     const sigla = this.obtenerSiglaArea(area);
-
     const patron = new RegExp('^' + prefijo + '[-_]' + sigla + '[-_](\\d+)', 'i');
-
-
-
     let maxConsecutivo = 0;
-
     const docs = this.obtenerDocumentosActuales();
-
     const codigosExistentes = new Set();
 
-
-
     for (const d of docs) {
-
       if (!d) continue;
 
-
-
       if (d.codigo) {
-
         const cod = d.codigo.trim().toUpperCase();
 
         codigosExistentes.add(cod);
 
-
-
         const match = cod.match(patron);
 
         if (match && match[1]) {
-
           const num = parseInt(match[1], 10);
 
           if (!isNaN(num) && num > maxConsecutivo) {
-
             maxConsecutivo = num;
-
           }
-
         }
-
       }
-
-
 
       // Evaluar registros derivados asociados
 
       if (Array.isArray(d.registrosDerivados)) {
-
         for (const r of d.registrosDerivados) {
-
           if (r && r.codigo) {
-
             const codR = r.codigo.trim().toUpperCase();
 
             codigosExistentes.add(codR);
 
-
-
             const matchR = codR.match(patron);
 
             if (matchR && matchR[1]) {
-
               const numR = parseInt(matchR[1], 10);
 
               if (!isNaN(numR) && numR > maxConsecutivo) {
-
                 maxConsecutivo = numR;
-
               }
-
             }
-
           }
-
         }
-
       }
-
     }
 
-
-
     let sigNum = maxConsecutivo + 1;
-
     let consecutivoStr = String(sigNum).padStart(3, '0');
-
     let codigoCompleto = `${prefijo}-${sigla}-${consecutivoStr}`;
 
-
-
     // Garantía absoluta contra duplicados:
-
     // Si por alguna razón el código generado ya existe en el catálogo,
-
     // avanzar secuencialmente hasta encontrar el siguiente consecutivo verdaderamente disponible
 
     while (codigosExistentes.has(codigoCompleto.toUpperCase())) {
-
       sigNum++;
 
       consecutivoStr = String(sigNum).padStart(3, '0');
-
       codigoCompleto = `${prefijo}-${sigla}-${consecutivoStr}`;
-
     }
 
-
-
     return {
-
       codigoCompleto: codigoCompleto,
-
       prefijo: prefijo,
-
       siglaArea: sigla,
-
       consecutivo: consecutivoStr,
-
       numero: sigNum
-
     };
-
   }
-
-
 
   /**
 
    * Obtiene rutas de carpetas de SharePoint sugeridas a partir del prefijo o área de codificación
-
    */
 
   obtenerRutasSugeridas(codigo, tipoDoc, area, proceso) {
-
     const docs = this.obtenerDocumentosActuales();
-
     const codUpper = (codigo || '').trim().toUpperCase();
-
     const partesCod = codUpper.split('-');
-
     const prefijo = partesCod.length >= 2 ? `${partesCod[0]}-${partesCod[1]}` : codUpper;
-
-
-
     const mapaRutas = new Map();
-
-
-
     const procesarDoc = (d) => {
-
       const spUrl = (d.sharepointUrl || d.downloadUrl || '').trim();
 
       if (!spUrl || spUrl === '#' || !spUrl.includes('/Documentos compartidos/')) return;
 
-
-
       let folderUrl = sharepointService.obtenerUrlCarpetaUbicacion(d);
 
       if (!folderUrl) {
-
         try {
-
           const urlLimpia = spUrl.split('?')[0];
-
           const lastSlash = urlLimpia.lastIndexOf('/');
 
           if (lastSlash > 0) {
-
             folderUrl = urlLimpia.substring(0, lastSlash);
-
           }
-
         } catch { }
-
       }
 
-
-
       if (!folderUrl || folderUrl === '#') return;
-
-
 
       const rutaLegible = sharepointService.obtenerRutaLegible(d);
 
       if (!rutaLegible || rutaLegible === 'No se encuentra disponible') return;
 
-
-
       if (!mapaRutas.has(folderUrl)) {
-
         mapaRutas.set(folderUrl, {
-
           folderUrl: folderUrl,
-
           urlCarpeta: folderUrl,
-
           rutaLegible: rutaLegible,
-
           count: 0,
-
           ejemplos: []
-
         });
-
       }
 
       const entry = mapaRutas.get(folderUrl);
-
       entry.count += 1;
 
       if (entry.ejemplos.length < 3 && d.codigo) {
-
         entry.ejemplos.push(d.codigo);
-
       }
-
     };
-
-
 
     // 1. Filtrar por prefijo exacto (ej: "INS-GIC", "FMT-GTH", "DA-GMD")
 
     if (prefijo) {
-
       docs.filter((d) => (d.codigo || '').toUpperCase().startsWith(prefijo)).forEach(procesarDoc);
-
     }
-
-
 
     // 2. Si no encontró por prefijo, buscar por misma Área y Tipo de Documento
 
     if (mapaRutas.size === 0 && area && tipoDoc) {
-
       docs
-
         .filter(
-
           (d) =>
-
             (d.area || '').toLowerCase() === area.toLowerCase() &&
-
             (d.tipoDocumento || '').toLowerCase() === tipoDoc.toLowerCase()
-
         )
-
         .forEach(procesarDoc);
-
     }
-
-
 
     // 3. Si no encontró, buscar por misma Área
 
     if (mapaRutas.size === 0 && area) {
-
       docs.filter((d) => (d.area || '').toLowerCase() === area.toLowerCase()).forEach(procesarDoc);
-
     }
 
-
-
     return {
-
       prefijo: prefijo,
-
       rutas: Array.from(mapaRutas.values()).sort((a, b) => b.count - a.count)
-
     };
-
   }
 
-
-
   normalizarFechaAInputDate(str) {
-
     if (!str) {
-
       const d = new Date();
 
       return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-
     }
 
     const s = String(str).trim();
-
     const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
 
     if (m) {
-
       return `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`;
-
     }
 
     if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
@@ -7658,228 +5681,132 @@ export class ModalManager {
     const d = new Date();
 
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-
   }
 
-
-
   convertirInputDateAFecha(dateVal) {
-
     if (!dateVal) {
-
       const d = new Date();
 
       return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
-
     }
 
     const s = String(dateVal).trim();
-
     const m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
 
     if (m) {
-
       return `${m[3]}/${m[2]}/${m[1]}`;
-
     }
 
     return s;
-
   }
 
-
-
   generarOptionsTiempoRetencion(seleccionado = '5 Años') {
-
     const opciones = ['1 Año', '2 Años', '3 Años', '4 Años', '5 Años', 'Indefinido', 'N/A'];
-
     const selNorm = (seleccionado || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-
     let encontrada = false;
-
     const html = opciones.map((opt) => {
-
       const optNorm = opt.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-
       const isSel = optNorm === selNorm;
 
       if (isSel) encontrada = true;
 
       return `<option value="${opt}" ${isSel ? 'selected' : ''}>${opt}</option>`;
-
     }).join('');
 
-
-
     if (!encontrada && seleccionado && seleccionado.trim()) {
-
       return `<option value="${seleccionado.trim()}" selected>${seleccionado.trim()}</option>` + html;
-
     }
 
     return html;
-
   }
 
-
-
   generarOptionsLugarCustodia(seleccionado = 'Oficina central y sede') {
-
     const opciones = ['Archivo digital', 'Oficina central', 'Oficina central y sede'];
-
     const selNorm = (seleccionado || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-
     let encontrada = false;
-
     const html = opciones.map((opt) => {
-
       const optNorm = opt.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-
       const isSel = optNorm === selNorm || (selNorm.includes('sede') && optNorm.includes('sede')) || (selNorm.includes('ofinica') && optNorm.includes('oficina'));
 
       if (isSel) encontrada = true;
 
       return `<option value="${opt}" ${isSel ? 'selected' : ''}>${opt}</option>`;
-
     }).join('');
 
-
-
     if (!encontrada && seleccionado && seleccionado.trim()) {
-
       return `<option value="${seleccionado.trim()}" selected>${seleccionado.trim()}</option>` + html;
-
     }
 
     return html;
-
   }
-
-
 
   /**
 
    * Modal interactivo para crear y registrar un nuevo documento en Google Sheets
-
    */
 
   abrirModalNuevoDocumento({ onGuardar = null, esRegistro = false, docPadre = null } = {}) {
-
     document.body.classList.add('modal-open');
-
-
 
     // Cargar listas dinámicas desde las Tablas Maestras ordenadas alfabéticamente
 
     const tiposDocMaestros = [...staffService.obtenerTiposDocumento()]
-
       .sort((a, b) => (a.nombre || '').localeCompare(b.nombre || '', 'es'));
 
     const areasMaestras = [...staffService.obtenerAreasInstitucionales()]
-
       .sort((a, b) => (a.nombre || '').localeCompare(b.nombre || '', 'es'));
-
-
 
     // Lista de formatos base disponibles para registros derivados
 
     const formatosBase = this.obtenerDocumentosActuales()
-
       .filter((d) => !d.esRegistro && d.subclase !== 'Registro')
-
       .sort((a, b) => (a.codigo || '').localeCompare(b.codigo || '', 'es'));
-
-
-
     let docPadreSeleccionado = docPadre || (esRegistro && formatosBase.length > 0 ? formatosBase[0] : null);
-
-
-
     const tipoDocDefault = esRegistro ? 'Formato' : (tiposDocMaestros[0]?.nombre || 'Formato');
-
     const areaDefault = docPadreSeleccionado?.areaNombre || docPadreSeleccionado?.area || areasMaestras[0]?.nombre || 'Gestión Talento Humano';
-
-
 
     // Código inicial por defecto calculado
 
     const codInicialPadre = esRegistro && docPadreSeleccionado
-
       ? (sharepointService.calcularSiguienteCodigoRegistro ? sharepointService.calcularSiguienteCodigoRegistro(docPadreSeleccionado) : docPadreSeleccionado.codigo)
-
       : '';
 
     const codigoInicial = esRegistro && docPadreSeleccionado
-
       ? { codigoCompleto: codInicialPadre, prefijoTipo: 'FMT', siglaArea: docPadreSeleccionado.area || 'GIC' }
-
       : this.calcularSiguienteCodigo(tipoDocDefault, areaDefault);
 
-
-
     const optionsFormatosPadreHtml = formatosBase.map((d) => {
-
       const selected = docPadreSeleccionado && (docPadreSeleccionado.codigo === d.codigo) ? 'selected' : '';
-
       return `<option value="${d.codigo}" ${selected}>${d.codigo} - ${d.titulo}</option>`;
-
     }).join('');
 
-
-
     const optionsTiposHtml = tiposDocMaestros
-
       .map((t, idx) => `<option value="${t.nombre}" ${(esRegistro ? t.nombre === 'Formato' : idx === 0) ? 'selected' : ''}>${t.nombre} (${t.prefijo})</option>`)
-
       .join('');
-
-
 
     const tipoProcesoDefault = docPadreSeleccionado?.tipoProceso || staffService.obtenerTipoProcesoPorArea(areaDefault, docPadreSeleccionado?.proceso || '') || 'Apoyo';
-
-
-
     const tiposProcesoMaestros = staffService.obtenerTiposProceso();
-
     const optionsTiposProcesoHtml = tiposProcesoMaestros
-
       .map((tp) => `<option value="${tp.nombre}" ${tp.nombre.toLowerCase() === tipoProcesoDefault.toLowerCase() ? 'selected' : ''}>${tp.nombre}</option>`)
-
       .join('');
-
-
 
     const areasValidasDefault = staffService.obtenerAreasPorTipoProceso(tipoProcesoDefault);
-
     const optionsAreasHtml = (areasValidasDefault.length > 0 ? areasValidasDefault : areasMaestras)
-
       .map((a) => `<option value="${a.nombre}" ${(a.nombre || '').toLowerCase() === (areaDefault || '').toLowerCase() ? 'selected' : ''}>${a.nombre} (${a.sigla})</option>`)
-
       .join('');
 
-
-
     const generarOptionsProcesosND = (nombreArea, tipoProceso = '', procesoSeleccionado = '') => {
-
       const tp = tipoProceso || staffService.obtenerTipoProcesoPorArea(nombreArea, procesoSeleccionado);
-
       const procs = staffService.obtenerProcesosPorAreaYTipo(nombreArea, tp);
 
       if (procs.length === 0) {
-
         return `<option value="N/A">N/A</option>`;
-
       }
 
       return procs.map((p) => `<option value="${p}" ${p.toLowerCase() === (procesoSeleccionado || '').toLowerCase() ? 'selected' : ''}>${p}</option>`).join('');
-
     };
 
-
-
     const optionsProcesosHtml = generarOptionsProcesosND(areaDefault, tipoProcesoDefault, docPadreSeleccionado?.proceso || '');
-
-
 
     this.modalContainer.innerHTML = `
 
@@ -7887,9 +5814,7 @@ export class ModalManager {
 
         <div class="modal-card animate-scale-up" role="dialog" aria-modal="true" style="max-width: 690px; max-height: 92vh; display: flex; flex-direction: column; overflow: hidden; padding: 0;">
 
-          
-
-          <!-- Encabezado con Azul Institucional Corporativo -->
+<!-- Encabezado con Azul Institucional Corporativo -->
 
           <div class="modal-header" style="background: linear-gradient(135deg, #1f4260 0%, #265072 50%, #376c95 100%); color: #ffffff; padding: 18px 24px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.15);">
 
@@ -7927,19 +5852,13 @@ export class ModalManager {
 
           </div>
 
-
-
-          <!-- Formulario con scroll -->
+<!-- Formulario con scroll -->
 
           <form id="form-nuevo-documento" style="padding: 22px 26px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 14px; margin: 0;">
 
-            
+<div id="nuevo-doc-error" style="display: none; background: #fef2f2; border: 1px solid #fecaca; color: #dc2626; padding: 10px 14px; border-radius: 8px; font-size: 0.82rem; font-weight: 600;"></div>
 
-            <div id="nuevo-doc-error" style="display: none; background: #fef2f2; border: 1px solid #fecaca; color: #dc2626; padding: 10px 14px; border-radius: 8px; font-size: 0.82rem; font-weight: 600;"></div>
-
-
-
-            <!-- Selector de Clasificación / Nivel Documental -->
+<!-- Selector de Clasificación / Nivel Documental -->
 
             <div style="background: #f1f5f9; border: 1.5px solid #cbd5e1; border-radius: 10px; padding: 10px 14px; display: flex; flex-direction: column; gap: 8px;">
 
@@ -7981,9 +5900,7 @@ export class ModalManager {
 
             </div>
 
-
-
-            <!-- Panel de Formato Base Asociado (visible cuando es Registro) -->
+<!-- Panel de Formato Base Asociado (visible cuando es Registro) -->
 
             <div id="nd-seccion-padre" style="display: ${esRegistro ? 'flex' : 'none'}; flex-direction: column; gap: 6px; background: #fffbeb; border: 1.5px solid #fde68a; border-radius: 10px; padding: 12px 14px;">
 
@@ -8003,9 +5920,7 @@ export class ModalManager {
 
             </div>
 
-
-
-            <!-- Fila 1: Tipo de Documento, Área Institucional y Código Automático / Heredado -->
+<!-- Fila 1: Tipo de Documento, Área Institucional y Código Automático / Heredado -->
 
             <div id="nd-fila-codificacion" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 10px; padding: 12px 14px; align-items: start;">
 
@@ -8055,9 +5970,7 @@ export class ModalManager {
 
             </div>
 
-
-
-            <!-- Fila 2: Nombre / Título del Documento, Versión y Formato -->
+<!-- Fila 2: Nombre / Título del Documento, Versión y Formato -->
 
             <div style="display: grid; grid-template-columns: 2.2fr 1fr 1.1fr; gap: 12px;">
 
@@ -8109,9 +6022,7 @@ export class ModalManager {
 
             </div>
 
-
-
-            <!-- Fila 3: Tipo de Proceso y Proceso Específico -->
+<!-- Fila 3: Tipo de Proceso y Proceso Específico -->
 
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
 
@@ -8149,9 +6060,7 @@ export class ModalManager {
 
             </div>
 
-
-
-            <!-- Fila 4: Estado del Documento -->
+<!-- Fila 4: Estado del Documento -->
 
             <div>
 
@@ -8175,9 +6084,7 @@ export class ModalManager {
 
             </div>
 
-
-
-            <!-- Fila 5: Vigencia, Tiempo de Retención y Lugar de Custodia -->
+<!-- Fila 5: Vigencia, Tiempo de Retención y Lugar de Custodia -->
 
             <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px;">
 
@@ -8227,9 +6134,7 @@ export class ModalManager {
 
             </div>
 
-
-
-            <!-- Fila 6: Tipo de Cambio -->
+<!-- Fila 6: Tipo de Cambio -->
 
             <div style="margin-top: 2px;">
 
@@ -8243,9 +6148,7 @@ export class ModalManager {
 
             </div>
 
-
-
-            <!-- Fila 7: Permisos RBAC y Descarga -->
+<!-- Fila 7: Permisos RBAC y Descarga -->
 
             <div style="background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 10px; padding: 12px 16px;">
 
@@ -8285,9 +6188,7 @@ export class ModalManager {
 
             </div>
 
-
-
-            <!-- Fila: Vínculo Directo Manual del Documento (SharePoint) -->
+<!-- Fila: Vínculo Directo Manual del Documento (SharePoint) -->
             <div style="background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 10px; padding: 12px 14px;">
               <label for="nd-vinculo-directo" style="display: block; font-size: 0.78rem; font-weight: 700; color: var(--brand-navy, #1f4260); margin-bottom: 4px;">
                 🔗 Vínculo Directo del Documento (SharePoint)
@@ -8338,9 +6239,7 @@ export class ModalManager {
 
             </div>
 
-
-
-            <!-- Nota Informativa de Campos OneDrive -->
+<!-- Nota Informativa de Campos OneDrive -->
 
             <div style="background: #edf5fa; border: 1px solid #cddde9; border-radius: 8px; padding: 10px 14px; font-size: 0.76rem; color: var(--brand-navy, #1f4260); display: flex; align-items: flex-start; gap: 8px;">
 
@@ -8354,9 +6253,7 @@ export class ModalManager {
 
             </div>
 
-
-
-            <!-- Botones Footer -->
+<!-- Botones Footer -->
 
             <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 6px; padding-top: 14px; border-top: 1px solid #e2e8f0;">
 
@@ -8374,84 +6271,49 @@ export class ModalManager {
 
             </div>
 
+</form>
 
-
-          </form>
-
-
-
-        </div>
+</div>
 
       </div>
 
     `;
 
-
-
     const inputTipoDoc = document.getElementById('nd-tipo-doc');
-
     const inputArea = document.getElementById('nd-area');
-
     const inputCodigo = document.getElementById('nd-codigo');
-
     const selectProceso = document.getElementById('nd-proceso');
-
-
 
     // Función reactiva unificada para verificar la disponibilidad y actualizar rutas o ubicación exacta
 
     const actualizarDisponibilidadYRutas = () => {
-
       const cod = inputCodigo.value.trim().toUpperCase();
-
       const tipo = inputTipoDoc.value;
-
       const ar = inputArea.value;
-
       const proc = selectProceso ? selectProceso.value : '';
-
-
-
       const esRegActual = Boolean(document.getElementById('nd-subclase-registro')?.checked);
 
       if (esRegActual) {
-
         const codPadre = selectPadre?.value;
-
         const padre = formatosBase.find((d) => (d.codigo || '').toUpperCase() === (codPadre || '').toUpperCase());
-
         const subcarpetaNombre = padre ? `${padre.codigo} ${padre.titulo}` : '';
-
         const tituloDoc = inputTitulo ? inputTitulo.value.trim() : '';
-
         const enlaceSecundario = (padre && sharepointService.generarEnlacesDocumentoSecundario)
-
           ? sharepointService.generarEnlacesDocumentoSecundario(padre, { codigo: cod, titulo: tituloDoc, extension: 'docx' })
-
           : null;
 
-
-
         const containerBadge = document.getElementById('nd-disp-badge-container');
-
         const inputDisp = document.getElementById('nd-disponibilidad');
-
         const prefijoBadge = document.getElementById('nd-rutas-prefijo-label');
-
         const listContainer = document.getElementById('nd-rutas-list');
-
         const wrapperSeccion = document.getElementById('nd-disponibilidad-seccion-wrapper');
-
         const tituloSeccion = document.getElementById('nd-disp-seccion-titulo');
-
-
 
         if (prefijoBadge) prefijoBadge.textContent = `Consecutivo: ${cod}`;
 
         if (inputDisp) inputDisp.value = 'DISPONIBLE';
 
         if (containerBadge) {
-
           containerBadge.innerHTML = `
 
             <span style="display:inline-flex; align-items:center; gap:5px; padding:3px 9px; background:#dbeafe; border:1px solid #93c5fd; border-radius:6px; color:#1e40af; font-size:0.75rem; font-weight:700;">
@@ -8463,25 +6325,18 @@ export class ModalManager {
             </span>
 
           `;
-
         }
 
         if (wrapperSeccion) {
-
           wrapperSeccion.style.background = '#f0fdf4';
-
           wrapperSeccion.style.borderColor = '#86efac';
-
         }
 
         if (tituloSeccion) {
-
           tituloSeccion.innerHTML = `<span>📂</span> Ubicación en Subcarpeta Dedicada del Formato Base:`;
-
         }
 
         if (listContainer) {
-
           listContainer.innerHTML = `
 
             <div style="background: #ffffff; border: 1.5px solid #86efac; border-radius: 8px; padding: 11px 14px; display: flex; align-items: center; justify-content: space-between; gap: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
@@ -8523,73 +6378,43 @@ export class ModalManager {
           `;
 
           listContainer.querySelectorAll('.btn-open-sp-folder').forEach((btn) => {
-
             btn.addEventListener('click', (e) => {
-
               e.preventDefault();
 
               const rawAttr = btn.getAttribute('data-folder-url') || '';
-
               const url = rawAttr ? decodeURIComponent(rawAttr) : '';
 
               if (url && url !== 'undefined' && url !== 'null' && url !== '#') {
-
                 window.open(url, '_blank');
-
               }
-
             });
-
           });
-
         }
 
         return;
-
       }
 
-
-
       const docExistente = this.obtenerDocumentosActuales().find((d) => (d.codigo || '').toUpperCase() === cod && !d.esRegistro);
-
       const tieneEnlace = Boolean(
-
         docExistente &&
-
         ((docExistente.sharepointUrl && docExistente.sharepointUrl.trim() !== '' && docExistente.sharepointUrl !== '#') ||
-
           (docExistente.downloadUrl && docExistente.downloadUrl.trim() !== '' && docExistente.downloadUrl !== '#'))
-
       );
 
-
-
       const containerBadge = document.getElementById('nd-disp-badge-container');
-
       const inputDisp = document.getElementById('nd-disponibilidad');
-
       const prefijoBadge = document.getElementById('nd-rutas-prefijo-label');
-
       const listContainer = document.getElementById('nd-rutas-list');
-
       const wrapperSeccion = document.getElementById('nd-disponibilidad-seccion-wrapper');
-
       const tituloSeccion = document.getElementById('nd-disp-seccion-titulo');
-
-
-
       const resRutas = this.obtenerRutasSugeridas(cod, tipo, ar, proc);
 
       if (prefijoBadge) prefijoBadge.textContent = `Prefijo: ${resRutas.prefijo || 'General'}`;
 
-
-
       if (tieneEnlace) {
-
         if (inputDisp) inputDisp.value = 'DISPONIBLE';
 
         if (containerBadge) {
-
           containerBadge.innerHTML = `
 
             <span style="display:inline-flex; align-items:center; gap:5px; padding:3px 9px; background:#dcfce7; border:1px solid #86efac; border-radius:6px; color:#15803d; font-size:0.75rem; font-weight:700;">
@@ -8601,33 +6426,21 @@ export class ModalManager {
             </span>
 
           `;
-
         }
 
         if (wrapperSeccion) {
-
           wrapperSeccion.style.background = '#f0fdf4';
-
           wrapperSeccion.style.borderColor = '#86efac';
-
         }
 
         if (tituloSeccion) {
-
           tituloSeccion.innerHTML = `<span>🟢</span> Archivo detectado en Repositorio:`;
-
         }
 
-
-
         const rutaActual = sharepointService.obtenerRutaLegible(docExistente);
-
         const folderUrl = docExistente.sharepointUrl || docExistente.downloadUrl || '';
 
-
-
         if (listContainer) {
-
           listContainer.innerHTML = `
 
             <div style="background: #ffffff; border: 1.5px solid #86efac; border-radius: 8px; padding: 11px 14px; display: flex; align-items: center; justify-content: space-between; gap: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
@@ -8661,15 +6474,11 @@ export class ModalManager {
             </div>
 
           `;
-
         }
-
       } else {
-
         if (inputDisp) inputDisp.value = 'NO DISPONIBLE';
 
         if (containerBadge) {
-
           containerBadge.innerHTML = `
 
             <span style="display:inline-flex; align-items:center; gap:5px; padding:3px 9px; background:#fee2e2; border:1px solid #fca5a5; border-radius:6px; color:#b91c1c; font-size:0.75rem; font-weight:700;">
@@ -8681,29 +6490,19 @@ export class ModalManager {
             </span>
 
           `;
-
         }
 
         if (wrapperSeccion) {
-
           wrapperSeccion.style.background = '#f0f7ff';
-
           wrapperSeccion.style.borderColor = '#b9d9f5';
-
         }
 
         if (tituloSeccion) {
-
           tituloSeccion.innerHTML = `<span>📁</span> Rutas sugeridas para almacenar el documento en SharePoint:`;
-
         }
 
-
-
         if (listContainer) {
-
           if (resRutas.rutas.length === 0) {
-
             listContainer.innerHTML = `
 
               <div style="background: #ffffff; border: 1px dashed #cbd5e1; border-radius: 8px; padding: 10px 14px; font-size: 0.76rem; color: #64748b; text-align: center;">
@@ -8713,22 +6512,13 @@ export class ModalManager {
               </div>
 
             `;
-
           } else {
-
             listContainer.innerHTML = resRutas.rutas
-
               .map((r) => {
-
                 const cleanRuta = r.rutaLegible
-
                   .replace(/^DOCUMENTOS_INSTITUCIONALES\/[^\/]+\/[^\/]+\/[^\/]+\//i, '')
-
                   .replace(/^DOCUMENTOS_INSTITUCIONALES\//i, '')
-
                   .replace(/\//g, ' ❯ ');
-
-
 
                 return `
 
@@ -8759,155 +6549,89 @@ export class ModalManager {
                   </div>
 
                 `;
-
               })
-
               .join('');
-
           }
-
         }
-
       }
 
-
-
       if (listContainer) {
-
         listContainer.querySelectorAll('.btn-open-sp-folder').forEach((btn) => {
-
           btn.addEventListener('click', (e) => {
-
             e.preventDefault();
 
             const rawAttr = btn.getAttribute('data-folder-url') || '';
-
             const url = rawAttr ? decodeURIComponent(rawAttr) : '';
 
             if (url && url !== 'undefined' && url !== 'null' && url !== '#') {
-
               window.open(url, '_blank');
-
             } else {
-
               if (window.Swal) {
-
                 Swal.fire('Ruta no disponible', 'La dirección de la carpeta de SharePoint no está disponible.', 'warning');
-
               } else {
-
                 alert('La dirección de la carpeta de SharePoint no está disponible.');
-
               }
-
             }
-
           });
-
         });
-
       }
-
     };
-
-
 
     const selectTipoProceso = document.getElementById('nd-tipo-proceso');
-
-
-
     const obtenerTipoProcesoPorArea = (nombreArea, proceso = '') => {
-
       return staffService.obtenerTipoProcesoPorArea(nombreArea, proceso);
-
     };
-
-
 
     // Selectores y elementos reactivos para cambio de Subclase / Registro
 
     const radioBase = document.getElementById('nd-subclase-base');
-
     const radioRegistro = document.getElementById('nd-subclase-registro');
-
     const seccionPadre = document.getElementById('nd-seccion-padre');
-
     const selectPadre = document.getElementById('nd-select-padre');
-
     const badgeSubclase = document.getElementById('nd-subclase-badge');
-
     const labelCodigo = document.getElementById('nd-label-codigo');
-
     const labelTitulo = document.getElementById('nd-label-titulo');
-
     const inputTitulo = document.getElementById('nd-titulo');
-
     const headerTitle = document.getElementById('nd-header-title');
-
     const headerDesc = document.getElementById('nd-header-desc');
-
-
-
     const actualizarDesdePadre = () => {
-
       const codPadre = selectPadre?.value;
-
       const padre = formatosBase.find((d) => (d.codigo || '').toUpperCase() === (codPadre || '').toUpperCase());
 
       if (padre) {
-
         inputCodigo.value = (sharepointService.calcularSiguienteCodigoRegistro ? sharepointService.calcularSiguienteCodigoRegistro(padre) : padre.codigo);
 
         if (inputArea) {
-
           const areaMatch = areasMaestras.find((a) =>
-
             (a.nombre || '').toLowerCase() === (padre.areaNombre || padre.area || '').toLowerCase() ||
-
             (a.sigla || '').toUpperCase() === (padre.area || '').toUpperCase()
-
           );
 
           if (areaMatch) inputArea.value = areaMatch.nombre;
-
         }
 
         if (selectTipoProceso) {
-
           selectTipoProceso.value = padre.tipoProceso || staffService.obtenerTipoProcesoPorArea(inputArea.value, padre.proceso) || 'Apoyo';
-
         }
 
         if (selectProceso) {
-
           selectProceso.innerHTML = generarOptionsProcesosND(inputArea.value, selectTipoProceso ? selectTipoProceso.value : '', padre.proceso || '');
-
         }
 
         if (inputTitulo) {
-
           inputTitulo.placeholder = `ej. ${padre.titulo} Anticoagulados`;
 
           if (!inputTitulo.value.trim() || formatosBase.some(f => inputTitulo.value.trim() === f.titulo || inputTitulo.value.trim() === `${f.titulo} `)) {
-
             inputTitulo.value = `${padre.titulo} `;
-
           }
-
         }
 
         actualizarDisponibilidadYRutas();
-
       }
-
     };
 
-
-
     const cambiarSubclase = (esReg) => {
-
       if (esReg) {
-
         if (seccionPadre) seccionPadre.style.display = 'flex';
 
         if (headerTitle) headerTitle.textContent = 'Nuevo Registro Derivado';
@@ -8915,33 +6639,23 @@ export class ModalManager {
         if (headerDesc) headerDesc.textContent = 'Alta de documento secundario modificado a partir de formato base';
 
         if (badgeSubclase) {
-
           badgeSubclase.style.background = '#fef3c7';
-
           badgeSubclase.style.color = '#92400e';
-
           badgeSubclase.textContent = '📂 REGISTRO DERIVADO';
-
         }
 
         if (labelCodigo) labelCodigo.innerHTML = '3. Código Secundario (Consecutivo) 🔒';
 
         inputCodigo.readOnly = true;
-
         inputCodigo.style.background = '#f1f5f9';
-
         inputTipoDoc.value = 'Formato';
-
         inputTipoDoc.disabled = true;
-
         inputArea.disabled = true;
 
         if (labelTitulo) labelTitulo.innerHTML = 'Nombre / Título Diferencial del Registro <span style="color: #dc2626;">*</span>';
 
         actualizarDesdePadre();
-
       } else {
-
         if (seccionPadre) seccionPadre.style.display = 'none';
 
         if (headerTitle) headerTitle.textContent = 'Nuevo Documento Institucional';
@@ -8949,203 +6663,116 @@ export class ModalManager {
         if (headerDesc) headerDesc.textContent = 'Nomenclatura institucional y registro en catálogo maestro';
 
         if (badgeSubclase) {
-
           badgeSubclase.style.background = '#e0f2fe';
-
           badgeSubclase.style.color = '#0369a1';
-
           badgeSubclase.textContent = '📄 DOCUMENTO BASE';
-
         }
 
         if (labelCodigo) labelCodigo.innerHTML = '3. Código Automático <span style="color: #dc2626;">*</span>';
 
         inputCodigo.readOnly = false;
-
         inputCodigo.style.background = '#ffffff';
-
         inputTipoDoc.disabled = false;
-
         inputArea.disabled = false;
 
         if (labelTitulo) labelTitulo.innerHTML = 'Nombre / Título del Documento <span style="color: #dc2626;">*</span>';
 
         if (inputTitulo) {
-
           inputTitulo.placeholder = 'Nombre completo del formato, guía o procedimiento...';
 
           if (formatosBase.some(f => inputTitulo.value.trim() === f.titulo || inputTitulo.value.trim() === `${f.titulo} `)) {
-
             inputTitulo.value = '';
-
           }
-
         }
 
         recalcularCodigoEnTiempoReal();
-
       }
-
     };
 
-
-
     radioBase?.addEventListener('change', () => cambiarSubclase(false));
-
     radioRegistro?.addEventListener('change', () => cambiarSubclase(true));
 
     selectPadre?.addEventListener('change', actualizarDesdePadre);
 
-
-
     // Función reactiva para actualizar el código, áreas y procesos según Tipo de Proceso
 
     const recalcularSegunTipoProceso = () => {
-
       const esReg = Boolean(document.getElementById('nd-subclase-registro')?.checked);
 
       if (esReg) return;
 
-
-
       const tp = selectTipoProceso?.value || 'Apoyo';
-
       const areasValidas = staffService.obtenerAreasPorTipoProceso(tp);
-
-
-
       const areaActual = inputArea.value;
-
       const areaEsValida = areasValidas.some((a) =>
-
         (a.nombre || '').toLowerCase() === (areaActual || '').toLowerCase() ||
-
         (a.sigla || '').toUpperCase() === (areaActual || '').toUpperCase()
-
       );
 
-
-
       if (!areaEsValida && areasValidas.length > 0) {
-
         inputArea.value = areasValidas[0].nombre;
-
       }
-
-
 
       if (areasValidas.length > 0) {
-
         inputArea.innerHTML = areasValidas
-
           .map((a) => `<option value="${a.nombre}" ${(a.nombre || '').toLowerCase() === (inputArea.value || '').toLowerCase() ? 'selected' : ''}>${a.nombre} (${a.sigla})</option>`)
-
           .join('');
-
       }
-
-
 
       const t = inputTipoDoc.value;
-
       const a = inputArea.value;
-
       const res = this.calcularSiguienteCodigo(t, a);
-
       inputCodigo.value = res.codigoCompleto;
 
-
-
       if (selectProceso) {
-
         selectProceso.innerHTML = generarOptionsProcesosND(a, tp);
-
       }
 
-
-
       actualizarDisponibilidadYRutas();
-
     };
-
-
 
     // Función reactiva para actualizar el código y opciones según el Área Institucional
 
     const recalcularSegunArea = () => {
-
       const esReg = Boolean(document.getElementById('nd-subclase-registro')?.checked);
 
       if (esReg) {
-
         actualizarDesdePadre();
 
         return;
-
       }
 
-
-
       const t = inputTipoDoc.value;
-
       const a = inputArea.value;
-
       const res = this.calcularSiguienteCodigo(t, a);
-
       inputCodigo.value = res.codigoCompleto;
-
-
-
       const tpActual = selectTipoProceso ? selectTipoProceso.value : '';
-
       const procsParaTpActual = staffService.obtenerProcesosPorAreaYTipo(a, tpActual);
-
-
-
       let tpFinal = tpActual;
 
       if (!tpActual || procsParaTpActual.length === 0) {
-
         tpFinal = staffService.obtenerTipoProcesoPorArea(a);
 
         if (selectTipoProceso) {
-
           selectTipoProceso.value = tpFinal;
-
         }
-
       }
-
-
 
       if (selectProceso) {
-
         selectProceso.innerHTML = generarOptionsProcesosND(a, tpFinal);
-
       }
 
-
-
       actualizarDisponibilidadYRutas();
-
     };
-
-
 
     const recalcularCodigoEnTiempoReal = () => {
-
       recalcularSegunArea();
-
     };
-
-
 
     selectTipoProceso?.addEventListener('change', recalcularSegunTipoProceso);
 
     selectProceso?.addEventListener('change', () => {
-
       actualizarDisponibilidadYRutas();
-
     });
 
     inputTipoDoc?.addEventListener('change', recalcularCodigoEnTiempoReal);
@@ -9155,253 +6782,141 @@ export class ModalManager {
     inputArea?.addEventListener('change', recalcularCodigoEnTiempoReal);
 
     inputCodigo?.addEventListener('input', () => {
-
       actualizarDisponibilidadYRutas();
-
     });
-
-
 
     // Inicializar estado reactivo
 
     if (esRegistro) {
-
       cambiarSubclase(true);
-
     } else {
-
       recalcularCodigoEnTiempoReal();
-
     }
 
-
-
     const form = document.getElementById('form-nuevo-documento');
-
     const errBox = document.getElementById('nuevo-doc-error');
 
-
-
     form.addEventListener('submit', async (e) => {
-
       e.preventDefault();
 
       errBox.style.display = 'none';
-
-
-
       const esRegistroDoc = Boolean(document.getElementById('nd-subclase-registro')?.checked);
-
       let codigo = document.getElementById('nd-codigo').value.trim().toUpperCase();
-
       const titulo = document.getElementById('nd-titulo').value.trim();
-
       const version = staffService.formatearVersion(document.getElementById('nd-version').value.trim() || 'v01');
-
       const tipoProceso = document.getElementById('nd-tipo-proceso').value;
-
       const areaNombre = document.getElementById('nd-area').value.trim() || 'Gestión Integral Calidad';
-
       const proceso = document.getElementById('nd-proceso').value.trim() || 'Gestión Integral de Calidad';
-
       const tipoDocNombre = esRegistroDoc ? 'Registro Derivado' : document.getElementById('nd-tipo-doc').value;
-
       const estado = document.getElementById('nd-estado').value || 'Activo';
-
       const dispVal = document.getElementById('nd-disponibilidad').value;
-
       const vigenciaInput = document.getElementById('nd-vigencia')?.value.trim();
-
       const tiempoRetencion = document.getElementById('nd-tiempo-retencion')?.value.trim() || '5 Años';
-
       const lugar = document.getElementById('nd-lugar')?.value.trim() || 'Oficina central y sede';
-
       const tipoCambio = esRegistroDoc
-
         ? `Registro derivado de ${codigo}`
-
         : (document.getElementById('nd-tipo-cambio')?.value.trim() || 'Creación del documento');
 
       const permOp = document.getElementById('nd-perm-op').checked;
-
       const permAdm = document.getElementById('nd-perm-adm').checked;
-
       const permDir = document.getElementById('nd-perm-dir').checked;
-
       const descargable = document.getElementById('nd-descargable').checked;
-
-
-
       const codPadre = esRegistroDoc
-
         ? (document.getElementById('nd-select-padre')?.value || codigo.replace(/-(\d+)$/, ''))
-
         : null;
 
       const docPadreRef = esRegistroDoc
-
         ? this.obtenerDocumentosActuales().find((d) => (d.codigo || '').toUpperCase() === (codPadre || '').toUpperCase() && !d.esRegistro)
-
         : null;
-
-
 
       // Validación preventiva anti-colisión: Verificar si el código ya existe
 
       if (!esRegistroDoc) {
-
         const existeDoc = this.obtenerDocumentosActuales().some(d => (d.codigo || '').trim().toUpperCase() === codigo && !d.esRegistro);
 
         if (existeDoc) {
-
           errBox.textContent = `❌ Ya existe un documento registrado con el código ${codigo}. Por favor utiliza un consecutivo diferente.`;
-
           errBox.style.display = 'block';
-
           const btnSave = document.getElementById('btn-nuevo-doc-save');
 
           if (btnSave) {
-
             btnSave.disabled = false;
-
             btnSave.innerHTML = `<span>💾</span> Guardar y Publicar Documento`;
-
           }
 
           return;
-
         }
-
       }
-
-
 
       // Garantizar que un registro derivado siempre tenga el sufijo consecutivo -N
 
       if (esRegistroDoc && docPadreRef) {
-
         if (!/-(\d+)$/.test(codigo) || codigo === (docPadreRef.codigo || '').toUpperCase()) {
-
           codigo = sharepointService.calcularSiguienteCodigoRegistro
-
             ? sharepointService.calcularSiguienteCodigoRegistro(docPadreRef)
-
             : `${docPadreRef.codigo}-1`;
-
         }
-
       }
 
-
-
       const partesCod = codigo.split('-');
-
       const prefijoSigla = partesCod[0] || (esRegistroDoc ? 'FMT' : 'DA');
-
       const areaSigla = partesCod[1] || 'GMD';
-
       const consecutivoNum = partesCod.length >= 4 ? partesCod.slice(2).join('-') : (partesCod[2] || '001');
-
-
-
       const hoy = new Date();
-
       const fechaAprobacion = `${String(hoy.getDate()).padStart(2, '0')}/${String(hoy.getMonth() + 1).padStart(2, '0')}/${hoy.getFullYear()}`;
-
       const vigencia = vigenciaInput ? this.convertirInputDateAFecha(vigenciaInput) : fechaAprobacion;
-
       const fechaVencimiento = `${String(hoy.getDate()).padStart(2, '0')}/${String(hoy.getMonth() + 1).padStart(2, '0')}/${hoy.getFullYear() + 5}`;
-
-
-
       const btnSave = document.getElementById('btn-nuevo-doc-save');
-
       btnSave.disabled = true;
-
       btnSave.innerHTML = `<span>⏳</span> ${esRegistroDoc ? 'Guardando registro...' : 'Guardando documento...'}`;
-
-
-
       const formatoSelectVal = document.getElementById('nd-formato')?.value || 'AUTO';
-
       const titLimpio = titulo.toLowerCase().trim();
-
       let formatoEfectivo = 'Word';
-
       let extensionEfectiva = 'DOC';
 
-
-
       if (formatoSelectVal === 'Excel' || titLimpio.endsWith('.xlsx') || titLimpio.endsWith('.xls')) {
-
         formatoEfectivo = 'Excel';
 
         extensionEfectiva = 'XLS';
-
       } else if (formatoSelectVal === 'PDF' || titLimpio.endsWith('.pdf')) {
-
         formatoEfectivo = 'PDF';
 
         extensionEfectiva = 'PDF';
-
       } else if (formatoSelectVal === 'Word' || titLimpio.endsWith('.docx') || titLimpio.endsWith('.doc')) {
-
         formatoEfectivo = 'Word';
 
         extensionEfectiva = 'DOC';
-
       } else {
-
         // Auto-detección inteligente
 
         if (docPadreRef) {
-
           formatoEfectivo = docPadreRef.formato || 'PDF';
 
           extensionEfectiva = docPadreRef.extension || (formatoEfectivo === 'Excel' ? 'XLS' : (formatoEfectivo === 'Word' ? 'DOC' : 'PDF'));
-
         } else if (titLimpio.includes('excel') || titLimpio.includes('calculo') || titLimpio.includes('.xlsx') || titLimpio.includes('.xls')) {
-
           formatoEfectivo = 'Excel';
 
           extensionEfectiva = 'XLS';
-
         } else {
-
           formatoEfectivo = (prefijoSigla === 'FMT' ? 'Word' : 'PDF');
 
           extensionEfectiva = (formatoEfectivo === 'Word' ? 'DOC' : 'PDF');
-
         }
-
       }
-
-
 
       let enlacesSecundarios = null;
 
       if (esRegistroDoc && docPadreRef && sharepointService.generarEnlacesDocumentoSecundario) {
-
         enlacesSecundarios = sharepointService.generarEnlacesDocumentoSecundario(docPadreRef, {
-
           codigo: codigo,
-
           titulo: titulo,
-
           extension: extensionEfectiva
-
         });
-
       }
-
-
 
       // Normalización canónica de Área para compatibilidad total con filtros activos
 
       const areaCanon = normalizarAreaDoc(areaNombre || areaSigla, codigo);
-
-
-
       const vinculoDirectoInput = (document.getElementById('nd-vinculo-directo')?.value || '').trim();
       let vinculoUbicacionDerivado = '';
       if (vinculoDirectoInput) {
@@ -9415,282 +6930,158 @@ export class ModalManager {
         : '';
 
       const nuevoDocumentoObj = {
-
         codigo: codigo,
-
         titulo: titulo,
-
         documento: titulo,
-
         subclase: esRegistroDoc ? 'Registro' : 'Base',
-
         esRegistro: esRegistroDoc,
-
         documentoPadreCodigo: esRegistroDoc ? (docPadreRef?.codigo || codPadre) : undefined,
-
         formato: formatoEfectivo,
-
         extension: extensionEfectiva,
-
         version: version,
-
         consecutivo: consecutivoNum,
-
         tipoDocumento: esRegistroDoc ? 'Registro' : prefijoSigla,
-
         tipoDocumentoNombre: tipoDocNombre,
-
         area: areaCanon,
-
         areaNombre: areaCanon,
-
         areaSigla: areaSigla,
-
         tipoProceso: tipoProceso,
-
         proceso: proceso,
-
         carpeta: proceso,
-
         fechaAprobacion: fechaAprobacion,
-
         vigencia: vigencia,
-
         fechaVencimiento: fechaVencimiento,
-
         ubicacion: 'Intranet',
-
         lugar: lugar,
-
         lugarArchivo: lugar,
-
         tiempoRetencion: tiempoRetencion,
-
         tiempo: tiempoRetencion,
-
         tiempoVigencia: tiempoRetencion,
-
         tipoCambio: tipoCambio,
-
         permisoOperativo: permOp,
-
         permisoAdministrativo: permAdm,
-
         permisoDirectivo: permDir,
-
         descargable: descargable,
-
         disponible: esRegistroDoc ? true : (dispVal === 'DISPONIBLE'),
-
         disponibilidad: esRegistroDoc ? 'DISPONIBLE' : dispVal,
-
         sharepointUrl: enlacesSecundarios?.sharepointUrl || '',
-
         downloadUrl: vinculoDirectoInput || enlacesSecundarios?.downloadUrl || '',
-
         vinculoDirecto: vinculoDirectoInput || enlacesSecundarios?.downloadUrl || '',
-
         vinculoUbicacion: vinculoUbicacionDerivado || enlacesSecundarios?.sharepointUrl || '',
-
         vinculoEdicion: vinculoEdicionDerivado,
-
         descargas: 0,
-
         estado: estado,
-
         estadoDocumento: estado,
-
         modificacion: new Date().toISOString()
-
       };
 
-
-
       try {
-
         const res = await sharepointService.crearDocumento(nuevoDocumentoObj);
 
         if (res && res.exito) {
-
           // 1. Registrar en Auditoría Institucional
 
           staffService.registrarAuditoria('CREACION', {
-
             documentoCodigo: codigo,
-
             documentoTitulo: titulo,
-
             documentoExtension: nuevoDocumentoObj.extension || extensionHeredada,
-
             esRegistro: esRegistroDoc,
-
             documentoPadreCodigo: esRegistroDoc ? (docPadreRef?.codigo || codPadre) : '',
-
             detalle: esRegistroDoc
-
               ? `Nuevo registro derivado creado (${codigo} - ${titulo})`
-
               : `Nuevo documento incorporado al catálogo (${codigo} - ${titulo})`
-
           });
-
-
 
           // 2. Registrar evento en control de cambios
 
           staffService.registrarCambioDocumental('CREACION', {
-
             codigo: codigo,
-
             titulo: titulo,
-
             esRegistro: esRegistroDoc,
-
             documentoPadreCodigo: esRegistroDoc ? (docPadreRef?.codigo || codPadre) : '',
-
             versionAnterior: 'N/A',
-
             versionNueva: version,
-
             rutaAnterior: 'N/A',
-
             rutaNueva: `${tipoProceso} / ${areaNombre || areaSigla} / ${proceso}`,
-
             tipoAnterior: 'N/A',
-
             tipoNuevo: tipoDocNombre || (esRegistroDoc ? 'Registro Derivado' : prefijoSigla),
-
             detalle: esRegistroDoc
-
               ? `Registro derivado incorporado al catálogo (${codigo} - ${titulo})`
-
               : `Nuevo documento incorporado al catálogo (${codigo})`
-
           });
-
-
 
           this.cerrarModal();
 
           if (typeof onGuardar === 'function') onGuardar(res.documento);
-
         } else {
-
           errBox.textContent = res?.error || 'Error al guardar el documento.';
-
           errBox.style.display = 'block';
-
           btnSave.disabled = false;
-
           btnSave.innerHTML = esRegistroDoc ? 'Guardar Registro' : 'Guardar Documento';
-
         }
-
       } catch (err) {
-
         console.error('Error al guardar documento:', err);
 
         errBox.textContent = 'Error al guardar el documento: ' + (err.message || '');
-
         errBox.style.display = 'block';
-
         btnSave.disabled = false;
-
         btnSave.innerHTML = esRegistroDoc ? 'Guardar Registro' : 'Guardar Documento';
-
       }
-
     });
 
-
-
     const confirmarCierreNuevoDoc = () => {
-
       const tit = (document.getElementById('nd-titulo')?.value || '').trim();
 
       if (tit.length > 0) {
-
         if (!confirm('Tiene información ingresada en el formulario de creación. ¿Está seguro de que desea salir sin guardar? Todo lo que ha escrito se perderá.')) {
-
           return;
-
         }
-
       }
 
       this.cerrarModal();
-
     };
-
-
 
     document.getElementById('btn-nuevo-doc-close')?.addEventListener('click', confirmarCierreNuevoDoc);
 
     document.getElementById('btn-nuevo-doc-cancel')?.addEventListener('click', confirmarCierreNuevoDoc);
 
-
-
     const inputTit = document.getElementById('nd-titulo');
-
     const selectFmt = document.getElementById('nd-formato');
 
     if (inputTit && selectFmt) {
-
       inputTit.addEventListener('input', () => {
-
         const val = inputTit.value.toLowerCase().trim();
 
         if (val.endsWith('.xlsx') || val.endsWith('.xls') || val.includes('excel')) {
-
           selectFmt.value = 'Excel';
-
         } else if (val.endsWith('.pdf')) {
-
           selectFmt.value = 'PDF';
-
         } else if (val.endsWith('.docx') || val.endsWith('.doc')) {
-
           selectFmt.value = 'Word';
-
         }
-
       });
-
     }
 
-
-
     setTimeout(() => document.getElementById('nd-titulo')?.focus(), 100);
-
   }
-
-
 
   /**
 
    * Modal interactivo para modificar metadatos de un documento en Google Sheets
-
    */
 
   abrirModalEditarDocumento(doc, { onGuardar = null, docPadre = null } = {}) {
-
     if (!doc) return;
 
     const esRegistro = Boolean(doc.esRegistro || doc.subclase === 'Registro' || docPadre || (doc.id && String(doc.id).includes('_REG_')) || /^[A-Z]{3,4}-[A-Z]{2,4}-\d{3,4}-\d+$/.test(doc.codigo || ''));
 
     if (esRegistro && !docPadre) {
-
       const codPadre = doc.documentoPadreCodigo || (doc.codigo || '').replace(/-(\d+)$/, '');
 
       docPadre = this.obtenerDocumentosActuales().find(
-
         (d) => (d.codigo || '').toUpperCase() === (codPadre || '').toUpperCase() && !d.esRegistro
-
       );
-
     }
-
-
 
     this.modalContainer.innerHTML = `
 
@@ -9698,9 +7089,7 @@ export class ModalManager {
 
         <div class="modal-card animate-scale-up" role="dialog" aria-modal="true" style="max-width: 680px; max-height: 90vh; display: flex; flex-direction: column; overflow: hidden; padding: 0;">
 
-          
-
-          <!-- Encabezado con Azul Institucional -->
+<!-- Encabezado con Azul Institucional -->
 
           <div class="modal-header" style="background: linear-gradient(135deg, #1f4260 0%, #265072 50%, #376c95 100%); color: #ffffff; padding: 18px 24px; display: flex; justify-content: space-between; align-items: center;">
 
@@ -9738,19 +7127,13 @@ export class ModalManager {
 
           </div>
 
-
-
-          <!-- Formulario con scroll -->
+<!-- Formulario con scroll -->
 
           <form id="form-edit-documento" style="padding: 22px 26px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 14px; margin: 0;">
 
-            
+<div id="edit-doc-error" style="display: none; background: #fef2f2; border: 1px solid #fecaca; color: #dc2626; padding: 10px 14px; border-radius: 8px; font-size: 0.82rem; font-weight: 600;"></div>
 
-            <div id="edit-doc-error" style="display: none; background: #fef2f2; border: 1px solid #fecaca; color: #dc2626; padding: 10px 14px; border-radius: 8px; font-size: 0.82rem; font-weight: 600;"></div>
-
-
-
-            <!-- Panel Informativo: Nomenclatura y Codificación Oficial -->
+<!-- Panel Informativo: Nomenclatura y Codificación Oficial -->
 
             ${esRegistro ? `
 
@@ -9846,9 +7229,7 @@ export class ModalManager {
 
             `}
 
-
-
-            <!-- Fila 1: Nombre / Título y Versión -->
+<!-- Fila 1: Nombre / Título y Versión -->
 
             <div style="display: grid; grid-template-columns: 3fr 1fr; gap: 12px;">
 
@@ -9878,9 +7259,7 @@ export class ModalManager {
 
             </div>
 
-
-
-            <!-- Fila 2: Estado del Documento y Motivo / Tipo de Cambio -->
+<!-- Fila 2: Estado del Documento y Motivo / Tipo de Cambio -->
 
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
 
@@ -9920,9 +7299,7 @@ export class ModalManager {
 
             </div>
 
-
-
-            <!-- Fila 3: Vigencia, Tiempo de Retención y Lugar de Archivo -->
+<!-- Fila 3: Vigencia, Tiempo de Retención y Lugar de Archivo -->
 
             <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px;">
 
@@ -9972,9 +7349,7 @@ export class ModalManager {
 
             </div>
 
-
-
-            <!-- Fila 4: Permisos RBAC y Descarga -->
+<!-- Fila 4: Permisos RBAC y Descarga -->
 
             <div style="background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 10px; padding: 12px 16px;">
 
@@ -10014,9 +7389,7 @@ export class ModalManager {
 
             </div>
 
-
-
-            <!-- Fila: Vínculo Directo Manual del Documento (SharePoint) -->
+<!-- Fila: Vínculo Directo Manual del Documento (SharePoint) -->
             <div style="background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 10px; padding: 12px 14px;">
               <label for="ed-vinculo-directo" style="display: block; font-size: 0.78rem; font-weight: 700; color: var(--brand-navy, #1f4260); margin-bottom: 4px;">
                 🔗 Vínculo Directo del Documento (SharePoint)
@@ -10057,9 +7430,7 @@ export class ModalManager {
 
             </div>
 
-
-
-            <!-- Botones Footer -->
+<!-- Botones Footer -->
 
             <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 6px; padding-top: 14px; border-top: 1px solid #e2e8f0;">
 
@@ -10077,297 +7448,161 @@ export class ModalManager {
 
             </div>
 
+</form>
 
-
-          </form>
-
-
-
-        </div>
+</div>
 
       </div>
 
     `;
 
-
-
     const form = document.getElementById('form-edit-documento');
-
     const errBox = document.getElementById('edit-doc-error');
-
-
 
     // Botón para abrir el submodal de recodificación oficial (solo para documentos base)
 
     if (!esRegistro) {
-
       document.getElementById('btn-open-recodificar')?.addEventListener('click', () => {
-
         this.abrirModalRecodificarDocumento(doc, {
-
           onRecodificado: (docRecod) => {
-
             if (typeof onGuardar === 'function') onGuardar(docRecod);
-
           }
-
         });
-
       });
-
     }
 
-
-
     form.addEventListener('submit', async (e) => {
-
       e.preventDefault();
 
       errBox.style.display = 'none';
-
-
-
       const titulo = document.getElementById('ed-titulo').value.trim();
-
       const version = document.getElementById('ed-version').value.trim() || '01';
-
       const estado = document.getElementById('ed-estado').value;
-
       const rawVigencia = document.getElementById('ed-vigencia').value.trim();
-
       const vigencia = rawVigencia ? this.convertirInputDateAFecha(rawVigencia) : '01/08/2026';
-
       const tiempoRetencion = document.getElementById('ed-tiempo-retencion').value.trim() || '5 Años';
-
       const lugar = document.getElementById('ed-lugar').value.trim() || 'Oficina central y sede';
-
       const tipoCambio = document.getElementById('ed-tipo-cambio').value.trim() || 'Actualización de metadatos';
-
       const permOp = document.getElementById('ed-perm-op').checked;
-
       const permAdm = document.getElementById('ed-perm-adm').checked;
-
       const permDir = document.getElementById('ed-perm-dir').checked;
-
       const descargable = document.getElementById('ed-descargable').checked;
-
-
-
       const btnSave = document.getElementById('btn-edit-doc-save');
-
       btnSave.disabled = true;
-
       btnSave.innerHTML = '<span>⏳</span> Actualizando metadatos...';
 
-
-
       const nuevosDatos = {
-
         titulo: titulo,
-
         documento: titulo,
-
         nombre: titulo,
-
         version: version,
-
         tipoProceso: (docPadre && docPadre.tipoProceso) || doc.tipoProceso || 'Misional',
-
         area: (docPadre && docPadre.area) || doc.area || 'GIC',
-
         areaNombre: (docPadre && (docPadre.areaNombre || docPadre.area)) || doc.areaNombre || doc.area || 'Gestión Integral Calidad',
-
         proceso: (docPadre && (docPadre.proceso || docPadre.carpeta)) || doc.proceso || doc.carpeta || 'Gestión Integral de Calidad',
-
         carpeta: (docPadre && (docPadre.carpeta || docPadre.proceso)) || doc.carpeta || doc.proceso || 'Gestión Integral de Calidad',
-
         tipoDocumento: esRegistro ? 'Registro' : (doc.tipoDocumento || 'Formato'),
-
         subclase: esRegistro ? 'Registro' : (doc.subclase || 'Base'),
-
         esRegistro: esRegistro,
-
         tituloAnterior: doc.titulo,
-
         codigoPadre: docPadre?.codigo || doc.documentoPadreCodigo || (esRegistro ? (doc.codigo || '').replace(/-(\d+)$/, '') : doc.codigo),
-
         documentoPadreCodigo: esRegistro ? (docPadre?.codigo || doc.documentoPadreCodigo || (doc.codigo || '').replace(/-(\d+)$/, '')) : undefined,
-
         estado: estado,
-
         vigencia: vigencia,
-
         tiempoRetencion: tiempoRetencion,
-
         tiempo: tiempoRetencion,
-
         tiempoVigencia: tiempoRetencion,
-
         lugar: lugar,
-
         lugarArchivo: lugar,
-
         tipoCambio: tipoCambio,
-
         permisoOperativo: permOp,
-
         permisoAdministrativo: permAdm,
-
         permisoDirectivo: permDir,
-
         directivo: permDir ? 'X' : '',
-
         administrativo: permAdm ? 'X' : '',
-
         operativo: permOp ? 'X' : '',
-
         descargable: descargable,
-
         vinculoDirecto: vinculoDirectoInput || doc.vinculoDirecto || '',
-
         vinculoUbicacion: vinculoUbicacionDerivado,
-
         vinculoEdicion: vinculoEdicionDerivado,
-
         downloadUrl: vinculoDirectoInput || doc.downloadUrl || '',
-
         sharepointUrl: vinculoEdicionDerivado || vinculoUbicacionDerivado || doc.sharepointUrl || '',
-
         disponible: Boolean(vinculoDirectoInput || doc.downloadUrl || doc.sharepointUrl),
-
         descargas: doc.descargas !== undefined ? doc.descargas : 0
-
       };
 
-
-
       try {
-
         const res = await sharepointService.modificarDocumento(doc.codigo, nuevosDatos, doc.id, esRegistro, doc.titulo);
 
         if (res && res.exito) {
-
           // Registrar en control de cambios
 
           const esCambioVersion = version && doc.version && !staffService.sonVersionesIguales(version, doc.version);
-
           let tipoEventoHist = esCambioVersion ? 'CAMBIO_VERSION' : (huboCambioVinculo ? 'CAMBIO_VINCULO' : 'CAMBIO_METADATOS');
           let motivoHist = huboCambioVinculo ? `Vínculo directo actualizado manualmente a: ${vinculoDirectoInput}` : (tipoCambio || 'Actualización de metadatos');
 
           staffService.registrarCambioDocumental(
-
             tipoEventoHist,
-
             {
-
               codigo: doc.codigo,
-
               titulo: titulo,
-
               esRegistro: esRegistro,
-
               documentoPadreCodigo: doc.documentoPadreCodigo || '',
-
               versionAnterior: staffService.normalizarVersion(doc.version || '1'),
-
               versionNueva: staffService.normalizarVersion(version || '1'),
-
               rutaAnterior: `${doc.tipoProceso || ''} / ${doc.area || ''} / ${doc.proceso || ''}`,
-
               rutaNueva: `${doc.tipoProceso || ''} / ${doc.area || ''} / ${doc.proceso || ''}`,
-
               tipoAnterior: esRegistro ? 'Registro' : (doc.tipoDocumento || ''),
-
               tipoNuevo: esRegistro ? 'Registro' : (doc.tipoDocumento || ''),
-
               motivo: tipoCambio || 'Actualización de metadatos',
-
               detalle: esRegistro
-
                 ? `Modificación de metadatos de registro derivado (${doc.codigo} - ${titulo}): ${tipoCambio || 'Datos actualizados en catálogo'}`
-
                 : `Modificación de metadatos: ${tipoCambio || 'Datos actualizados en catálogo'}`
-
             }
-
           );
-
-
 
           // Registrar en auditoría institucional
 
           staffService.registrarAuditoria('METADATOS', {
-
             documentoCodigo: doc.codigo,
-
             documentoTitulo: titulo,
-
             documentoExtension: doc.extension,
-
             esRegistro: esRegistro,
-
             documentoPadreCodigo: doc.documentoPadreCodigo || '',
-
             detalle: esRegistro
-
               ? `Modificación de metadatos de registro derivado (${doc.codigo} - ${titulo}): ${tipoCambio || 'Datos actualizados en catálogo'}`
-
               : `Modificación de metadatos (${doc.codigo}): ${tipoCambio || 'Datos actualizados en catálogo'}`
-
           });
-
-
 
           this.cerrarModal();
 
           if (typeof onGuardar === 'function') onGuardar(res.documento);
-
         } else {
-
           errBox.textContent = res?.error || 'Error al actualizar metadatos.';
-
           errBox.style.display = 'block';
-
           btnSave.disabled = false;
-
           btnSave.innerHTML = esRegistro ? 'Actualizar Registro Derivado' : 'Actualizar Metadatos';
-
         }
-
       } catch (err) {
-
         console.error('Error al actualizar documento:', err);
 
         errBox.textContent = 'Error al actualizar metadatos: ' + (err.message || '');
-
         errBox.style.display = 'block';
-
         btnSave.disabled = false;
-
         btnSave.innerHTML = esRegistro ? 'Actualizar Registro Derivado' : 'Actualizar Metadatos';
-
       }
-
     });
 
-
-
     const confirmarCierreEdit = () => {
-
       const tit = (document.getElementById('ed-titulo')?.value || '').trim();
 
       if (tit.length > 0 && tit !== (doc.titulo || '').trim()) {
-
         if (!confirm('Tiene cambios sin guardar en los metadatos. ¿Desea salir sin guardar?')) {
-
           return;
-
         }
-
       }
 
       this.cerrarModal();
-
     };
 
     document.getElementById('btn-edit-doc-close')?.addEventListener('click', confirmarCierreEdit);
@@ -10375,98 +7610,56 @@ export class ModalManager {
     document.getElementById('btn-edit-doc-cancel')?.addEventListener('click', confirmarCierreEdit);
 
     setTimeout(() => document.getElementById('ed-titulo')?.focus(), 100);
-
   }
-
-
 
   /**
 
    * Submodal dedicado: Recodificación Oficial y Reclasificación Estructural del Documento
-
    */
 
   abrirModalRecodificarDocumento(doc, { onRecodificado = null } = {}) {
-
     if (!doc) return;
 
     document.body.classList.add('modal-open');
 
-
-
     // Cargar listas dinámicas desde las Tablas Maestras ordenadas alfabéticamente
 
     const tiposDocMaestros = [...staffService.obtenerTiposDocumento()]
-
       .sort((a, b) => (a.nombre || '').localeCompare(b.nombre || '', 'es'));
 
     const areasMaestras = [...staffService.obtenerAreasInstitucionales()]
-
       .sort((a, b) => (a.nombre || '').localeCompare(b.nombre || '', 'es'));
-
     const tiposProcesoMaestros = staffService.obtenerTiposProceso();
-
-
 
     // Tipo y Área iniciales seleccionados
 
     const tipoDocActualNombre = doc.tipoDocumento || tiposDocMaestros[0]?.nombre || 'Formato';
-
     const areaActualNombre = doc.areaNombre || doc.area || areasMaestras[0]?.nombre || 'Gestión Talento Humano';
-
-
-
     const codigoCalculadoInicial = this.calcularSiguienteCodigo(tipoDocActualNombre, areaActualNombre);
-
-
-
     const optionsTiposHtml = tiposDocMaestros
-
       .map((t) => `<option value="${t.nombre}" ${t.nombre.toLowerCase() === tipoDocActualNombre.toLowerCase() ? 'selected' : ''}>${t.nombre} (${t.prefijo})</option>`)
-
       .join('');
-
-
 
     const tipoProcesoActualDoc = doc.tipoProceso || staffService.obtenerTipoProcesoPorArea(areaActualNombre, doc.proceso || doc.carpeta || '') || 'Apoyo';
-
-
-
     const areasValidasRecodDefault = staffService.obtenerAreasPorTipoProceso(tipoProcesoActualDoc);
-
     const optionsAreasHtml = (areasValidasRecodDefault.length > 0 ? areasValidasRecodDefault : areasMaestras)
-
       .map((a) => `<option value="${a.nombre}" ${(a.nombre || '').toLowerCase() === (areaActualNombre || '').toLowerCase() ? 'selected' : ''}>${a.nombre} (${a.sigla})</option>`)
-
       .join('');
-
-
 
     const optionsTiposProcesoHtml = tiposProcesoMaestros
-
       .map((tp) => `<option value="${tp.nombre}" ${tp.nombre.toLowerCase() === tipoProcesoActualDoc.toLowerCase() ? 'selected' : ''}>${tp.nombre}</option>`)
-
       .join('');
 
-
-
     const generarOptionsProcesosRecod = (nombreArea, tipoProceso = '', procesoSeleccionado = '') => {
-
       const tp = tipoProceso || staffService.obtenerTipoProcesoPorArea(nombreArea, procesoSeleccionado);
-
       const procs = staffService.obtenerProcesosPorAreaYTipo(nombreArea, tp);
 
       if (procs.length === 0) return `<option value="N/A">N/A</option>`;
 
       return procs.map((p) => `<option value="${p}" ${p.toLowerCase() === (procesoSeleccionado || '').toLowerCase() ? 'selected' : ''}>${p}</option>`).join('');
-
     };
 
-
-
     const optionsProcesosHtml = generarOptionsProcesosRecod(areaActualNombre, tipoProcesoActualDoc, doc.proceso || doc.carpeta || '');
-
-
 
     this.modalContainer.innerHTML = `
 
@@ -10474,9 +7667,7 @@ export class ModalManager {
 
         <div class="modal-card animate-scale-up" role="dialog" aria-modal="true" style="max-width: 680px; max-height: 92vh; display: flex; flex-direction: column; overflow: hidden; padding: 0;">
 
-          
-
-          <!-- Encabezado Corporativo -->
+<!-- Encabezado Corporativo -->
 
           <div class="modal-header" style="background: linear-gradient(135deg, #1f4260 0%, #265072 50%, #376c95 100%); color: #ffffff; padding: 18px 24px; display: flex; justify-content: space-between; align-items: center;">
 
@@ -10514,19 +7705,13 @@ export class ModalManager {
 
           </div>
 
-
-
-          <!-- Formulario de Recodificación -->
+<!-- Formulario de Recodificación -->
 
           <form id="form-recodificar-documento" style="padding: 22px 26px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 14px; margin: 0;">
 
-            
+<div id="recod-error" style="display: none; background: #fef2f2; border: 1px solid #fecaca; color: #dc2626; padding: 10px 14px; border-radius: 8px; font-size: 0.82rem; font-weight: 600;"></div>
 
-            <div id="recod-error" style="display: none; background: #fef2f2; border: 1px solid #fecaca; color: #dc2626; padding: 10px 14px; border-radius: 8px; font-size: 0.82rem; font-weight: 600;"></div>
-
-
-
-            <!-- Comparativo Visual: Código Actual vs Nuevo Código Calculado -->
+<!-- Comparativo Visual: Código Actual vs Nuevo Código Calculado -->
 
             <div style="display: grid; grid-template-columns: 1fr auto 1fr; gap: 10px; background: #eff6ff; border: 1.5px solid #bfdbfe; border-radius: 10px; padding: 14px 16px; align-items: center; text-align: center;">
 
@@ -10550,9 +7735,7 @@ export class ModalManager {
 
             </div>
 
-
-
-            <!-- Título del Documento Referenciado -->
+<!-- Título del Documento Referenciado -->
 
             <div>
 
@@ -10570,9 +7753,7 @@ export class ModalManager {
 
             </div>
 
-
-
-            <!-- Sección de Reclasificación -->
+<!-- Sección de Reclasificación -->
 
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 10px; padding: 12px 14px;">
 
@@ -10610,9 +7791,7 @@ export class ModalManager {
 
             </div>
 
-
-
-            <!-- Fila: Tipo de Proceso y Proceso Específico -->
+<!-- Fila: Tipo de Proceso y Proceso Específico -->
 
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
 
@@ -10650,9 +7829,7 @@ export class ModalManager {
 
             </div>
 
-
-
-            <!-- Justificación Obligatoria para Auditoría -->
+<!-- Justificación Obligatoria para Auditoría -->
 
             <div>
 
@@ -10666,17 +7843,13 @@ export class ModalManager {
 
             </div>
 
-
-
-            <div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 6px; padding: 10px 12px; font-size: 0.75rem; color: #92400e; line-height: 1.4;">
+<div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 6px; padding: 10px 12px; font-size: 0.75rem; color: #92400e; line-height: 1.4;">
 
               ⚠️ <strong>Advertencia institucional:</strong> Al confirmar la recodificación, el documento adoptará su nuevo código de forma inmediata y se dejará registro de la trazabilidad histórica en el Control de Cambios Documentales.
 
             </div>
 
-
-
-            <!-- Botones Footer -->
+<!-- Botones Footer -->
 
             <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 6px; padding-top: 14px; border-top: 1px solid #e2e8f0;">
 
@@ -10694,139 +7867,71 @@ export class ModalManager {
 
             </div>
 
+</form>
 
-
-          </form>
-
-
-
-        </div>
+</div>
 
       </div>
 
     `;
 
-
-
     const formRecod = document.getElementById('form-recodificar-documento');
-
     const errBox = document.getElementById('recod-error');
-
     const selectTipoDoc = document.getElementById('recod-tipo-doc');
-
     const selectArea = document.getElementById('recod-area');
-
     const selectTipoProceso = document.getElementById('recod-tipo-proceso');
-
     const selectProceso = document.getElementById('recod-proceso');
-
     const inputNuevoCodigo = document.getElementById('recod-nuevo-codigo');
-
-
-
     const recalcularSegunTipoProcesoRecod = () => {
-
       const tp = selectTipoProceso?.value || 'Apoyo';
-
       const areasValidas = staffService.obtenerAreasPorTipoProceso(tp);
-
-
-
       const areaActual = selectArea.value;
-
       const areaEsValida = areasValidas.some((a) =>
-
         (a.nombre || '').toLowerCase() === (areaActual || '').toLowerCase() ||
-
         (a.sigla || '').toUpperCase() === (areaActual || '').toUpperCase()
-
       );
 
-
-
       if (!areaEsValida && areasValidas.length > 0) {
-
         selectArea.value = areasValidas[0].nombre;
-
       }
-
-
 
       if (areasValidas.length > 0) {
-
         selectArea.innerHTML = areasValidas
-
           .map((a) => `<option value="${a.nombre}" ${(a.nombre || '').toLowerCase() === (selectArea.value || '').toLowerCase() ? 'selected' : ''}>${a.nombre} (${a.sigla})</option>`)
-
           .join('');
-
       }
 
-
-
       const t = selectTipoDoc.value;
-
       const a = selectArea.value;
-
       const res = this.calcularSiguienteCodigo(t, a);
-
       inputNuevoCodigo.value = res.codigoCompleto;
-
-
 
       if (selectProceso) {
-
         selectProceso.innerHTML = generarOptionsProcesosRecod(a, tp);
-
       }
-
     };
 
-
-
     const recalcularNuevoCodigo = () => {
-
       const t = selectTipoDoc.value;
-
       const a = selectArea.value;
-
       const res = this.calcularSiguienteCodigo(t, a);
-
       inputNuevoCodigo.value = res.codigoCompleto;
-
-
-
       const tpActual = selectTipoProceso ? selectTipoProceso.value : '';
-
       const procsParaTpActual = staffService.obtenerProcesosPorAreaYTipo(a, tpActual);
-
-
-
       let tpFinal = tpActual;
 
       if (!tpActual || procsParaTpActual.length === 0) {
-
         tpFinal = staffService.obtenerTipoProcesoPorArea(a);
 
         if (selectTipoProceso) {
-
           selectTipoProceso.value = tpFinal;
-
         }
-
       }
-
-
 
       if (selectProceso) {
-
         selectProceso.innerHTML = generarOptionsProcesosRecod(a, tpFinal);
-
       }
-
     };
-
-
 
     selectTipoDoc?.addEventListener('change', recalcularNuevoCodigo);
 
@@ -10834,211 +7939,116 @@ export class ModalManager {
 
     selectTipoProceso?.addEventListener('change', recalcularSegunTipoProcesoRecod);
 
-
-
     formRecod.addEventListener('submit', async (e) => {
-
       e.preventDefault();
 
       errBox.style.display = 'none';
-
-
-
       const nuevoCodigo = inputNuevoCodigo.value.trim().toUpperCase();
-
       const tipoDocNombre = selectTipoDoc.value;
-
       const areaNombre = selectArea.value;
-
       const tipoProceso = document.getElementById('recod-tipo-proceso').value;
-
       const proceso = selectProceso.value;
-
       const motivo = document.getElementById('recod-motivo').value.trim();
 
-
-
       if (!nuevoCodigo) {
-
         errBox.textContent = 'El nuevo código de documento es obligatorio.';
-
         errBox.style.display = 'block';
 
         return;
-
       }
-
-
 
       if (!motivo) {
-
         errBox.textContent = 'Por favor ingresa el motivo o justificación de la recodificación.';
-
         errBox.style.display = 'block';
 
         return;
-
       }
 
-
-
       const btnSave = document.getElementById('btn-recod-save');
-
       btnSave.disabled = true;
-
       btnSave.innerHTML = '<span>⏳</span> Aplicando recodificación...';
-
-
-
       const partesCod = nuevoCodigo.split('-');
-
       const prefijoSigla = partesCod[0] || this.obtenerPrefijoTipoDocumento(tipoDocNombre);
-
       const areaSigla = partesCod[1] || this.obtenerSiglaArea(areaNombre);
-
-
-
       const nuevosDatos = {
-
         ...doc,
-
         codigo: nuevoCodigo,
-
         codigoAnterior: doc.codigo,
-
         tipoDocumento: prefijoSigla,
-
         tipoDocumentoNombre: tipoDocNombre,
-
         area: areaSigla,
-
         areaNombre: areaNombre,
-
         tipoProceso: tipoProceso,
-
         proceso: proceso,
-
         carpeta: proceso,
-
         tipoCambio: `Recodificación oficial: ${doc.codigo} ➔ ${nuevoCodigo}. Motivo: ${motivo}`
-
       };
 
-
-
       try {
-
         const res = await sharepointService.recodificarDocumento(doc.codigo, nuevoCodigo, nuevosDatos);
 
         if (res && res.exito) {
-
           // Registrar en control de cambios
 
           staffService.registrarCambioDocumental('CAMBIO_RUTA', {
-
             codigo: nuevoCodigo,
-
             titulo: doc.titulo || doc.nombre || 'Documento',
-
             versionAnterior: staffService.normalizarVersion(doc.version || '1'),
-
             versionNueva: staffService.normalizarVersion(doc.version || '1'),
-
             rutaAnterior: `${doc.tipoProceso || ''} / ${doc.area || ''} / ${doc.proceso || ''} (${doc.codigo})`,
-
             rutaNueva: `${tipoProceso} / ${areaSigla} / ${proceso} (${nuevoCodigo})`,
-
             tipoAnterior: doc.tipoDocumento || '',
-
             tipoNuevo: tipoDocNombre,
-
             motivo: motivo,
-
             detalle: `Recodificación oficial del documento: ${doc.codigo} ➔ ${nuevoCodigo}. Motivo: ${motivo}`
-
           });
-
-
 
           // Registrar en auditoría institucional
 
           staffService.registrarAuditoria('METADATOS', {
-
             documentoCodigo: nuevoCodigo,
-
             documentoTitulo: doc.titulo || doc.nombre || 'Documento',
-
             documentoExtension: doc.extension,
-
             detalle: `Recodificación oficial: ${doc.codigo} ➔ ${nuevoCodigo}. Motivo: ${motivo}`
-
           });
-
-
 
           this.cerrarModal();
 
           if (window.antigravityApp?.mostrarToast) {
-
             window.antigravityApp.mostrarToast(`✅ Documento recodificado con éxito a "${nuevoCodigo}".`, 'success');
-
           }
 
           if (typeof onRecodificado === 'function') onRecodificado(res.documento);
-
         } else {
-
           errBox.textContent = res?.error || 'Error al aplicar la recodificación.';
-
           errBox.style.display = 'block';
-
           btnSave.disabled = false;
-
           btnSave.innerHTML = '<span>🔄</span> Aplicar Recodificación Oficial';
-
         }
-
       } catch (err) {
-
         console.error('Error recodificando documento:', err);
 
         errBox.textContent = 'Error al recodificar: ' + (err.message || '');
-
         errBox.style.display = 'block';
-
         btnSave.disabled = false;
-
         btnSave.innerHTML = '<span>🔄</span> Aplicar Recodificación Oficial';
-
       }
-
     });
 
-
-
     document.getElementById('btn-recod-close')?.addEventListener('click', () => this.cerrarModal());
-
     document.getElementById('btn-recod-cancel')?.addEventListener('click', () => this.cerrarModal());
-
     setTimeout(() => document.getElementById('recod-motivo')?.focus(), 100);
-
   }
-
-
 
   /**
 
    * Modal interactivo para dar de baja o retirar un documento de Google Sheets
-
    */
 
   abrirModalEliminarDocumento(doc, { onConfirmar = null } = {}) {
-
     if (!doc) return;
 
     document.body.classList.add('modal-open');
-
-
 
     this.modalContainer.innerHTML = `
 
@@ -11046,9 +8056,7 @@ export class ModalManager {
 
         <div class="modal-card animate-scale-up" role="dialog" aria-modal="true" style="max-width: 520px; padding: 0; overflow: hidden;">
 
-          
-
-          <div class="modal-header" style="background: linear-gradient(135deg, #991b1b 0%, #dc2626 100%); color: #ffffff; padding: 16px 20px; display: flex; justify-content: space-between; align-items: center;">
+<div class="modal-header" style="background: linear-gradient(135deg, #991b1b 0%, #dc2626 100%); color: #ffffff; padding: 16px 20px; display: flex; justify-content: space-between; align-items: center;">
 
             <div style="display: flex; align-items: center; gap: 8px;">
 
@@ -11070,9 +8078,7 @@ export class ModalManager {
 
           </div>
 
-
-
-          <div style="padding: 20px; display: flex; flex-direction: column; gap: 14px;">
+<div style="padding: 20px; display: flex; flex-direction: column; gap: 14px;">
 
             <div style="background: #fef2f2; border: 1.5px solid #fecaca; border-radius: 8px; padding: 12px 14px;">
 
@@ -11090,9 +8096,7 @@ export class ModalManager {
 
             </div>
 
-
-
-            <div>
+<div>
 
               <label style="display: block; font-size: 0.80rem; font-weight: 700; color: #334155; margin-bottom: 4px;">
 
@@ -11104,9 +8108,7 @@ export class ModalManager {
 
             </div>
 
-
-
-            <div style="background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 6px; padding: 8px 12px; font-size: 0.78rem; color: #475569; display: flex; align-items: center; gap: 8px;">
+<div style="background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 6px; padding: 8px 12px; font-size: 0.78rem; color: #475569; display: flex; align-items: center; gap: 8px;">
 
               <span style="font-size: 1.1rem;">🔒</span>
 
@@ -11116,9 +8118,7 @@ export class ModalManager {
 
             <input type="hidden" id="del-borrado-fisico" value="false" />
 
-
-
-            <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 6px; padding-top: 12px; border-top: 1px solid #e2e8f0;">
+<div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 6px; padding-top: 12px; border-top: 1px solid #e2e8f0;">
 
               <button type="button" class="btn btn-secondary" id="btn-del-cancel" style="padding: 8px 18px;">
 
@@ -11136,155 +8136,84 @@ export class ModalManager {
 
           </div>
 
-
-
-        </div>
+</div>
 
       </div>
 
     `;
 
-
-
     document.getElementById('btn-del-confirm')?.addEventListener('click', async () => {
-
       const motivo = document.getElementById('del-motivo')?.value.trim() || 'Retiro institucional de catálogo';
-
       const borradoFisico = false; // Regla 9.3: Estrictamente prohibido el borrado físico. Soft-delete obligatorio.
 
-
-
       const btn = document.getElementById('btn-del-confirm');
-
       btn.disabled = true;
-
       btn.textContent = 'Retirando...';
-
-
-
       const res = await sharepointService.eliminarDocumento(doc.codigo, motivo, borradoFisico);
 
       if (res.exito) {
-
         const codDocUpper = (doc.codigo || '').trim().toUpperCase();
-
         const mDerivDoc = codDocUpper.match(/^([A-Z]{2,4}-[A-Z]{2,4}-\d{3,4})-(\d+)$/);
-
         const mBaseDoc = codDocUpper.match(/^[A-Z]{2,4}-[A-Z]{2,4}-\d{3,4}$/);
-
         let esRegDoc = false;
-
         let codPadreDoc = '';
 
         if (mDerivDoc) {
-
           esRegDoc = true;
-
           codPadreDoc = mDerivDoc[1];
-
         } else if (mBaseDoc) {
-
           esRegDoc = false;
-
           codPadreDoc = '';
-
         } else if (doc.documentoPadreCodigo && doc.documentoPadreCodigo.split('-').length >= 3) {
-
           esRegDoc = true;
-
           codPadreDoc = doc.documentoPadreCodigo;
-
         }
-
-
 
         // 1. Registrar en Auditoría Institucional
 
         staffService.registrarAuditoria('ELIMINACION', {
-
           documentoCodigo: doc.codigo,
-
           documentoTitulo: doc.titulo,
-
           documentoExtension: doc.extension,
-
           esRegistro: esRegDoc,
-
           documentoPadreCodigo: codPadreDoc,
-
           detalle: esRegDoc
-
             ? `Registro derivado retirado del catálogo: ${motivo}`
-
             : `Documento retirado del catálogo: ${motivo}`
-
         });
-
-
 
         // 2. Registrar en Control de Cambios Documentales
 
         staffService.registrarCambioDocumental('ELIMINACION', {
-
           codigo: doc.codigo,
-
           titulo: doc.titulo,
-
           esRegistro: esRegDoc,
-
           documentoPadreCodigo: codPadreDoc,
-
           versionAnterior: staffService.normalizarVersion(doc.version || '1'),
-
           versionNueva: 'Retirado / Obsoleto',
-
           rutaAnterior: `${doc.tipoProceso || ''} / ${doc.area || ''} / ${doc.proceso || ''}`,
-
           rutaNueva: 'Archivo Inactivo / Fuera de Catálogo',
-
           tipoAnterior: doc.tipoDocumento || '',
-
           tipoNuevo: 'N/A',
-
           detalle: esRegDoc
-
             ? `Registro derivado retirado del catálogo: ${motivo}`
-
             : `Documento retirado del catálogo: ${motivo}`
-
         });
-
-
 
         this.cerrarModal();
 
         if (typeof onConfirmar === 'function') onConfirmar(doc.codigo);
-
       } else {
-
         alert(res.error || 'Error al retirar el documento.');
 
         btn.disabled = false;
-
         btn.textContent = 'Confirmar Retiro 🗑️';
-
       }
-
     });
 
-
-
     document.getElementById('btn-del-close')?.addEventListener('click', () => this.cerrarModal());
-
     document.getElementById('btn-del-cancel')?.addEventListener('click', () => this.cerrarModal());
-
   }
-
 }
 
-
-
 export const modalManager = new ModalManager();
-
-
-

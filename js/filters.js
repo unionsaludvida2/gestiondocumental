@@ -17,6 +17,7 @@ export class FilterEngine {
       formato: 'TODOS', // 'TODOS', 'Word', 'PDF', 'Excel'
       soloFavoritos: false,
       soloTop10: false,
+      soloTop50: false,
       ordenamiento: 'codigo-asc', // 'codigo-asc', 'codigo-desc', 'titulo-asc', 'titulo-desc', 'fecha-desc', 'fecha-asc'
       aplicarRestriccionPerfil: false
     };
@@ -55,15 +56,21 @@ export class FilterEngine {
   setSoloFavoritos(valor) {
     this.estado.soloFavoritos = Boolean(valor);
     if (this.estado.soloFavoritos) {
-      this.estado.soloTop10 = false; // Mutuamente excluyente con Top 10
+      this.estado.soloTop50 = false;
+      this.estado.soloTop10 = false; // Mutuamente excluyente con Top 50 / Top 10
+    }
+  }
+
+  setSoloTop50(valor) {
+    this.estado.soloTop50 = Boolean(valor);
+    this.estado.soloTop10 = this.estado.soloTop50;
+    if (this.estado.soloTop50) {
+      this.estado.soloFavoritos = false; // Mutuamente excluyente con Favoritos
     }
   }
 
   setSoloTop10(valor) {
-    this.estado.soloTop10 = Boolean(valor);
-    if (this.estado.soloTop10) {
-      this.estado.soloFavoritos = false; // Mutuamente excluyente con Favoritos
-    }
+    this.setSoloTop50(valor);
   }
 
   normalizarTipoProceso(tp) {
@@ -193,6 +200,7 @@ export class FilterEngine {
     this.estado.tiposDocumento.clear();
     this.estado.formato = 'TODOS';
     this.estado.soloFavoritos = false;
+    this.estado.soloTop50 = false;
     this.estado.soloTop10 = false;
     this.estado.ordenamiento = 'codigo-asc';
   }
@@ -241,7 +249,10 @@ export class FilterEngine {
     }
     if (categoria === 'formato') this.estado.formato = 'TODOS';
     if (categoria === 'favoritos') this.estado.soloFavoritos = false;
-    if (categoria === 'top10') this.estado.soloTop10 = false;
+    if (categoria === 'top10' || categoria === 'top50') {
+      this.estado.soloTop50 = false;
+      this.estado.soloTop10 = false;
+    }
   }
 
   /**
@@ -259,8 +270,8 @@ export class FilterEngine {
       filtrados = filtrados.filter((doc) => favoritosSet.has(doc.id));
     }
 
-    if (this.estado.soloTop10 && top10Set) {
-      filtrados = filtrados.filter((doc) => top10Set.has(doc.id));
+    if ((this.estado.soloTop50 || this.estado.soloTop10) && top10Set) {
+      filtrados = filtrados.filter((doc) => top10Set.has(doc.id) || top10Set.has(doc.codigo));
     }
 
     if (this.estado.formato && this.estado.formato !== 'TODOS') {
@@ -475,11 +486,11 @@ export class FilterEngine {
       });
     }
 
-    if (this.estado.soloTop10) {
+    if (this.estado.soloTop50 || this.estado.soloTop10) {
       etiquetas.push({
-        categoria: 'top10',
+        categoria: 'top50',
         valor: 'true',
-        label: '🔥 Top 10 Más Consultados'
+        label: '🔥 Top 50 Más Descargados'
       });
     }
 
@@ -598,11 +609,11 @@ export class FilterEngine {
       filtrados = resultadosBusqueda;
     }
 
-    // 9. Ordenamiento (Prioridad a Top 10 por número de descargas si está activo)
-    if (this.estado.soloTop10 && top10RankingMap) {
+    // 9. Ordenamiento (Prioridad a Top 50 por número de descargas si está activo)
+    if ((this.estado.soloTop50 || this.estado.soloTop10) && top10RankingMap) {
       filtrados.sort((a, b) => {
-        const rA = top10RankingMap.get(a.id) || 999;
-        const rB = top10RankingMap.get(b.id) || 999;
+        const rA = top10RankingMap.get(a.id) || top10RankingMap.get(a.codigo) || 999;
+        const rB = top10RankingMap.get(b.id) || top10RankingMap.get(b.codigo) || 999;
         if (rA !== rB) return rA - rB;
         return (a.codigo || '').localeCompare(b.codigo || '', 'es', { numeric: true });
       });

@@ -7,43 +7,27 @@ Union para la salud y la vida S.A.S.
 """
 
 import http.server
-
 import http.cookiejar
-
 import urllib.request
-
 import os
-
 import sys
-
 import json
-
 import base64
-
 import re
-
 import ssl
 
 try:
-
     SSL_CONTEXT = ssl._create_unverified_context()
-
 except Exception:
-
     SSL_CONTEXT = None
 
 try:
-
     if hasattr(sys.stdout, 'reconfigure'):
-
         sys.stdout.reconfigure(encoding='utf-8')
 
     if hasattr(sys.stderr, 'reconfigure'):
-
         sys.stderr.reconfigure(encoding='utf-8')
-
 except Exception:
-
     pass
 
 # ==============================================================================
@@ -59,55 +43,41 @@ except Exception:
 SINCRONIZACION_EXTERNA_ACTIVA = True
 
 ONEDRIVE_CSV_URL = (
-
     "https://unionsaludvida-my.sharepoint.com/:x:/p/plantillas/"
 
     "IQCctVunBodCQq97XWMPrue7AaIRpd-pVgSUuZrMBWBcA2A?e=revQbX&download=1"
-
 )
 
 ONEDRIVE_EMPLEADOS_URL = (
-
     "https://unionsaludvida-my.sharepoint.com/:x:/p/plantillas/"
 
     "IQDMt48585E1SJdtmCVBFpflAYIlEtWpENmxdj6ow3J3AR0?e=yLjbNy&download=1"
-
 )
 
 GOOGLE_SCRIPT_CONF_URL = (
-
     "https://script.google.com/macros/s/"
 
     "AKfycbx4-82Ls3Zu5gdzXlAhezZ6ew9tnAece8xSDMQ8QmXcu7UCnMxwqB48ISG_LwNDUgMiQQ/exec"
-
 )
 
 GOOGLE_SHEETS_CSV_URL = (
-
     "https://docs.google.com/spreadsheets/d/"
 
     "1ecwTurb2IyuO9qs4_PkAsQrULENh3J-RXEWbl5Ihhug/export?format=csv"
-
 )
 
 HISTORICO_SHEETS_CSV_URL = (
-
     "https://docs.google.com/spreadsheets/d/"
 
     "1kJjohcWIVYrAhIMrZwWfzex5zQXT769ZmAEmDlAUykk/export?format=csv"
-
 )
 
 GOOGLE_DRIVE_MAESTRO_URL = (
-
     "https://drive.google.com/uc?export=download&id=1NycmHFf8iAko2XsHIi9dmfe-lK6utpek"
-
 )
 
 def normalizar_version(ver):
-
     if ver is None:
-
         return '1'
 
     import re
@@ -115,39 +85,28 @@ def normalizar_version(ver):
     s = str(ver).strip()
 
     if not s or s in ('N/A', 'null', 'undefined'):
-
         return '1'
 
     if 'retirado' in s.lower() or 'obsoleto' in s.lower():
-
         return s
 
     s = re.sub(r'^v', '', s, flags=re.IGNORECASE).strip()
 
     if re.match(r'^\d+$', s):
-
         try:
-
             return str(int(s))
-
         except:
-
             return s
 
     if re.match(r'^\d+(\.\d+)+$', s):
-
         parts = s.split('.')
 
         clean_parts = []
 
         for p in parts:
-
             try:
-
                 clean_parts.append(str(int(p)))
-
             except:
-
                 clean_parts.append(p)
 
         return '.'.join(clean_parts)
@@ -157,9 +116,7 @@ def normalizar_version(ver):
     return clean or '1'
 
 def son_versiones_iguales(v1, v2):
-
     if not v1 and not v2:
-
         return True
 
     n1 = normalizar_version(v1)
@@ -167,35 +124,26 @@ def son_versiones_iguales(v1, v2):
     n2 = normalizar_version(v2)
 
     if n1 == n2:
-
         return True
 
     try:
-
         if float(n1) == float(n2):
-
             return True
-
     except:
-
         pass
 
     return False
 
 def parsear_fecha_ms(str_val):
-
     if not str_val:
-
         return 0
 
     import re
-
     from datetime import datetime
 
     s = str(str_val).strip()
 
     if not s or s in ('N/A', 'Sincronizado', 'null', 'undefined'):
-
         return 0
 
     s = s.replace('\u202f', ' ').replace('\xa0', ' ')
@@ -203,31 +151,22 @@ def parsear_fecha_ms(str_val):
     s = re.sub(r'\s+', ' ', s).strip()
 
     if 'T' in s or re.match(r'^\d{4}-\d{2}-\d{2}', s):
-
         try:
-
             dt = datetime.fromisoformat(s.replace('Z', ''))
 
             return int(dt.timestamp() * 1000)
-
         except:
-
             pass
 
     if re.match(r'^\d{12,14}$', s):
-
         try:
-
             return int(s)
-
         except:
-
             pass
 
     matchLatam = re.match(r'^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})(?:\s*,?\s*(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?\s*(am|pm|a\.?\s*m\.?|p\.?\s*m\.?)?)?', s, re.I)
 
     if matchLatam:
-
         dia = int(matchLatam.group(1))
 
         mes = int(matchLatam.group(2))
@@ -247,27 +186,21 @@ def parsear_fecha_ms(str_val):
         if ampm == 'am' and hora == 12: hora = 0
 
         try:
-
             dt = datetime(anio, mes, dia, hora, minuto, seg)
 
             return int(dt.timestamp() * 1000)
-
         except:
-
             pass
 
     return 0
 
 def formatear_fecha_hora(val):
-
     if not val or val in ('N/A', 'Sincronizado', 'null', 'undefined'):
-
         return val if val == 'Sincronizado' else 'N/A'
 
     ms = parsear_fecha_ms(val)
 
     if not ms or ms <= 0:
-
         return str(val).strip()
 
     from datetime import datetime
@@ -277,11 +210,8 @@ def formatear_fecha_hora(val):
     return dt.strftime('%d/%m/%Y %H:%M:%S')
 
 import time
-
 import threading
-
 import csv
-
 import tempfile
 
 TEMP_CACHE_DIR = os.path.join(tempfile.gettempdir(), 'gestion_documental_cache')
@@ -292,17 +222,12 @@ MAESTRO_DAT_PATH = os.path.join(TEMP_CACHE_DIR, 'maestro.dat')
 REPOSITORIO_DAT_PATH = os.path.join(TEMP_CACHE_DIR, 'repositorio.dat')
 
 KNOWN_HISTORICO_EVENTS = {
-
     'CREACION', 'ELIMINACION', 'CAMBIO_VERSION', 'CAMBIO_METADATOS', 'METADATOS',
-
     'CAMBIO_RUTA', 'CAMBIO_TIPO', 'EDICION_SHAREPOINT', 'EDICION'
-
 }
 
 def sanitizar_registro_historico(h):
-
     if not isinstance(h, dict):
-
         return None
 
     cod = (h.get('codigo') or '').strip().upper()
@@ -312,13 +237,11 @@ def sanitizar_registro_historico(h):
     # Descartar documentos inexistentes o registros corruptos
 
     if 'HIST_' in cod or cod in KNOWN_HISTORICO_EVENTS or cod.endswith('ION_SHAREPOINT'):
-
         return None
 
     # Auto-corrección de filas donde tipoEvento y codigo quedaron invertidos o desplazados
 
     if evt not in KNOWN_HISTORICO_EVENTS and any(evt.startswith(pre) for pre in ['FMT-', 'INS-', 'PR-', 'PT-', 'DA-', 'MN-', 'PVE-']):
-
         h['codigo'] = evt
 
         h['tipoEvento'] = 'EDICION_SHAREPOINT'
@@ -326,13 +249,10 @@ def sanitizar_registro_historico(h):
         # Si el titulo era el codigo anterior (desplazado), intentar recuperar el titulo real
 
         if h.get('titulo') == 'v01' or not h.get('titulo'):
-
             h['titulo'] = (cod if cod and cod not in KNOWN_HISTORICO_EVENTS else 'Documento institucional')
 
     # Limpieza de claves compuestas con ::
-
     if h.get('codigo') and '::' in h['codigo']:
-
         h['codigo'] = h['codigo'].split('::')[0].strip().upper()
 
     # Limpiar ID si tiene duplicaciones
@@ -340,45 +260,35 @@ def sanitizar_registro_historico(h):
     clean_id = (h.get('id') or '').strip()
 
     if clean_id:
-
         m = re.search(r'(hist_\d+_[a-z0-9]+)$', clean_id.lower())
 
         if m:
-
             h['id'] = m.group(1)
 
     if not h.get('codigo'):
-
         return None
 
     return h
 
 def leer_historico_csv():
-
     if not os.path.exists(HISTORICO_CSV_PATH):
-
         return []
 
     lista = []
 
     try:
-
         with open(HISTORICO_CSV_PATH, 'r', encoding='utf-8-sig') as f:
-
             reader = csv.reader(f, delimiter=';')
 
             raw_headers = next(reader, None)
 
             if not raw_headers:
-
                 return []
 
             headers = [h.strip() for h in raw_headers]
 
             for i, row in enumerate(reader, start=2):
-
                 if not row or len(row) < 2:
-
                     continue
 
                 # Auto-corrección de filas donde se omitió la columna 'id' desplazando las demás
@@ -386,7 +296,6 @@ def leer_historico_csv():
                 p0 = row[0].strip().upper()
 
                 if p0 in KNOWN_HISTORICO_EVENTS or p0.endswith('ION_SHAREPOINT'):
-
                     evt = 'EDICION_SHAREPOINT' if p0.endswith('ION_SHAREPOINT') else p0
 
                     row = [f'hist_auto_{i}_{int(time.time()*1000)}', evt] + [c.strip() for c in row[1:]]
@@ -394,37 +303,27 @@ def leer_historico_csv():
                 obj = {}
 
                 for c in range(min(len(headers), len(row))):
-
                     obj[headers[c]] = row[c].strip()
 
                 sani = sanitizar_registro_historico(obj)
 
                 if sani:
-
                     lista.append(sani)
-
     except Exception as e:
-
         print("[Server.py] Error leyendo Historico CSV:", e)
 
     return lista
 
 def guardar_historico_csv(lista):
-
     try:
-
         with open(HISTORICO_CSV_PATH, 'w', encoding='utf-8-sig', newline='') as f:
-
             writer = csv.DictWriter(f, fieldnames=HISTORICO_CSV_HEADERS, delimiter=';', extrasaction='ignore')
 
             writer.writeheader()
 
             for row in lista:
-
                 writer.writerow(row)
-
     except Exception as e:
-
         print("[Server.py] Error escribiendo Historico CSV:", e)
 
 WORD_CONVERT_LOCK = threading.Lock()
@@ -432,7 +331,6 @@ WORD_CONVERT_LOCK = threading.Lock()
 PDF_CACHE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'pdf_cache')
 
 def obtener_o_convertir_pdf(url_original, codigo, titulo=""):
-
     """
 
     Convierte documentos DOCX de SharePoint Online directamente a PDF en segundo plano
@@ -442,11 +340,8 @@ def obtener_o_convertir_pdf(url_original, codigo, titulo=""):
     """
 
     try:
-
         os.makedirs(PDF_CACHE_DIR, exist_ok=True)
-
     except Exception:
-
         pass
 
     clean_code = re.sub(r'[/\\?%*:|"<> ]', '_', codigo or '').strip() or 'DOC'
@@ -456,37 +351,24 @@ def obtener_o_convertir_pdf(url_original, codigo, titulo=""):
     # 1. Si ya existe en caché con tamaño válido (> 1000 bytes), retornar de inmediato
 
     if os.path.exists(cache_file) and os.path.getsize(cache_file) > 1000:
-
         try:
-
             with open(cache_file, 'rb') as f:
-
                 return f.read()
-
         except Exception as e_read:
-
             print(f"[Server.py] Error leyendo caché PDF {clean_code}:", e_read)
 
     # 2. Conversión nativa mediante Microsoft Word COM en Windows (SSO integrado con SharePoint)
 
     with WORD_CONVERT_LOCK:
-
         if os.path.exists(cache_file) and os.path.getsize(cache_file) > 1000:
-
             try:
-
                 with open(cache_file, 'rb') as f:
-
                     return f.read()
-
             except Exception:
-
                 pass
 
         try:
-
             import pythoncom
-
             import win32com.client
 
             pythoncom.CoInitialize()
@@ -494,7 +376,6 @@ def obtener_o_convertir_pdf(url_original, codigo, titulo=""):
             word = None
 
             try:
-
                 word = win32com.client.Dispatch('Word.Application')
 
                 word.Visible = False
@@ -510,29 +391,19 @@ def obtener_o_convertir_pdf(url_original, codigo, titulo=""):
                 doc.Close(False)
 
                 print(f"[Server.py] ✅ Documento {codigo} convertido exitosamente a PDF con Word COM ({os.path.getsize(cache_file)} bytes).")
-
             finally:
-
                 if word:
-
                     try:
-
                         word.Quit()
-
                     except Exception:
-
                         pass
 
                 pythoncom.CoUninitialize()
 
             if os.path.exists(cache_file) and os.path.getsize(cache_file) > 1000:
-
                 with open(cache_file, 'rb') as f:
-
                     return f.read()
-
         except Exception as e_conv:
-
             print(f"[Server.py] Error en conversión Word COM para {codigo}:", e_conv)
 
     return None
@@ -540,25 +411,16 @@ def obtener_o_convertir_pdf(url_original, codigo, titulo=""):
 # Caché en memoria para respuesta instantánea (< 1 ms)
 
 CACHE = {
-
     'repo': {'data': None, 'ts': 0, 'fetching': False},
-
     'biblioteca': {'data': None, 'ts': 0, 'fetching': False},
-
     'empleados': {'data': None, 'ts': 0, 'fetching': False},
-
     'config': {'data': None, 'ts': 0, 'fetching': False},
-
     'maestras': {'data': None, 'ts': 0, 'fetching': False},
-
     'historico': {'data': None, 'ts': 0, 'fetching': False},
-
 }
 
 def sanitizar_evento_auditoria(ev):
-
     if not isinstance(ev, dict):
-
         return ev
 
     cod = str(ev.get('documentoCodigo') or ev.get('codigo') or '').strip()
@@ -568,41 +430,32 @@ def sanitizar_evento_auditoria(ev):
     det = str(ev.get('detalle') or '')
 
     # 0. Limpieza de claves compuestas con ::
-
     if '::' in cod:
-
         cod = cod.split('::')[0].strip().upper()
 
         ev['documentoCodigo'] = cod
 
         if 'codigo' in ev:
-
             ev['codigo'] = cod
-
     else:
-
         cod = cod.upper()
 
         ev['documentoCodigo'] = cod
 
         if 'codigo' in ev:
-
             ev['codigo'] = cod
 
     if '::' in det:
-
         ev['detalle'] = re.sub(r'::[a-zA-Z0-9_\.]+', '', det)
 
         det = ev['detalle']
 
     if re.search(r'\.(xlsx|docx|pdf|xls|doc)$', tit, re.I):
-
         clean_tit = re.sub(r'\.(xlsx|docx|pdf|xls|doc)$', '', tit, flags=re.I).strip()
 
         ev['documentoTitulo'] = clean_tit
 
         if 'titulo' in ev:
-
             ev['titulo'] = clean_tit
 
         tit = clean_tit
@@ -612,7 +465,6 @@ def sanitizar_evento_auditoria(ev):
     m_deriv = re.match(r'^([A-Z]{2,4}-[A-Z]{2,4}-\d{3,4})-(\d+)$', cod)
 
     if m_deriv:
-
         ev['esRegistro'] = True
 
         ev['documentoPadreCodigo'] = m_deriv.group(1)
@@ -624,13 +476,11 @@ def sanitizar_evento_auditoria(ev):
     m_base = re.match(r'^[A-Z]{2,4}-[A-Z]{2,4}-\d{3,4}$', cod)
 
     if m_base:
-
         ev['esRegistro'] = False
 
         ev['documentoPadreCodigo'] = ''
 
         if 'registro derivado' in det.lower():
-
             ev['detalle'] = re.sub(r'registro derivado', 'documento', det, flags=re.I)
 
         return ev
@@ -642,9 +492,7 @@ def sanitizar_evento_auditoria(ev):
     det_lower = det.lower()
 
     if cod in ('FMT-GIC-016', 'FMT-GIC-015') or 'fmt-gic-016' in det_lower or 'fmt-gic-015' in det_lower:
-
         if '2026-1' in tit_lower or '2026-1' in det_lower:
-
             ev['esRegistro'] = True
 
             ev['documentoPadreCodigo'] = 'FMT-GIC-015'
@@ -652,9 +500,7 @@ def sanitizar_evento_auditoria(ev):
             ev['documentoCodigo'] = 'FMT-GIC-015-1'
 
             return ev
-
         elif '2026-2' in tit_lower or '2026-2' in det_lower:
-
             ev['esRegistro'] = True
 
             ev['documentoPadreCodigo'] = 'FMT-GIC-015'
@@ -662,9 +508,7 @@ def sanitizar_evento_auditoria(ev):
             ev['documentoCodigo'] = 'FMT-GIC-015-2'
 
             return ev
-
         elif 'asma' in tit_lower or 'asma' in det_lower:
-
             ev['esRegistro'] = True
 
             ev['documentoPadreCodigo'] = 'FMT-GIC-015'
@@ -672,9 +516,7 @@ def sanitizar_evento_auditoria(ev):
             ev['documentoCodigo'] = 'FMT-GIC-015-3'
 
             return ev
-
         elif 'anticoagula' in tit_lower or 'anticoagula' in det_lower:
-
             ev['esRegistro'] = True
 
             ev['documentoPadreCodigo'] = 'FMT-GIC-015'
@@ -688,7 +530,6 @@ def sanitizar_evento_auditoria(ev):
     padre = str(ev.get('documentoPadreCodigo') or '').strip()
 
     if not padre or len(padre.split('-')) < 3:
-
         ev['esRegistro'] = False
 
         ev['documentoPadreCodigo'] = ''
@@ -696,9 +537,7 @@ def sanitizar_evento_auditoria(ev):
     return ev
 
 def deduplicar_registro_auditoria(lista_aud):
-
     if not isinstance(lista_aud, list):
-
         return []
 
     purgados = [sanitizar_evento_auditoria(ev) for ev in lista_aud if isinstance(ev, dict)]
@@ -708,9 +547,7 @@ def deduplicar_registro_auditoria(lista_aud):
     resultado = []
 
     for ev in purgados:
-
         if not resultado:
-
             resultado.append(ev)
 
             continue
@@ -734,7 +571,6 @@ def deduplicar_registro_auditoria(lista_aud):
         es_duplicado_temporal = mismo_usr and mismo_tipo and (mismo_doc or mismo_det or mismo_tipo == 'LOGIN') and abs(ms_ant - ms_actual) < 10000
 
         if not mismo_id and not es_duplicado_temporal:
-
             resultado.append(ev)
 
     return resultado
@@ -742,19 +578,14 @@ def deduplicar_registro_auditoria(lista_aud):
 FECHA_CORTE_PURGA_MS = 1788020640000  # 29/08/2026 11:24:00
 
 def sanitizar_conf(conf_dict):
-
     if not isinstance(conf_dict, dict):
-
         return conf_dict
 
     if 'historicoDocumental' in conf_dict and isinstance(conf_dict['historicoDocumental'], list):
-
         lista_hist = []
 
         for h in conf_dict['historicoDocumental']:
-
             if not isinstance(h, dict):
-
                 continue
 
             va = h.get('versionAnterior')
@@ -772,53 +603,41 @@ def sanitizar_conf(conf_dict):
             t_ant = h.get('tipoAnterior') or ''
 
             if tipo == 'CREACION' and not h.get('codigo'):
-
                 continue
 
             if 'Reubicación de ruta' in det or 'Intranet' in r_nue or 'Intranet' in r_ant:
-
                 continue
 
             if 'PC de GIC' in det or 'PC de GIC' in r_nue or 'PC de GIC' in r_ant:
-
                 continue
 
             if tipo == 'CAMBIO_TIPO' and len(t_ant) <= 4 and t_ant.isupper():
-
                 continue
 
             if 'Cambio de tipo documental' in det and len(t_ant) <= 4:
-
                 continue
 
             if r_ant == 'N/A' and ('/ Intranet' in r_nue or '/ N/A' in r_nue):
-
                 continue
 
             if tipo == 'CAMBIO_VERSION' and son_versiones_iguales(va, vn):
-
                 continue
 
             clean_h = dict(h)
 
             if va and va != 'N/A':
-
                 clean_h['versionAnterior'] = normalizar_version(va)
 
             if vn and vn != 'N/A':
-
                 clean_h['versionNueva'] = normalizar_version(vn)
 
             if clean_h.get('fechaHora'):
-
                 clean_h['fechaHora'] = formatear_fecha_hora(clean_h['fechaHora'])
 
             if clean_h.get('fechaModificacionActual'):
-
                 clean_h['fechaModificacionActual'] = formatear_fecha_hora(clean_h['fechaModificacionActual'])
 
             if clean_h.get('fechaModificacionPrevia'):
-
                 clean_h['fechaModificacionPrevia'] = formatear_fecha_hora(clean_h['fechaModificacionPrevia'])
 
             lista_hist.append(clean_h)
@@ -828,7 +647,6 @@ def sanitizar_conf(conf_dict):
     return conf_dict
 
 def generar_repositorio_dat(raw_csv_bytes=None):
-
     """
 
     Convierte los datos CSV de OneDrive (desde memoria o archivo temporal) a un formato
@@ -842,25 +660,19 @@ def generar_repositorio_dat(raw_csv_bytes=None):
     dat_path = REPOSITORIO_DAT_PATH
 
     try:
-
         import csv
-
         import io
 
         rows = []
 
         if raw_csv_bytes and len(raw_csv_bytes) > 0:
-
             csv_text = raw_csv_bytes.decode('utf-8-sig', errors='replace')
 
             reader = csv.reader(io.StringIO(csv_text), delimiter=';')
 
             rows = [r for r in reader if r and len(r) >= 2]
-
         elif os.path.exists(dat_path):
-
             with open(dat_path, 'rb') as f:
-
                 d = f.read()
 
                 CACHE['repo_json'] = {'data': d, 'ts': time.time(), 'obj': json.loads(d.decode('utf-8'))}
@@ -868,15 +680,12 @@ def generar_repositorio_dat(raw_csv_bytes=None):
             return d
 
         if not rows:
-
             return None
 
         items = []
 
         for r in rows[1:]:
-
             if not r or not r[0].strip():
-
                 continue
 
             codigo = r[0].strip()
@@ -900,55 +709,33 @@ def generar_repositorio_dat(raw_csv_bytes=None):
             formato = 'Word' if ext_clean in ['docx', 'doc'] else ('Excel' if ext_clean in ['xlsx', 'xls', 'csv'] else ('PDF' if ext_clean == 'pdf' else ext_clean.upper()))
 
             items.append({
-
                 'codigo': codigo,
-
                 'titulo': documento,
-
                 'documento': documento,
-
                 'extension': extension,
-
                 'formato': formato,
-
                 'carpeta': carpeta,
-
                 'proceso': carpeta,
-
                 'tipoDocumento': tipo_doc,
-
                 'modificacion': mod,
-
                 'vinculoEdicion': edicion,
-
                 'vinculoDescarga': descarga,
-
                 'sharepointUrl': edicion or descarga,
-
                 'downloadUrl': descarga or edicion,
-
                 'disponible': bool(descarga or edicion)
-
             })
 
         res_obj = {
-
             'version': '1.0',
-
             'empresa': 'Unión para la salud y la vida S.A.S.',
-
             'ultimaActualizacion': time.strftime('%Y-%m-%dT%H:%M:%SZ'),
-
             'total': len(items),
-
             'documentos': items
-
         }
 
         json_bytes = json.dumps(res_obj, ensure_ascii=False, indent=2).encode('utf-8')
 
         with open(dat_path, 'wb') as f:
-
             f.write(json_bytes)
 
         CACHE['repo_json'] = {'data': json_bytes, 'ts': time.time(), 'obj': res_obj}
@@ -956,53 +743,40 @@ def generar_repositorio_dat(raw_csv_bytes=None):
         print(f"[Server.py] [OK] repositorio.dat actualizado en memoria y disco ({len(items)} documentos sin depender de CSV local).")
 
         return json_bytes
-
     except Exception as e:
-
         print("[Server.py] Error generando repositorio.dat:", e)
 
         return None
 
 def _trigger_background_repo_sync():
-
     if not SINCRONIZACION_EXTERNA_ACTIVA:
-
         generar_repositorio_dat()
 
         return
 
     if CACHE['repo']['fetching']:
-
         return
 
     CACHE['repo']['fetching'] = True
 
     def _worker():
-
         try:
-
             # 1. Prioridad #1: Descargar directamente stream desde OneDrive / SharePoint en memoria
 
             try:
-
                 cj = http.cookiejar.CookieJar()
 
                 opener = urllib.request.build_opener(
-
                     urllib.request.HTTPSHandler(context=SSL_CONTEXT) if SSL_CONTEXT else urllib.request.HTTPSHandler(),
-
                     urllib.request.HTTPCookieProcessor(cj)
-
                 )
 
                 opener.addheaders = [('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)')]
 
                 with opener.open(ONEDRIVE_CSV_URL, timeout=15) as resp:
-
                     d = resp.read()
 
                 if len(d) > 100 and (b';' in d or b',' in d):
-
                     CACHE['repo']['data'] = d
 
                     CACHE['repo']['ts'] = time.time()
@@ -1012,35 +786,26 @@ def _trigger_background_repo_sync():
                     generar_repositorio_dat(raw_csv_bytes=d)
 
                     return
-
             except Exception as e_od:
-
                 print("[Server.py] Error descargando OneDrive CSV:", e_od)
 
             # 2. Fallback: Google Sheets si OneDrive no responde
 
             try:
-
                 req = urllib.request.Request(GOOGLE_SHEETS_CSV_URL, headers={'User-Agent': 'Mozilla/5.0'})
 
                 with urllib.request.urlopen(req, timeout=8, context=SSL_CONTEXT) as resp:
-
                     d = resp.read()
 
                 if len(d) > 100 and (b',' in d or b';' in d):
-
                     CACHE['repo']['data'] = d
 
                     CACHE['repo']['ts'] = time.time()
 
                     return
-
             except Exception:
-
                 pass
-
         finally:
-
             CACHE['repo']['fetching'] = False
 
     t = threading.Thread(target=_worker, daemon=True)
@@ -1048,59 +813,33 @@ def _trigger_background_repo_sync():
     t.start()
 
 def _trigger_background_biblioteca_sync():
-
     if CACHE['biblioteca']['fetching']:
-
         return
 
     CACHE['biblioteca']['fetching'] = True
 
     def _worker():
-
         try:
-
             req = urllib.request.Request(GOOGLE_SHEETS_CSV_URL, headers={'User-Agent': 'Mozilla/5.0'})
 
             with urllib.request.urlopen(req, timeout=12, context=SSL_CONTEXT) as resp:
-
                 d = resp.read()
 
             if len(d) > 100 and (b',' in d or b';' in d):
-
                 CACHE['biblioteca']['data'] = d
 
                 CACHE['biblioteca']['ts'] = time.time()
 
                 try:
-
                     pass
-
                 except Exception:
-
                     pass
 
                 print(f"[Server.py] ✅ Biblioteca (Google Sheets Biblioteca_Pruebas) sincronizada ({len(d)} bytes).")
-
         except Exception as e:
-
             print("[Server.py] Error sincronizando Biblioteca GS:", e)
 
-            if os.path.exists('google_sheets_live.csv'):
-
-                try:
-
-                    with open('google_sheets_live.csv', 'rb') as f:
-
-                        CACHE['biblioteca']['data'] = f.read()
-
-                        CACHE['biblioteca']['ts'] = time.time()
-
-                except Exception:
-
-                    pass
-
         finally:
-
             CACHE['biblioteca']['fetching'] = False
 
     t = threading.Thread(target=_worker, daemon=True)
@@ -1108,43 +847,30 @@ def _trigger_background_biblioteca_sync():
     t.start()
 
 def _trigger_background_empleados_sync():
-
     if not SINCRONIZACION_EXTERNA_ACTIVA:
-
         if os.path.exists('EMPLEADOS_ACTIVOS.csv'):
-
             try:
-
                 with open('EMPLEADOS_ACTIVOS.csv', 'rb') as f:
-
                     CACHE['empleados']['data'] = f.read()
 
                     CACHE['empleados']['ts'] = time.time()
-
             except Exception:
-
                 pass
 
         return
 
     if CACHE['empleados']['fetching']:
-
         return
 
     CACHE['empleados']['fetching'] = True
 
     def _worker():
-
         try:
-
             cj = http.cookiejar.CookieJar()
 
             opener = urllib.request.build_opener(
-
                 urllib.request.HTTPSHandler(context=SSL_CONTEXT) if SSL_CONTEXT else urllib.request.HTTPSHandler(),
-
                 urllib.request.HTTPCookieProcessor(cj)
-
             )
 
             opener.addheaders = [('User-Agent', 'Mozilla/5.0')]
@@ -1154,19 +880,14 @@ def _trigger_background_empleados_sync():
             d = resp.read()
 
             if len(d) > 100:
-
                 CACHE['empleados']['data'] = d
 
                 CACHE['empleados']['ts'] = time.time()
 
                 print(f"[Server.py] ⚡ Matriz de colaboradores sincronizada desde OneDrive en RAM ({len(d)} bytes).")
-
         except Exception as e:
-
             print("[Server.py] Error sincronizando colaboradores desde OneDrive:", e)
-
         finally:
-
             CACHE['empleados']['fetching'] = False
 
     t = threading.Thread(target=_worker, daemon=True)
@@ -1174,93 +895,63 @@ def _trigger_background_empleados_sync():
     t.start()
 
 def _trigger_background_config_sync():
-
     if not SINCRONIZACION_EXTERNA_ACTIVA:
-
         if os.path.exists(USUARIOS_CONF_PATH):
-
             try:
-
                 with open(USUARIOS_CONF_PATH, 'rb') as f:
-
                     CACHE['config']['data'] = f.read()
 
                     CACHE['config']['ts'] = time.time()
-
             except Exception:
-
                 pass
 
         return
 
     if CACHE['config']['fetching']:
-
         return
 
     CACHE['config']['fetching'] = True
 
     def _worker():
-
         try:
-
             req_g = urllib.request.Request(
-
                 GOOGLE_SCRIPT_CONF_URL,
-
                 headers={'User-Agent': 'Mozilla/5.0'}
-
             )
 
             with urllib.request.urlopen(req_g, timeout=8, context=SSL_CONTEXT) as resp:
-
                 data = resp.read()
 
             if len(data) > 0 and data.strip().startswith(b'{'):
-
                 cloud_conf = json.loads(data.decode('utf-8'))
 
                 local_conf = {}
 
                 if os.path.exists(USUARIOS_CONF_PATH):
-
                     try:
-
                         with open(USUARIOS_CONF_PATH, 'r', encoding='utf-8') as f:
-
                             local_conf = json.load(f)
-
                     except Exception:
-
                         local_conf = {}
 
                 merged_conf = {**local_conf, **cloud_conf}
 
                 merged_conf['usuariosRegistrados'] = {
-
                     **(local_conf.get('usuariosRegistrados') or {}),
-
                     **(cloud_conf.get('usuariosRegistrados') or {})
-
                 }
 
                 merged_conf['mapeoPerfilesPersonalizados'] = {
-
                     **(local_conf.get('mapeoPerfilesPersonalizados') or {}),
-
                     **(cloud_conf.get('mapeoPerfilesPersonalizados') or {})
-
                 }
 
                 merged_conf['preferenciasPorUsuario'] = {
-
                     **(local_conf.get('preferenciasPorUsuario') or {}),
-
                     **(cloud_conf.get('preferenciasPorUsuario') or {})
-
                 }
 
                 if cloud_conf.get('ordenamientoGlobal') or local_conf.get('ordenamientoGlobal'):
-
                     merged_conf['ordenamientoGlobal'] = cloud_conf.get('ordenamientoGlobal') or local_conf.get('ordenamientoGlobal')
 
                 merged_conf = sanitizar_conf(merged_conf)
@@ -1278,13 +969,9 @@ def _trigger_background_config_sync():
                 merged_conf.pop('auditoria', None)
 
                 try:
-
                     with open(USUARIOS_CONF_PATH, 'w', encoding='utf-8') as f:
-
                         json.dump(merged_conf, f, indent=2, ensure_ascii=False)
-
                 except Exception:
-
                     pass
 
                 res_bytes = json.dumps(merged_conf, ensure_ascii=False).encode('utf-8')
@@ -1292,13 +979,9 @@ def _trigger_background_config_sync():
                 CACHE['config']['data'] = res_bytes
 
                 CACHE['config']['ts'] = time.time()
-
         except Exception as err:
-
             print('[Server.py] Sync background config error:', err)
-
         finally:
-
             CACHE['config']['fetching'] = False
 
     t = threading.Thread(target=_worker, daemon=True)
@@ -1370,41 +1053,27 @@ def _trigger_background_historico_sync():
     t.start()
 
 def _trigger_background_maestro_sync():
-
     if CACHE['maestras']['fetching']:
-
         return
 
     CACHE['maestras']['fetching'] = True
 
     def _worker():
-
         try:
-
             if os.path.exists(MAESTRO_DAT_PATH):
-
                 try:
-
                     with open(MAESTRO_DAT_PATH, 'rb') as f:
-
                         d = f.read()
 
                         if len(d) > 0 and d.strip().startswith(b'{'):
-
                             CACHE['maestras']['data'] = d
 
                             CACHE['maestras']['ts'] = time.time()
-
                 except Exception:
-
                     pass
-
         except Exception as e:
-
             print('[Server.py] Sync background maestro error:', e)
-
         finally:
-
             CACHE['maestras']['fetching'] = False
 
     t = threading.Thread(target=_worker, daemon=True)
@@ -1412,33 +1081,24 @@ def _trigger_background_maestro_sync():
     t.start()
 
 def sincronizar_con_google_async(url, payload_bytes):
-
     if not SINCRONIZACION_EXTERNA_ACTIVA:
-
         # Modo local seguro para pruebas: No se envían mutaciones a la nube para proteger los datos
 
         return
 
     def _worker():
-
         try:
-
             req_g = urllib.request.Request(url, data=payload_bytes, method='POST')
 
             req_g.add_header('Content-Type', 'text/plain;charset=utf-8')
 
             opener = urllib.request.build_opener(
-
                 urllib.request.HTTPSHandler(context=SSL_CONTEXT) if SSL_CONTEXT else urllib.request.HTTPSHandler(),
-
                 urllib.request.HTTPCookieProcessor()
-
             )
 
             opener.open(req_g, timeout=20)
-
         except Exception as e:
-
             print('[Server.py] Sincronización en la nube (background):', e)
 
     t = threading.Thread(target=_worker, daemon=True)
@@ -1446,13 +1106,10 @@ def sincronizar_con_google_async(url, payload_bytes):
     t.start()
 
 class LiveOneDriveHandler(http.server.SimpleHTTPRequestHandler):
-
     def __init__(self, *args, **kwargs):
-
         super().__init__(*args, directory=os.path.dirname(os.path.abspath(__file__)), **kwargs)
 
     def end_headers(self):
-
         self.send_header('Cache-Control', 'no-cache, no-store, must-revalidate')
 
         self.send_header('Pragma', 'no-cache')
@@ -1462,7 +1119,6 @@ class LiveOneDriveHandler(http.server.SimpleHTTPRequestHandler):
         super().end_headers()
 
     def do_OPTIONS(self):
-
         self.send_response(200)
 
         self.send_header('Access-Control-Allow-Origin', '*')
@@ -1474,13 +1130,10 @@ class LiveOneDriveHandler(http.server.SimpleHTTPRequestHandler):
         self.end_headers()
 
     def do_GET(self):
-
         # Endpoint institucional para descarga oficial en PDF (Word no-FMT) o formato nativo (FMT/Excel)
 
         if self.path.startswith('/api/descargar-pdf'):
-
             try:
-
                 import urllib.parse
 
                 parsed = urllib.parse.urlparse(self.path)
@@ -1508,11 +1161,9 @@ class LiveOneDriveHandler(http.server.SimpleHTTPRequestHandler):
                 es_excel = limpia_url.endswith('.xlsx') or limpia_url.endswith('.xls')
 
                 if es_fmt or es_excel:
-
                     target_url = url_original
 
                     if 'download=1' not in target_url:
-
                         sep = '&' if '?' in target_url else '?'
 
                         target_url = f"{target_url}{sep}download=1"
@@ -1538,7 +1189,6 @@ class LiveOneDriveHandler(http.server.SimpleHTTPRequestHandler):
                 pdf_bytes = obtener_o_convertir_pdf(url_original, codigo, titulo)
 
                 if pdf_bytes and len(pdf_bytes) > 0:
-
                     self.send_response(200)
 
                     self.send_header('Content-Type', 'application/pdf')
@@ -1560,7 +1210,6 @@ class LiveOneDriveHandler(http.server.SimpleHTTPRequestHandler):
                 # Si falló la conversión local, fallback a redirección SharePoint REST v2.0
 
                 if '/Documentos compartidos/' in url_original:
-
                     idx = url_original.index('/Documentos compartidos/')
 
                     site_base = url_original[:idx]
@@ -1588,9 +1237,7 @@ class LiveOneDriveHandler(http.server.SimpleHTTPRequestHandler):
                 self.end_headers()
 
                 return
-
             except Exception as e_pdf:
-
                 print("[Server.py] Error en /api/descargar-pdf:", e_pdf)
 
                 self.send_response(500)
@@ -1602,21 +1249,16 @@ class LiveOneDriveHandler(http.server.SimpleHTTPRequestHandler):
         # 1. Endpoint catálogo documental (Respuesta instantánea a <1ms desde caché)
 
         if self.path.startswith('/api/repositorio') or self.path.startswith('/api/documentos') or self.path.startswith('/repositorio.dat'):
-
             quiere_csv = 'formato=csv' in self.path or 'format=csv' in self.path
 
             # Si el cliente solicita formato CSV expresamente
 
             if quiere_csv:
-
                 data = CACHE['repo']['data']
 
                 if data is None and os.path.exists(REPOSITORIO_DAT_PATH):
-
                     try:
-
                         with open(REPOSITORIO_DAT_PATH, "rb") as f:
-
                             dat_raw = f.read()
 
                             # Extraer o servir datos
@@ -1624,17 +1266,13 @@ class LiveOneDriveHandler(http.server.SimpleHTTPRequestHandler):
                             CACHE['repo']['data'] = dat_raw
 
                             CACHE['repo']['ts'] = time.time()
-
                     except Exception:
-
                         pass
 
                 if CACHE['repo']['data'] is None or (time.time() - CACHE['repo']['ts'] > 90) or 'forzar=true' in self.path:
-
                     _trigger_background_repo_sync()
 
                 if data and len(data) > 0:
-
                     self.send_response(200)
 
                     self.send_header('Content-Type', 'text/csv; charset=utf-8')
@@ -1654,25 +1292,17 @@ class LiveOneDriveHandler(http.server.SimpleHTTPRequestHandler):
             dat_bytes = None
 
             if CACHE.get('repo_json') and CACHE['repo_json'].get('data'):
-
                 dat_bytes = CACHE['repo_json']['data']
-
             elif os.path.exists(REPOSITORIO_DAT_PATH):
-
                 try:
-
                     with open(REPOSITORIO_DAT_PATH, 'rb') as f:
-
                         dat_bytes = f.read()
 
                         CACHE['repo_json'] = {'data': dat_bytes, 'ts': time.time()}
-
                 except Exception:
-
                     pass
 
             if dat_bytes is None:
-
                 dat_bytes = generar_repositorio_dat()
 
             # Refrescar en background si tiene más de 90 segundos o si se fuerza refresco
@@ -1680,11 +1310,9 @@ class LiveOneDriveHandler(http.server.SimpleHTTPRequestHandler):
             ts_repo = CACHE.get('repo_json', {}).get('ts', 0)
 
             if ts_repo == 0 or (time.time() - ts_repo > 90) or 'forzar=true' in self.path:
-
                 _trigger_background_repo_sync()
 
             if dat_bytes and len(dat_bytes) > 0:
-
                 self.send_response(200)
 
                 self.send_header('Content-Type', 'application/json; charset=utf-8')
@@ -1718,15 +1346,12 @@ class LiveOneDriveHandler(http.server.SimpleHTTPRequestHandler):
         # 1.1 Endpoint Biblioteca Google Sheets
 
         if self.path.startswith('/api/biblioteca'):
-
             data = CACHE['biblioteca']['data']
 
             if CACHE['biblioteca']['data'] is None or (time.time() - CACHE['biblioteca']['ts'] > 60) or 'forzar=true' in self.path:
-
                 _trigger_background_biblioteca_sync()
 
             if data and len(data) > 0:
-
                 self.send_response(200)
 
                 self.send_header('Content-Type', 'text/csv; charset=utf-8')
@@ -1756,15 +1381,12 @@ class LiveOneDriveHandler(http.server.SimpleHTTPRequestHandler):
         # 2. Endpoint empleados activos (Respuesta instantánea a <1ms desde caché)
 
         if self.path.startswith('/api/empleados'):
-
             data = CACHE['empleados']['data']
 
             if CACHE['empleados']['data'] is None or (time.time() - CACHE['empleados']['ts'] > 180) or 'forzar=true' in self.path:
-
                 _trigger_background_empleados_sync()
 
             if data and len(data) > 0:
-
                 self.send_response(200)
 
                 self.send_header('Content-Type', 'text/csv; charset=utf-8')
@@ -1794,39 +1416,29 @@ class LiveOneDriveHandler(http.server.SimpleHTTPRequestHandler):
         # 3. Endpoint configuración usuarios.conf (Respuesta instantánea y siempre actualizada desde disco)
 
         if self.path.startswith('/api/configuracion'):
-
             data = None
 
             if os.path.exists(USUARIOS_CONF_PATH):
-
                 try:
-
                     with open(USUARIOS_CONF_PATH, 'rb') as f:
-
                         content = f.read()
 
                         if len(content) > 0 and content.strip().startswith(b'{'):
-
                             data = content
 
                             CACHE['config']['data'] = content
 
                             CACHE['config']['ts'] = time.time()
-
                 except Exception:
-
                     pass
 
             if data is None:
-
                 data = CACHE['config']['data']
 
             if CACHE['config']['data'] is None or 'forzar=true' in self.path:
-
                 _trigger_background_config_sync()
 
             if data and len(data) > 0:
-
                 self.send_response(200)
 
                 self.send_header('Content-Type', 'application/json; charset=utf-8')
@@ -1872,39 +1484,29 @@ class LiveOneDriveHandler(http.server.SimpleHTTPRequestHandler):
         # 5. Endpoint maestro.dat (Tablas Maestras)
 
         if self.path.startswith('/api/maestras'):
-
             data = None
 
             if os.path.exists(MAESTRO_DAT_PATH):
-
                 try:
-
                     with open(MAESTRO_DAT_PATH, 'rb') as f:
-
                         content = f.read()
 
                         if len(content) > 0 and content.strip().startswith(b'{'):
-
                             data = content
 
                             CACHE['maestras']['data'] = content
 
                             CACHE['maestras']['ts'] = time.time()
-
                 except Exception:
-
                     pass
 
             if data is None:
-
                 data = CACHE['maestras']['data']
 
             if CACHE['maestras']['data'] is None or 'forzar=true' in self.path:
-
                 _trigger_background_maestro_sync()
 
             if data and len(data) > 0:
-
                 self.send_response(200)
 
                 self.send_header('Content-Type', 'application/json; charset=utf-8')
@@ -1958,21 +1560,17 @@ class LiveOneDriveHandler(http.server.SimpleHTTPRequestHandler):
             self.wfile.write(empty_hist)
             return
 
-
-
         # Servir archivos estáticos del aplicativo web (index.html, js, css, etc.)
         return super().do_GET()
 
 import socketserver
 
 class ThreadedHTTPServer(http.server.ThreadingHTTPServer):
-
     allow_reuse_address = True
 
     daemon_threads = False
 
 if __name__ == '__main__':
-
     port = int(sys.argv[1]) if len(sys.argv) > 1 else 8080
 
     server_address = ('0.0.0.0', port)
@@ -1989,17 +1587,15 @@ if __name__ == '__main__':
 
     _trigger_background_repo_sync()
 
+    _trigger_background_biblioteca_sync()
 
     _trigger_background_config_sync()
 
     _trigger_background_historico_sync()
 
     try:
-
         httpd.serve_forever()
-
     except KeyboardInterrupt:
-
         print("\nServidor detenido.")
 
         httpd.server_close()

@@ -628,14 +628,16 @@ input, button, select, textarea, table, th, td, span, div, p, h1, h2, h3, h4, h5
 }
 
 /* Estado Inactivo */
-.btn-sidebar-quick-tag.btn-quick-top10 {
+.btn-sidebar-quick-tag.btn-quick-top10,
+.btn-sidebar-quick-tag.btn-quick-top50 {
   background: #ffffff;
   border-color: #cbd5e1;
   color: #475569;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
 }
 
-.btn-sidebar-quick-tag.btn-quick-top10:hover {
+.btn-sidebar-quick-tag.btn-quick-top10:hover,
+.btn-sidebar-quick-tag.btn-quick-top50:hover {
   background: #fff7ed;
   border-color: #fdba74;
   color: #ea580c;
@@ -657,7 +659,8 @@ input, button, select, textarea, table, th, td, span, div, p, h1, h2, h3, h4, h5
 }
 
 /* ESTADOS ACTIVOS DESTACADOS: VÍVIDOS Y CLAROS */
-.btn-sidebar-quick-tag.btn-quick-top10.active {
+.btn-sidebar-quick-tag.btn-quick-top10.active,
+.btn-sidebar-quick-tag.btn-quick-top50.active {
   background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%) !important;
   color: #ffffff !important;
   border-color: #9a3412 !important;
@@ -2944,9 +2947,10 @@ body.modal-open {
   line-height: 1;
 }
 
-/* ─── Regla de Seguridad UI: En perfil Operativo el botón de desbloqueo/edición NUNCA se muestra ─── */
-body.perfil-operativo #btn-toggle-edit,
-body[data-perfil="operativo"] #btn-toggle-edit,
+/* ─── Botón de Candado / Modo Administrativo: Siempre visible para permitir autenticación ─── */
+#btn-toggle-edit {
+  display: inline-flex !important;
+}
 #btn-toggle-edit.hidden-by-profile {
   display: none !important;
 }
@@ -4537,15 +4541,96 @@ body:not(.auth-required) .main-layout {
 }
 
 .docs-table th {
-  padding: 8px 8px;
+  padding: 8px 6px;
   font-family: var(--font-heading);
   font-weight: 700;
-  font-size: 0.76rem;
+  font-size: 0.74rem;
   text-transform: uppercase;
-  letter-spacing: 0.4px;
+  letter-spacing: 0.3px;
   border: none;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   color: #ffffff;
+}
+
+/* Anchos proporcionales y amplios tras eliminar columna Modificación */
+.docs-table .col-fav {
+  width: 34px;
+  min-width: 34px;
+  max-width: 34px;
+  text-align: center;
+  padding: 6px 2px !important;
+}
+
+.docs-table .col-top-rank {
+  width: 58px;
+  min-width: 54px;
+  max-width: 62px;
+  text-align: center;
+  padding: 6px 4px !important;
+}
+
+.docs-table .col-tipo {
+  width: 52px;
+  min-width: 48px;
+  max-width: 56px;
+  text-align: center;
+  padding: 6px 4px !important;
+}
+
+.docs-table .col-codigo {
+  width: 104px;
+  min-width: 94px;
+  max-width: 118px;
+  padding: 6px 8px !important;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.docs-table .col-version {
+  width: 66px;
+  min-width: 60px;
+  max-width: 74px;
+  text-align: center;
+  padding: 6px 6px !important;
+}
+
+.docs-table .col-descargas {
+  width: 102px;
+  min-width: 94px;
+  max-width: 112px;
+  text-align: center;
+  padding: 6px 6px !important;
+}
+
+.docs-table .docs-table-actions-cell {
+  width: 124px;
+  min-width: 118px;
+  max-width: 138px;
+  text-align: center;
+  padding: 6px 10px !important;
+}
+
+.docs-table .col-proceso {
+  width: 17%;
+  min-width: 95px;
+  padding: 6px 8px !important;
+  white-space: normal;
+  word-break: break-word;
+  font-size: 0.75rem;
+  line-height: 1.3;
+}
+
+.docs-table .col-area {
+  width: 17%;
+  min-width: 95px;
+  padding: 6px 8px !important;
+  white-space: normal;
+  word-break: break-word;
+  font-size: 0.75rem;
+  line-height: 1.3;
 }
 
 .docs-table th:first-child {
@@ -4872,8 +4957,6 @@ body:not(.auth-required) .main-layout {
   padding: 1px 6px !important;
   border-radius: 8px !important;
 }
-
-
 
 /* ==========================================================================
    OPTIMIZACIONES RESPONSIVAS E INTEGRIDAD TOTAL (IFRAME SHAREPOINT / MÓVIL)

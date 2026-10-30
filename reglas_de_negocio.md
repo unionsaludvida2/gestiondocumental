@@ -48,7 +48,7 @@
    - 7.3. Matriz de Controles de Interfaz según Modo y Perfil
 8. [Telemetría, Auditoría Inmutable y Trazabilidad](#8-telemetría-auditoría-inmutable-y-trazabilidad)
    - 8.1. Diagrama de Ingesta y Filtrado Anti-Flood de Telemetría
-   - 8.2. Matriz de Eventos Auditados en `auditoria.dat`
+   - 8.2. Reglas de Negocio sobre Movimientos y Descargas en Google Sheets
 9. [Procesos Asíncronos, Respaldo y Automatización](#9-procesos-asíncronos-respaldo-y-automatización)
    - 9.1. Diagrama de Secuencia de Respaldo Diario Automatizado (GitHub Actions)
    - 9.2. Diagrama de Concurrencia y Sincronización Cloud con LockService
@@ -105,13 +105,16 @@ El presente documento constituye la **Fuente Única de Verdad (Single Source of 
 1. **Prioridad Absoluta de la Integridad Documental:** Los documentos institucionales son activos regulados en el marco del Sistema de Garantía de Calidad en Salud. Ninguna rutina informática puede sobrescribir, desvincular o corromper el histórico documental.
 2. **Arquitectura Serverless Híbrida:** Despliegue cliente estático de alta disponibilidad en **GitHub Pages**, respaldado por sincronización en la nube con **Google Workspace** (Google Sheets, Drive y Apps Script) y enlaces federados a **Microsoft 365** (SharePoint Online / OneDrive).
 3. **Resiliencia y Carga Instantánea (*Stale-While-Revalidate*):** La aplicación debe responder inmediatamente al usuario en menos de 50 ms sirviendo datos desde la caché persistente local (`IndexedDB` y `localStorage`), reconciliando las actualizaciones remotas en segundo plano sin bloqueos visuales.
-4. **Protección de Datos Personales (Habeas Data) y Exclusión de Repositorios Públicos:** En cumplimiento estricto de la Ley 1581 de 2012, el inicio de sesión cotidiano se efectúa mediante **Correo Corporativo y Contraseña**. El archivo `EMPLEADOS_ACTIVOS.csv` está excluido del repositorio de código (GitHub) mediante `.gitignore` para salvaguardar la privacidad de los colaboradores y prevenir desactualización estática (*stale data*).
-5. **Inmutabilidad y No-Repudio (*Append-Only*):** La auditoría y el control de cambios documentales operan bajo un modelo estrictamente incremental. El retiro de documentos se efectúa mediante *Soft-Delete* trazable; el borrado físico de registros maestros está estrictamente prohibido.
-6. **Supremacía de Google Sheets como Fuente Única de Verdad (SSOT) del Catálogo:** La Hoja de Cálculo de Google («Biblioteca», ID: `1EOcucjQV4byUOp_AAfd1ySHk4tVdFmMeOoOQsSBbEa4`) es el repositorio maestro oficial del catálogo documental. Toda creación, edición o retiro se escribe inmediatamente en Google Sheets vía Apps Script; los archivos locales operan como caché de lectura acelerada y jamás sustituyen el flujo real de datos ni sobrescriben destructivamente la base cloud.
-7. **Supremacía de OneDrive para Personal y Enlaces, Caché Estructurada en IndexedDB y Cola Outbox:**
-   - **`EMPLEADOS_ACTIVOS.csv` (OneDrive):** Es la fuente primaria de RRHH/Nómina para habilitación de usuarios. Cualquier colaborador no registrado o marcado como inactivo/retirado tiene **acceso estrictamente denegado**. En el cliente se almacena en `IndexedDB` como colección de objetos JSON indexados, garantizando validación instantánea $O(1) < 1\text{ ms}$ sin re-parseo de texto.
-   - **`REPOSITORIO_DOCUMENTAL.csv` (OneDrive):** Fuente primaria de metadatos físicos de SharePoint para documentos base.
-   - **Cola de Mutaciones Offline (*Outbox Pattern*):** Si se crea o modifica un documento sin conectividad a internet, el payload se almacena de forma duradera en la cola `colaMutaciones` de `IndexedDB` y se despacha automáticamente a Google Sheets al detectar el evento de reconexión `online`.
+4. **Acceso Inmediato sin Barreras y Privacidad:** Al cargar el sistema dentro del iframe de SharePoint, se inicia automáticamente bajo el perfil **OPERATIVO (`Usuario Operativo`)** sin exigir credenciales ni obstaculizar la consulta de los colaboradores.
+5. **Inmutabilidad y No-Repudio en Google Sheets (*Historico_Documentos*):** Todo movimiento de creación, modificación o retiro de documentos se registra de manera inmutable en la hoja de cálculo de Google Sheets **`Historico_Documentos`**, además de actualizar la casilla de fecha y hora de modificación en **`Biblioteca_Documental`**. Las conexiones antiguas a `Historico_Documentos` e `Historico_Documentos_USV.csv` quedan invalidadas y retiradas del sistema.
+6. **Supremacía de Google Sheets como Fuente Única de Verdad (SSOT) del Catálogo:** La Hoja de Cálculo de Google (**`Biblioteca_Documental`**, 25 columnas) es el repositorio maestro oficial del catálogo documental. Los campos más cambiantes corresponden a la *Fecha de Modificación* y al contador de *Descargas* (Columna Y), los cuales se actualizan permanentemente con cada evento correspondiente.
+7. **Gobernanza de Persistencia Cloud y Sesión Activa Administrativa:**
+   - **`Biblioteca_Documental` (Google Sheets):** Catálogo maestro oficial (25 columnas: metadatos, vínculos directos y conteo acumulado de descargas).
+   - **`Historico_Documentos` (Google Sheets):** Histórico oficial de movimientos (creaciones, ediciones y bajas).
+   - **`usuarios.conf` (Google Drive):** Almacén seguro para usuarios administrativos (hashes SHA-256 de contraseñas, configuraciones y favoritos de administradores).
+   - **`maestro.dat` (Google Drive):** Estructura oficial de tablas maestras institucionales.
+   - **Sesión Activa Persistente Administrativa:** Una vez autenticado el usuario administrador a través del icono de candado (🔒), la sesión queda activa de forma permanente en la caché del navegador, sin requerir reautenticación en visitas futuras a menos de ser revocado por otro administrador.
+   - **Descargas sin Alteración de Modificación:** Cada descarga ejecutada incrementa en $+1$ la columna *Descargas* en `Biblioteca_Documental`. Al no ser una modificación de contenido, las descargas no alteran la fecha de modificación.
 
 ---
 
@@ -141,7 +144,7 @@ flowchart TD
     subgraph GOOGLE_CLOUD["Google Workspace Cloud Platform"]
         GAS["Google Apps Script (Web App Endpoint)"]
         GSHEET[("Google Sheets (Biblioteca Maestra SGC)")]
-        GDRIVE[("Google Drive (usuarios.conf / auditoria.dat)")]
+        GDRIVE[("Google Drive (usuarios.conf / maestro.dat)")]
     end
 
     subgraph MICROSOFT_CLOUD["Microsoft 365 Enterprise"]
@@ -150,7 +153,7 @@ flowchart TD
     end
 
     subgraph CI_CD["Automatización & CI/CD"]
-        GHA["GitHub Actions (daily-backup.yml)"]
+        GHA["GitHub Actions (sincronizar_vinculos.yml)"]
         GHPAGES["GitHub Pages (Alojamiento Web SPA)"]
     end
 
@@ -190,10 +193,8 @@ flowchart TD
     Latencia: < 100 ms | Endpoints /api/biblioteca, /api/configuracion"]
     -->|"Si no es localhost o en GitHub Pages"| N3["☁️ Nivel 3: Google Apps Script Web App
     Latencia: 500 - 1,500 ms | Endpoint Cloud con LockService"]
-    -->|"Si falla la conectividad Cloud"| N4["📂 Nivel 4: Archivos Estáticos Raíz / Google Drive
-    Latencia: 1,000 - 2,500 ms | Descarga directa .csv y .dat"]
-    -->|"En contingencia o corte total de red"| N5["💾 Nivel 5: Matrices Nativas en Memoria (data.js)
-    Latencia: Inmediata | Catálogo estático mínimo vital en solo lectura"]
+    -->|"Si falla el microservicio GAS"| N4["📊 Nivel 4: Descarga Directa Google Sheets / OneDrive Cloud
+    Latencia: 1,000 - 2,500 ms | Streaming CSV en vivo desde la nube"]
 ```
 
 ### 2.3. Matriz de Capas de Persistencia y Tiempos de Respuesta
@@ -203,8 +204,7 @@ flowchart TD
 | **Nivel 1** | `IndexedDB` / `localStorage` | Storage API | `< 50 ms` | **100% Offline** | Todo arranque de la SPA. |
 | **Nivel 2** | `server.py` (`:8086`) | HTTP REST (`/api/*`) | `50 - 120 ms` | Parcial (Local) | Si `hostname === 'localhost'`. |
 | **Nivel 3** | Apps Script Web App | HTTPS POST / JSON | `600 - 1,800 ms` | Requiere Red | En GitHub Pages con conexión. |
-| **Nivel 4** | CSV/DAT Estáticos | Fetch HTTP GET | `800 - 2,500 ms` | Requiere Red | Falla en microservicio Cloud. |
-| **Nivel 5** | `data.js` en memoria | ES6 Module | `0 ms (RAM)` | **100% Offline** | Contingencia total sin red ni caché. |
+| **Nivel 4** | Google Sheets / OneDrive Directo | Fetch HTTP GET | `800 - 2,500 ms` | Requiere Red | Respaldo Cloud directo si falla GAS. |
 
 ---
 
@@ -214,26 +214,25 @@ flowchart TD
 
 | Archivo / Componente | Formato | Ubicación | Función Principal | Regla Operativa Clave |
 | :--- | :--- | :--- | :--- | :--- |
-| `REPOSITORIO_DOCUMENTAL.csv` | CSV (`;`) | Raíz / OneDrive | Enlaces físicos SharePoint | Filtrar carpetas sin extensión |
-| `EMPLEADOS_ACTIVOS.csv` | CSV (`,`) | Raíz / Servidor | Matriz 1,305 empleados | Requiere estado `Activo` para ingresar |
-| `Historico_Documentos_USV.csv` | CSV (`;`) | Raíz / Drive | Histórico de cambios SGC | Modelo estricto *Append-Only* |
-| `usuarios.conf` | JSON | Raíz / Drive | Claves SHA-256 y perfiles | *Deep Merge* atómico con LockService |
-| `auditoria.dat` | JSON | Raíz / Drive | Bitácora de telemetría | Excluye búsquedas; deduplicación 5-10s |
-| `maestro.dat` | JSON | Raíz / Drive | Metadatos y taxonomía | Alimenta selectores de Tipos y Áreas |
-| `google_drive_backup_script.gs`| GAS (V8) | Apps Script | Microservicio Cloud | Bloqueo exclusivo `LockService` (30s) |
-| `daily-backup.yml` | GHA YAML | `.github/` | Respaldo 04:00 UTC | Snapshots inmutables en `backups/` |
-| `server.py` | Python 3 | Raíz Local | API local y DOCX a PDF | Exclusión mutua `WORD_CONVERT_LOCK` |
-| `index.html` | HTML5 | Raíz | Estructura SPA | Versionado estricto `?v=11.6.XX` |
-| `styles.css` | CSS3 | Raíz | Diseño visual y temas | Vanilla CSS estricto (sin Tailwind) |
-| `js/app.js` | ES6 | `js/` | Controlador principal | Coordinador de eventos e interfaz |
-| `js/sharepoint-service.js` | ES6 | `js/` | SharePoint y OneDrive | Descargas y conversión PDF |
-| `js/staff-service.js` | ES6 | `js/` | Seguridad y RBAC | Autenticación, bloqueo y auditoría |
-| `js/filters.js` | ES6 | `js/` | Motor de búsqueda | Normalización NFD y filtros en cascada |
-| `js/modal.js` | ES6 | `js/` | Modales y Drawer | Interacción y formularios |
-| `js/analytics.js` | ES6 | `js/` | Dashboard SGC | Indicadores y semaforización |
-| `js/cache-service.js` | ES6 | `js/` | IndexedDB Cache | Persistencia local resiliente |
-| `js/data.js` | ES6 | `js/` | Respaldo estático | Catálogo de arranque rápido |
-| `js/staff-data.js` | ES6 | `js/` | Respaldo estático | Personal de contingencia offline |
+| `Biblioteca_Documental` | Google Sheets | Google Drive / Sheets | **Fuente Única de Verdad (SSOT)**. 25 columnas de metadatos, vínculos directos y descargas | Las descargas incrementan celda en $+1$ sin alterar fecha de modificación |
+| `Historico_Documentos` | Google Sheets | Google Drive / Sheets | Histórico oficial e inmutable de movimientos (creación, edición y retiro) | Registro auditado con autor, fecha, código y detalle del movimiento |
+| `usuarios.conf` | JSON | Google Drive | Almacén de usuarios administrativos, claves SHA-256 y favoritos admin | Persiste credenciales administrativas y sesión en caché de navegador |
+| `maestro.dat` | JSON | Google Drive | Estructura oficial de tablas maestras institucionales | Alimenta taxonomía oficial de Tipos de Proceso, Áreas y Procesos |
+| `Historico_Documentos_USV.csv` | CSV | *Obsoleto / Retirado* | *Invalidad por nueva arquitectura* | *Eliminado del sistema* |
+| `Historico_Documentos` | JSON | *Obsoleto / Retirado* | *Invalidad por nueva arquitectura* | *Eliminado del sistema* |
+| `google_drive_backup_script.gs`| GAS (V8) | Apps Script | Microservicio Cloud de mutaciones y lectura de hojas | Manejo atómico de descargas, histórico y usuarios.conf |
+| `sincronizar_vinculos.yml` | GHA YAML | `.github/workflows/` | Cruce automatizado OneDrive ↔ Biblioteca_Documental | Detecta variaciones de vínculos y actualiza histórico |
+| `server.py` | Python 3 | Raíz Local | API local y servidor de pruebas con proxy CORS | Soporte local con endpoints `/api/*` compactado y optimizado |
+| `index.html` | HTML5 | Raíz | Estructura SPA incrustable en iframe de SharePoint | Cero barras de desplazamiento horizontal (`overflow-x: hidden`) |
+| `styles.css` | CSS3 | Raíz | Diseño estilizado corporativo responsivo | Adaptación fluida a contenedores iframe y pantallas compactas |
+| `js/app.js` | ES6 | `js/` | Controlador principal y gestor de eventos | Coordinador de catálogo, Top 50 y sesión administrativa |
+| `js/sharepoint-service.js` | ES6 | `js/` | Servicio de conexión con Google Sheets y OneDrive | Parseo de 25 columnas, registro de descargas e IndexedDB |
+| `js/staff-service.js` | ES6 | `js/` | Servicio de seguridad, RBAC y Top 50 | Ranking Top 50 por descargas y autenticación de candado |
+| `js/filters.js` | ES6 | `js/` | Motor de filtros relacionales en cascada | Normalización NFD, Top 50 y Favoritos |
+| `js/modal.js` | ES6 | `js/` | Modales interactivos, visor y drawer | Formularios de edición para administradores |
+| `js/analytics.js` | ES6 | `js/` | Dashboard analítico de calidad | Reservado exclusivamente para Perfil Administrativo |
+| `js/cache-service.js` | ES6 | `js/` | IndexedDB Cache | Persistencia local resiliente para carga instantánea |
+| `js/data.js` / `js/staff-data.js` | ES6 | *Eliminados* | *Retirados por política de cero datos estáticos en repositorio* | *100% Cloud + Caché IndexedDB en navegador del usuario* |
 
 ---
 
@@ -309,100 +308,65 @@ graph TD
 
 ```mermaid
 graph TD
-    TOTAL["🛡️ Acceso Total (total / administrador)
-    Cédula Maestra: 8160602
-    Control Total de Catálogo, Seguridad, Desbloqueo y Auditoría"]
+    ADM["🔒 Perfil Administrativo (Acceso Total)
+    Autenticación vía Icono de Candado (Clave SHA-256 en usuarios.conf)
+    Sesión Permanente en Caché de Navegador
+    Edición de Metadatos, Alta/Baja de Documentos, Dashboard, Tablas Maestras (maestro.dat)"]
     
-    DIR["👑 Directivo (directivo)
-    Cargos: Director, Gerente, Subdirector, Subgerente
-    Visualiza 100% de documentos, Edición habilitada con Clave"]
-    
-    ADM["💼 Administrativo (administrativo)
-    Cargos: Líderes, Analistas, Coordinadores, Auxiliares no asistenciales
-    Visualiza Administrativos y Operativos con permiso explícito"]
-    
-    OPE["👷 Operativo (operativo)
-    Cargos: Médicos, Terapeutas, Enfermeros, Personal asistencial
-    Visualiza únicamente Operativos con permiso explícito en Solo Lectura"]
+    OPE["👷 Perfil Operativo (Usuario Operativo - Carga Automática)
+    Acceso Inmediato sin Contraseña al Abrir SharePoint
+    Consulta y Búsqueda en Catálogo, Descargas con Conteo en Hoja (+1)
+    Favoritos Locales en Caché de Navegador | Edición y Dashboard Restringidos"]
 
-    TOTAL --> DIR
-    DIR --> ADM
-    ADM --> OPE
+    ADM -->|Supervisión y Control| OPE
 ```
 
-### 5.2. Diagrama de Flujo de Autenticación y Asignación de Perfil
+### 5.2. Diagrama de Flujo de Autenticación y Transición de Perfiles
 
 ```mermaid
 flowchart TD
-    IN(["Colaborador inicia sesión con Correo y Contraseña"]) --> V_EMP{"¿Existe en EMPLEADOS_ACTIVOS.csv con estado 'Activo'?"}
+    START(["Usuario Abre la Página de SharePoint con el Iframe"]) --> AUTO_OPE["🚀 CARGA AUTOMÁTICA EN PERFIL OPERATIVO
+    Perfil: 'operativo' (Usuario Operativo)
+    Catálogo habilitado | Edición y Dashboard bloqueados
+    Carga de datos a caché local (IndexedDB)"]
+
+    AUTO_OPE --> CLICK_LOCK{"¿Usuario hace clic en el Icono de Candado 🔒?"}
     
-    V_EMP -- NO --> DENY_EMP["⛔ ACCESO DENEGADO
-    'Colaborador no figura activo en nómina'"]
+    CLICK_LOCK -- NO --> MODO_CONSULTA["Modo Consulta Operativo Activo
+    Descargas incrementan Columna 'Descargas' en Biblioteca_Documental"]
     
-    V_EMP -- SÍ --> V_LOCK{"¿Usuario con Bloqueo Activo?"}
-    V_LOCK -- SÍ: Temporal --> ERR_TEMP["⏳ Interfaz bloqueada por 15 min"]
-    V_LOCK -- SÍ: Permanente --> ERR_PERM["⛔ Cuenta Bloqueada. Requiere Superadmin"]
+    CLICK_LOCK -- SÍ --> CHECK_CACHE{"¿Sesión Administrativa activa en Caché Local?"}
     
-    V_LOCK -- NO --> V_CONF{"¿Tiene contraseña en usuarios.conf?"}
+    CHECK_CACHE -- SÍ y No Revocado --> UNLOCK_ADMIN["🔓 ACCESO ADMINISTRATIVO HABILITADO
+    Sesión permanente restaurada desde localStorage
+    Habilita Modo Edición, Dashboard y Gestión de Usuarios"]
     
-    V_CONF -- NO --> FIRST_TIME["🔑 Primer Acceso
-    Validar 4 últimos dígitos de cédula y registrar nueva contraseña"]
+    CHECK_CACHE -- NO --> PROMPT_PASS["Solicitar Contraseña Administrativa"]
     
-    V_CONF -- SÍ --> CHECK_PWD{"¿Contraseña SHA-256 coincide?"}
-    CHECK_PWD -- NO --> ERR_FAIL["⚠️ Credenciales Incorrectas
-    Incrementar contador de intentos fallidos"]
+    PROMPT_PASS --> VALIDATE{"¿Hash SHA-256 coincide con usuarios.conf (Google Drive)?"}
     
-    CHECK_PWD -- SÍ --> CHECK_TOTAL{"¿Cédula === 8160602?"}
-    CHECK_TOTAL -- SÍ --> ROLE_TOTAL["🛡️ Perfil: TOTAL (Superadministrador)"]
-    
-    CHECK_TOTAL -- NO --> CHECK_CUSTOM{"¿Tiene perfil especial en usuarios.conf?"}
-    CHECK_CUSTOM -- SÍ --> CHECK_DIR_VALID{"¿Perfil 'directivo' pero cargo NO es directivo?"}
-    CHECK_DIR_VALID -- "SÍ (Saneamiento)" --> ROLE_ADM["💼 Perfil Reclasificado: ADMINISTRATIVO"]
-    CHECK_DIR_VALID -- NO --> ROLE_CUSTOM["Asignar perfil especial configurado"]
-    
-    CHECK_CUSTOM -- NO --> CHECK_CARGO{"Evaluar cargo oficial en EMPLEADOS_ACTIVOS.csv"}
-    CHECK_CARGO -- "Director, Gerente, Subdirector, Subgerente" --> ROLE_DIR["👑 Perfil: DIRECTIVO"]
-    CHECK_CARGO -- "Líder, Coordinador, Analista, Calidad, GESIS" --> ROLE_ADM
-    CHECK_CARGO -- "Médico, Terapeuta, Enfermero, Auxiliar Clínico" --> ROLE_OPE["👷 Perfil: OPERATIVO"]
+    VALIDATE -- NO --> DENY_PASS["⛔ Contraseña Incorrecta"]
+    VALIDATE -- SÍ --> PERSIST_ADMIN["Guardar Sesión Administrativa en Caché Local
+    Habilitar Perfil Administrativo Permanente"] --> UNLOCK_ADMIN
 ```
 
-### 5.3. Matriz de Mapeo de Cargos y Regla de Saneamiento Directivo
+### 5.3. Matriz Exhaustiva de Capacidades por Perfil (RBAC)
 
-| Perfil Resultante | Palabras Clave en Cargo | Regla de Saneamiento y Restricción |
-| :---: | :--- | :--- |
-| **`total`** | Cédula `8160602` (Superadministrador). | Asignación perpetua e inmutable por código fuente. |
-| **`directivo`** | `director`, `directora`, `gerente`, `subdirector`, `subgerente`. | **Exclusividad Estricta:** Si no contiene estas palabras exactas, **se reclasifica a `administrativo`**. |
-| **`administrativo`** | `lider`, `analista`, `coordinador`, `gesis`, `calidad`, `financiero`. | Gestión institucional con edición en sus propios procesos. |
-| **`operativo`** | `medico`, `enfermero`, `terapeuta`, `auxiliar`, `odontologo`. | Personal asistencial. **Solo lectura estricta.** Sin edición ni dashboard. |
-
-### 5.4. Matriz Exhaustiva de Capacidades por Perfil (RBAC)
-
-| Capacidad / Función del Sistema | Total (`total`) | Directivo (`directivo`) | Administrativo (`administrativo`) | Operativo (`operativo`) |
-| :--- | :---: | :---: | :---: | :---: |
-| **Visualización en Catálogo** | 100% documentos | 100% documentos | Admin u Oper (`=== true`) | Únicamente Oper (`=== true`) |
-| **Descarga Directa (`📥`)** | Habilitada | Habilitada | Habilitada | Habilitada (según matriz) |
-| **Descarga Restringida** | Desbloqueable | Desbloqueable | Desbloqueable | **BLOQUEADO (`🔒`)** |
-| **Activar Modo Edición** | **Automática** | Requiere Clave | Requiere Clave | **BLOQUEADO** |
-| **Editar en SharePoint (`✏️`)** | Habilitada | Habilitada | Habilitada (en su proceso) | **DESHABILITADA** |
-| **Abrir Carpeta (`📁`)** | Habilitada | Habilitada | Habilitada | **DESHABILITADA** |
-| **Modificar Metadatos (`⚙️`)**| Habilitada | Habilitada | **Deshabilitada** | **DESHABILITADA** |
-| **Retirar Doc (`🗑️` Soft-Delete)**| Habilitada | Habilitada | **DESHABILITADA** | **DESHABILITADA** |
-| **Crear Documento (`➕`)** | Habilitada | Habilitada | **DESHABILITADA** | **DESHABILITADA** |
-| **Dashboard Resumen** | Habilitada | Habilitada | Habilitada | **BLOQUEADA** |
-| **Dashboard Calidad y Auditoría**| Habilitada | Habilitada | **OCULTA** | **BLOQUEADA** |
-| **Exportar Excel / CSV** | Habilitada | Habilitada | **OCULTA** | **BLOQUEADA** |
-| **Desbloquear Cuentas** | Habilitada | **Deshabilitada** | **Deshabilitada** | **Deshabilitada** |
-
-### 5.5. Regla de Negocio: Persistencia Continua de Sesión en Caché (Sesión Activa Persistente)
-
-- **Principio Rector de Disponibilidad Operativa:** Todo colaborador institucional que se autentica exitosamente mediante sus credenciales institucionales debe mantener su **sesión activa de manera continua y persistente en la caché del cliente** (`localStorage` y réplica en `IndexedDB`).
-- **Prohibición de Solicitud de Login Diario / Expiración de Jornada:** Queda estrictamente prohibido cerrar la sesión de forma automática al cambiar el día calendario o transcurrir horas de inactividad. El sistema **no debe solicitar inicio de sesión diario**.
-- **Causales Exclusivas de Finalización de Sesión:**
-  1. **Cierre Voluntario y Explícito:** El colaborador hace clic deliberadamente en el botón `🚪 Cerrar Sesión` desde el modal de su perfil.
-  2. **Bloqueo Preventivo de Seguridad:** Si la cuenta del colaborador resulta bloqueada por acumulación de bloqueos temporales o por acción administrativa del Superadministrador.
-- **Resiliencia de Doble Capa en Caché:** Los datos de sesión se almacenan en `localStorage` (para arranque síncrono a 0 ms) y se sincronizan en `IndexedDB` a través de `CacheService` (`sesion_activa`), garantizando total persistencia ante cierres del navegador, reinicios de equipo o purgas selectivas de almacenamiento.
-
----
+| Capacidad / Función | Perfil Operativo (Por Defecto) | Perfil Administrativo (Candado 🔒) |
+| :--- | :---: | :---: |
+| **Inicio de Sesión Requerido** | **No** (Automático) | **Sí** (Contraseña SHA-256 inicial) |
+| **Persistencia de Sesión** | Siempre Activo | Activa en Caché (Permanente hasta revocación) |
+| **Consulta y Búsqueda en Catálogo** | ✅ Permitido | ✅ Permitido |
+| **Filtros por Proceso, Área y Tipo** | ✅ Permitido | ✅ Permitido |
+| **Filtro Destacado Top 50** | ✅ Permitido | ✅ Permitido |
+| **Descarga de Documentos** | ✅ Sí (Suma $+1$ a `Descargas` en Hoja) | ✅ Sí (Suma $+1$ a `Descargas` en Hoja) |
+| **Documentos Favoritos (⭐)** | ✅ Sí (Solo en Caché Local del Navegador) | ✅ Sí (Sincronizados en `usuarios.conf`) |
+| **Edición de Metadatos Documentales** | ❌ Restringido | ✅ Permitido (Registra en `Historico_Documentos`) |
+| **Creación y Retiro de Documentos** | ❌ Restringido | ✅ Permitido (Registra en `Historico_Documentos`) |
+| **Acceso al Dashboard y Analítica** | ❌ Oculto / Restringido | ✅ Acceso Total (Resumen, Calidad, Cambios) |
+| **Exportación de Listado Maestro** | ❌ Restringido | ✅ Permitido |
+| **Edición de Tablas Maestras (`maestro.dat`)**| ❌ Restringido | ✅ Permitido |
+| **Gestión de Administradores** | ❌ Restringido | ✅ Permitido (Alta/Baja en `usuarios.conf`) |
 
 ## 6. Motor de Salida y Matriz Determinística de Descarga
 
@@ -544,349 +508,83 @@ flowchart TD
 
 ---
 
-## 8. Telemetría, Auditoría Inmutable y Trazabilidad
+## 8. Trazabilidad e Histórico Inmutable de Movimientos
 
-### 8.1. Diagrama de Ingesta y Filtrado Anti-Flood de Telemetría
+### 8.1. Modelo Oficial de Trazabilidad en Google Sheets (`Historico_Documentos`)
 
-```mermaid
-flowchart TD
-    EVT(["Evento Generado en el Navegador Cliente"]) --> CHECK_TYPE{"¿Es Consulta Pasiva o Búsqueda?"}
-    
-    CHECK_TYPE -- SÍ: Búsqueda / Navegación --> DISCARD["🚫 DESCARTAR EVENTO
-    (Evita sobrecargar auditoria.dat con tráfico irrelevante)"]
-    
-    CHECK_TYPE -- NO: Evento Transaccional --> FLOOD{"¿Existe evento idéntico en ventana Anti-Flood?
-    (5 a 10 segundos según el tipo de acción)"}
-    
-    FLOOD -- SÍ: Duplicado Rápido --> DEDUP["⏱️ DEDUPLICAR CLIC
-    (Ignorar ráfagas accidentales del usuario)"]
-    
-    FLOOD -- NO: Evento Válido --> QUEUE["📦 ENCOLAR EN INDEXEDDB LOCAL
-    Garantiza persistencia aún ante microcortes de red"]
-    
-    QUEUE --> ASYNC_SEND["🚀 TRANSMISIÓN ASÍNCRONA A GOOGLE APPS SCRIPT
-    Payload JSON enviado en segundo plano vía fetch()"]
-    
-    ASYNC_SEND --> APPEND_AUDIT["🔒 REGISTRO ATÓMICO EN auditoria.dat
-    Modelo Append-Only strictly inmutable"]
-```
-
-### 8.2. Matriz de Eventos Auditados en `auditoria.dat`
-
-| Evento | Descripción y Atributos Registrados | Ventana Anti-Flood | Criticidad | Justificación de Seguridad |
-| :---: | :--- | :---: | :---: | :--- |
-| **`LOGIN`** | Identificación, Nombre, Cargo, Perfil, Dispositivo, Timestamp. | 10 s | Alta | Control de acceso y no-repudio. |
-| **`DESCARGA`** | Código documental, Título, Extensión y Formato servido. | 5 s | Media | Trazabilidad del consumo documental. |
-| **`EDICION`** | Apertura de documento para edición en SharePoint Online. | 5 s | Alta | Identificación del editor de contenidos. |
-| **`CARPETA`** | Apertura del directorio de SharePoint desde la SPA. | 5 s | Baja | Auditoría de navegación estructural. |
-| **`CREACION`** | Alta de documento base o registro derivado y autor. | Inmediato | **Crítica** | Control de versiones iniciales. |
-| **`METADATOS`**| Cambio de versión, vigencia, custodia o retención. | Inmediato | **Crítica** | Integridad de la ficha técnica. |
-| **`ELIMINACION`**| Retiro lógico (*Soft-Delete*) con justificación obligatoria. | Inmediato | **Crítica** | Trazabilidad legal del retiro. |
-| **`SEGURIDAD`** | Registro, cambio de contraseña o desbloqueo de cuenta. | Inmediato | **Crítica** | Auditoría de identidades y accesos. |
-
----
-
-## 9. Procesos Asíncronos, Respaldo y Automatización
-
-### 9.1. Diagrama de Secuencia de Respaldo Diario Automatizado (GitHub Actions)
-
-```mermaid
-sequenceDiagram
-    autonumber
-    participant CRON as GitHub Actions (Cron 04:00 UTC)
-    participant GAS as Google Apps Script (Web App)
-    participant DRIVE as Google Drive / Sheets
-    participant REPO as Repositorio GitHub (backups/)
-
-    CRON->>GAS: GET ?action=backup_completo
-    activate GAS
-    GAS->>GAS: LockService.getScriptLock(30s)
-    GAS->>DRIVE: Extraer snapshot completo (Catálogo + Histórico + Usuarios + Auditoría)
-    DRIVE-->>GAS: Datos consolidados en memoria
-    GAS-->>CRON: Retorna JSON { status: 'success', data: {...}, timestamp: ... }
-    deactivate GAS
-    
-    CRON->>CRON: Validar integridad del payload JSON (tamaño > 10KB y claves válidas)
-    
-    alt Payload Válido y Completo
-        CRON->>REPO: Guardar backups/snapshots/backup_YYYY-MM-DD.json
-        CRON->>REPO: Sobrescribir backups/snapshot_latest.json
-        CRON->>REPO: Git commit y push a rama principal
-    else Error en Respuesta o Payload Vacío
-        CRON->>CRON: Abortar proceso (Exit 1) sin tocar repositorio para proteger histórico
-    end
-```
-
-### 9.2. Diagrama de Concurrencia y Sincronización Cloud con LockService
-
-```mermaid
-sequenceDiagram
-    autonumber
-    participant CLI1 as Cliente A (Actualización Metadatos)
-    participant CLI2 as Cliente B (Cambio de Contraseña)
-    participant GAS as Google Apps Script Web App
-    participant LOCK as LockService (Google Cloud)
-    participant DB as Google Sheets / Google Drive
-
-    CLI1->>GAS: POST /exec (actualizar_metadato)
-    CLI2->>GAS: POST /exec (guardar_usuario)
-    
-    GAS->>LOCK: LockService.getScriptLock(30s) [Cliente A]
-    activate LOCK
-    LOCK-->>GAS: Bloqueo Exclusivo Concedido a Cliente A
-    GAS->>DB: Leer estado actual del recurso
-    DB-->>GAS: Estado previo
-    GAS->>DB: Aplicar modificación atómica (Deep Merge)
-    GAS->>LOCK: releaseLock()
-    deactivate LOCK
-    GAS-->>CLI1: Respuesta: 200 OK { success: true }
-
-    GAS->>LOCK: LockService.getScriptLock(30s) [Cliente B]
-    activate LOCK
-    LOCK-->>GAS: Bloqueo Exclusivo Concedido a Cliente B
-    GAS->>DB: Leer estado fresco actualizado
-    DB-->>GAS: Estado fresco
-    GAS->>DB: Aplicar modificación atómica (Deep Merge)
-    GAS->>LOCK: releaseLock()
-    deactivate LOCK
-    GAS-->>CLI2: Respuesta: 200 OK { success: true }
-```
-
-### 9.3. Matriz de Políticas de Respaldo y Retención
-
-| Componente | Frecuencia | Mecanismo | Destino | Retención |
-| :--- | :---: | :--- | :--- | :--- |
-| **Snapshot Diario** | Diario (04:00 UTC) | GitHub Actions (`daily-backup.yml`) | Repositorio Git (`backups/snapshots/`) | Perpetua (Git). |
-| **Snapshot Último** | Diario (04:00 UTC) | Sobrescritura controlada | `backups/snapshot_latest.json` | Estado más reciente. |
-| **Control de Cambios** | En tiempo real | Apps Script Append | `Historico_Documentos_USV.csv` | Historial acumulativo. |
-| **Auditoría de Seguridad**| En tiempo real | Apps Script Append | `auditoria.dat` | Bitácora inmutable. |
-
----
-
-## 10. Políticas Oficiales de Seguridad y Decisiones de Negocio
-
-### 10.1. Arquitectura de Autenticación Local con SSO de Navegador
-
-#### Contexto Histórico y Decisión de Arquitectura
-Con la incrustación del Sistema de Gestión Documental como **componente iframe dentro de SharePoint Online / Microsoft 365**, las políticas de autenticación perimetral y seguridad quedan delegadas en la infraestructura corporativa de Microsoft 365. Por tanto, **se ha retirado oficialmente el sistema de contraseñas locales**, eliminando formularios de login con clave, bloqueos por intentos fallidos y hashes criptográficos en favor de un modelo de **Single Sign-On (SSO) transparente por Iframe**.
-
-#### Directrices Vigentes:
-1. **Detección Automática de Identidad SharePoint:** Al cargarse dentro de SharePoint (vía iframe), el sistema detecta la identidad del colaborador (correo institucional `@unionsaludvida.com` y nombre) mediante parámetros de URL (`query params`), contexto nativo SharePoint (`_spPageContextInfo`) o comunicación segura por eventos `postMessage`.
-2. **Asignación Determinística de Perfil RBAC:** La identidad detectada se contrasta automáticamente con la matriz de 1.306 colaboradores institucionales (`EMPLEADOS_ACTIVOS_BASE` / `EMPLEADOS_ACTIVOS.csv`). De acuerdo a su cargo o asignación en `mapeoPerfilesPersonalizados`, se asigna de inmediato el perfil correspondiente (`total`, `directivo`, `administrativo`, `operativo`).
-3. **Gobierno por Perfil sin Contraseñas:** Las acciones críticas (activación del Modo Edición, consulta de Dashboard, descarga directa, creación y retiro de documentos) están gobernadas estrictamente por la jerarquía de perfiles RBAC, sin requerir contraseñas adicionales.
-4. **Resiliencia y Modo Fallback:** Si la aplicación se ejecuta fuera de SharePoint o en entorno de desarrollo local, se despliega un selector institucional de colaborador directo y sin contraseñas.
-
-#### Diagrama 10.1.1: Flujo de Integración SharePoint Iframe SSO y Asignación de Perfil
-
-```mermaid
-sequenceDiagram
-    autonumber
-    participant SPO as SharePoint Online / M365
-    participant IFRAME as Iframe (SGD Institucional)
-    participant APP as AppController (SPA)
-    participant STAFF as StaffService
-
-    Note over SPO,IFRAME: INCUSTACIÓN DE APLICATIVO
-    SPO->>IFRAME: Carga aplicativo dentro de Iframe con contexto de usuario
-    IFRAME->>APP: Inicialización a 0 ms
-    APP->>STAFF: detectarContextoSharepoint() (URL Params / postMessage / Context)
-    
-    alt Usuario SharePoint Detectado
-        STAFF->>STAFF: Cruzar correo con matriz de colaboradores institucionales
-        STAFF->>STAFF: Resolver perfil RBAC (Total, Directivo, Administrativo, Operativo)
-        STAFF-->>APP: Sesión Aprobada y Perfil Asignado
-        APP-->>IFRAME: Renderiza Catálogo Documental Personalizado
-    else Entorno Fuera de SharePoint (Fallback Local)
-        APP-->>IFRAME: Despliega Selector Rápido de Colaborador (Sin Contraseñas)
-    end
-```
-
-#### Tabla 10.1.1: Comparativa Modelo SharePoint Iframe SSO vs. Modelo Local Anterior
-
-| Atributo Arquitectónico | Modelo SharePoint Iframe SSO (Vigente) | Modelo Local con Contraseñas (Retirado) |
-| :--- | :--- | :--- |
-| **Autoridad de Autenticación** | **Microsoft 365 / SharePoint Online.** | Contraseñas locales SHA-256 en `usuarios.conf`. |
-| **Ingreso al Sistema** | **Automático y transparente** (0 clics / SSO). | Formulario obligatorio con correo y contraseña. |
-| **Detección de Usuario** | Query params, `postMessage` o context API. | Entrada manual de credenciales por el usuario. |
-| **Asignación de Perfil** | Determinística por cargo y mapeo personalizado. | Supeditada a validación previa de contraseña. |
-| **Modo Edición** | Habilitado directamente según perfil RBAC. | Requería contraseña de edición adicional. |
-| **Bloqueos y Recuperación** | Inexistentes (seguridad delegada a Azure AD). | Bloqueo escalonado tras 3 intentos erróneos. |
-
----
-
-### 10.2. Política de Mínimo Privilegio y Denegación por Defecto (Default Deny)
-
-#### Directriz Oficial:
-Si en la hoja de cálculo maestra de Google Sheets las columnas de permisos `Directivo`, `Administrativo` u `Operativo` se encuentran en blanco, con espacios o vacías, la política de seguridad corresponde de forma estricta a **DENEGACIÓN POR DEFECTO (`false`)**.
-
-#### Reglas de Evaluación:
-1. **Concesión Explícita Únicamente:** Solo la presencia exacta del caracter `'X'` (o valores afirmativos normalizados `'SI'`, `'TRUE'`, `'1'`) otorga permiso afirmativo (`true`).
-2. **Evaluación Booleana Estricta:** Las cláusulas del código deben usar operadores de igualdad estricta (`=== true`). Quedan terminantemente prohibidas cláusulas permisivas como `!== false`.
-3. **Visibilidad por Perfil:**
-   - **Perfil Directivo:** Visualiza el 100% de los documentos activos.
-   - **Perfil Administrativo:** Requiere estrictamente `d.permisoAdministrativo === true || d.permisoOperativo === true`.
-   - **Perfil Operativo:** Requiere estrictamente `d.permisoOperativo === true`.
-
-#### Diagrama 10.2.1: Árbol Lógico de Evaluación de Permisos en Hoja de Cálculo
+Toda operación que modifique el estado del catálogo documental es auditada de forma inmutable y persistida inmediatamente en la hoja de cálculo **`Historico_Documentos`** de Google Sheets:
 
 ```mermaid
 flowchart TD
-    CELL["Lectura de Celda en Google Sheets
-    (Columnas: Directivo, Administrativo, Operativo)"] --> NORM["Normalización de Cadena:
-    trim().toUpperCase()"]
+    ACCION(["Acción Administrativa: Creación, Modificación o Retiro de Documento"]) --> GAS_SEND["Envío de Payload a Google Apps Script (action: registrar_historico)"]
     
-    NORM --> CHECK_CHAR{"¿El valor coincide exactamente con:
-    'X', 'SI', 'TRUE' o '1'?"}
+    GAS_SEND --> LOCK["Adquisición de LockService Exclusivo (30 segundos)"]
     
-    CHECK_CHAR -- SÍ --> GRANT["✅ PERMISO OTORGADO
-    booleano = true"]
+    LOCK --> SHEET_APPEND["Append Atómico en Hoja de Cálculo Historico_Documentos
+    Columnas: Fecha/Hora, Código, Documento, Versión, Tipo Movimiento, Responsable, Detalle"]
     
-    CHECK_CHAR -- NO (Vacío, Espacio, Otro) --> DENY["⛔ DENEGACIÓN POR DEFECTO
-    booleano = false"]
-
-    GRANT --> EVAL_PROFILE{"Evaluación según Perfil del Usuario Activo"}
-    DENY --> EVAL_PROFILE
-
-    EVAL_PROFILE --> P_TOTAL["🛡️ Total: Visualiza 100%"]
-    EVAL_PROFILE --> P_DIR["👑 Directivo: Visualiza 100%"]
-    EVAL_PROFILE --> P_ADM{"💼 Administrativo:
-    ¿permisoAdmin === true || permisoOper === true?"}
-    EVAL_PROFILE --> P_OPE{"👷 Operativo:
-    ¿permisoOper === true?"}
-
-    P_ADM -- SÍ --> SHOW_ADM["Mostrar en Catálogo"]
-    P_ADM -- NO --> HIDE_ADM["Ocultar del Catálogo"]
+    SHEET_APPEND --> SHEET_UPDATE["Actualización de 'Fecha y hora de modificación' en Biblioteca_Documental"]
     
-    P_OPE -- SÍ --> SHOW_OPE["Mostrar en Catálogo (Solo Lectura)"]
-    P_OPE -- NO --> HIDE_OPE["Ocultar del Catálogo"]
+    SHEET_UPDATE --> RELEASE["Liberación de LockService y Retorno OK a Interfaz"]
 ```
 
-#### Tabla 10.2.1: Tabla de Verdad y Visibilidad según Celda y Perfil
+### 8.2. Reglas de Negocio sobre Movimientos y Descargas
 
-| Valor en Celda | Booleano | Perfil Total | Perfil Directivo | Perfil Administrativo | Perfil Operativo |
-| :---: | :---: | :---: | :---: | :---: | :---: |
-| `'X'` / `'x'` | `true` | Visible | Visible | Visible | Visible (si en col Operativo) |
-| `'SI'` / `'si'` | `true` | Visible | Visible | Visible | Visible (si en col Operativo) |
-| `[En Blanco]` | **`false`** | Visible | Visible | **Oculto** (si no tiene otra col) | **Oculto** |
-| `[Espacios]` | **`false`** | Visible | Visible | **Oculto** | **Oculto** |
-| `'NO'` / `'0'` | **`false`** | Visible | Visible | **Oculto** | **Oculto** |
-| *Cualquier otro* | **`false`** | Visible | Visible | **Oculto** | **Oculto** |
+1. **Creación, Edición y Retiro:** Generan una nueva fila inmutable en `Historico_Documentos` y actualizan la fecha de modificación (Columna V) en `Biblioteca_Documental`.
+2. **Descargas Institucionales:** Cuando un usuario (operativo o administrativo) descarga un documento, se incrementa en $+1$ la columna **Descargas (Columna Y)** del registro en `Biblioteca_Documental`. **Las descargas no alteran la fecha de modificación** del documento ni saturan la hoja de históricos.
+3. **Invalidez de Archivos Obsoletos:** Los archivos locales o remotos `Historico_Documentos` e `Historico_Documentos_USV.csv` quedan totalmente eliminados e invalidados, consolidando toda la trazabilidad institucional en Google Sheets.
 
----
+## 9. Automatización y Flujo de Sincronización en GitHub Actions
+
+### 9.1. Flujo de Comparación y Actualización de Vínculos OneDrive ↔ Biblioteca
+
+El flujo automatizado en GitHub Actions sustituye al antiguo respaldo diario y se encarga del cruce de integridad y reconciliación de enlaces:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant GHA as GitHub Actions (Workflow de Sincronización)
+    participant OD as Repositorio OneDrive (SharePoint)
+    participant GS as Google Sheets (Biblioteca_Documental)
+    participant HIST as Google Sheets (Historico_Documentos)
+
+    GHA->>OD: Inspeccionar archivos y carpetas del repositorio documental
+    OD-->>GHA: Lista de archivos, nombres, extensiones y enlaces compartidos
+    
+    GHA->>GS: Consultar catálogo maestro actual de Biblioteca_Documental
+    GS-->>GHA: Matriz de 25 columnas de documentos
+    
+    GHA->>GHA: Comparar códigos y nombres de archivo contra vínculos registrados
+    
+    alt Se Detectan Nuevos Vínculos o Cambios de Ubicación
+        GHA->>GS: Actualizar celda Vinculo Directo (Col X) y Vinculo Ubicacion (Col W)
+        GHA->>HIST: Registrar fila con movimiento 'CRUCE_VINCULOS_ONEDRIVE'
+        GHA->>GHA: Notificar sincronización exitosa en log
+    else Catálogo y Vínculos 100% Sincronizados
+        GHA->>GHA: Sin modificaciones requeridas (Terminar con código 0)
+    end
+```
+
+### 9.2. Eliminación de Flujos Obsoletos
+- **Retiro del Backup Diario Antiguo:** Se eliminó el flujo anterior de respaldo diario que generaba volcados redundantemente en el repositorio git, mitigando el crecimiento innecesario del histórico de versiones.
+- **Enfoque en Disponibilidad Continua:** La sincronización de vínculos asegura que ningún documento en `Biblioteca_Documental` quede huérfano o con enlaces rotos tras traslados o modificaciones en SharePoint/OneDrive.
+
+## 10. Políticas Oficiales de Despliegue, Integración y Seguridad
+
+### 10.1. Integración en SharePoint Online mediante Iframe
+La aplicación está diseñada para operar de forma nativa incrustada en páginas de SharePoint Online:
+- **Incrustación Segura:** Ejecutada a través del contenedor iframe oficial:
+  `<iframe title="Gestión documental" style="width: 100%; height: 100%; border: none;" src="https://unionsaludvida2.github.io/gestiondocumental/" allow="clipboard-write; clipboard-read" allowfullscreen=""></iframe>`
+- **Garantía Estricta sin Barras de Desplazamiento Horizontal:** Se prohíbe el uso de scrollbars horizontales en la ventana principal (`overflow-x: hidden`). Todos los contenedores, botones, tablas y tarjetas deben auto-ajustarse al ancho definido por el contenedor de SharePoint.
+- **Redimensionamiento Adaptativo:** En pantallas pequeñas o anchos reducidos del iframe, los componentes se redimensionan proporcionalmente (iconos, fuentes, espaciados) y las columnas no críticas de la tabla se ocultan progresivamente para priorizar la visibilidad del documento y sus acciones.
+
+### 10.2. Política de Mínimo Privilegio y Acceso Operativo por Defecto
+- Todo usuario que acceda a la página tiene garantizada la consulta inmediata del catálogo vigente.
+- La edición de metadatos, borrado y creación de documentos está estrictamente restringida a usuarios con perfil administrativo verificado.
+- El perfil administrativo se desbloquea con el candado 🔒 y permanece en la caché del navegador del usuario sin requerir reautenticación continua.
 
 ### 10.3. Prohibición de Borrado Físico y Retiro Lógico (Soft-Delete)
-
-#### Directriz Oficial:
-El borrado físico de filas en la hoja maestra de Google Sheets está **estrictamente prohibido por políticas de calidad en salud**.
-
-#### Mecanismo de Retiro Lógico (*Soft-Delete*):
-- Al retirar un documento base o subregistro, el sistema actualiza su estado a `Eliminado` u `Obsoleto`.
-- Se exige de forma obligatoria el ingreso de una **justificación detallada** del retiro.
-- El evento se registra en el histórico inmutable (`Historico_Documentos_USV.csv`) y en `auditoria.dat`.
-- El parámetro de borrado físico en el código queda permanentemente fijado en `borradoFisico: false`.
-
-#### Diagrama 10.3.1: Ciclo de Vida Documental y Retiro Lógico
-
-```mermaid
-stateDiagram-v2
-    [*] --> Activo: Creación de Documento
-    
-    state Activo {
-        VisibleEnCatalogo: Visible para usuarios según RBAC
-        DisponibleDescarga: Enlaces de Descarga y Edición Operativos
-    }
-    
-    Activo --> RetiroSolicitado: Usuario Directivo pulsa 🗑️ Retirar
-    
-    state RetiroSolicitado {
-        Justificacion: Ingreso OBLIGATORIO de justificación técnica
-        ProhibicionPurga: Borrado Físico BLOQUEADO (borradoFisico = false)
-    }
-
-    RetiroSolicitado --> RetiroLogico: Confirmación en el modal
-    RetiroSolicitado --> Activo: Cancelación de la acción
-
-    state RetiroLogico {
-        EstadoActualizado: Estado cambia a 'Eliminado' u 'Obsoleto'
-        ExclusionCatalogo: Se oculta de las vistas operativas
-        AuditoriaInmutable: Registro en Historico_Documentos y auditoria.dat
-    }
-
-    RetiroLogico --> [*]: Registro preservado permanentemente en base de datos
-```
-
-#### Tabla 10.3.1: Matriz Diferencial: Retiro Lógico vs. Borrado Físico Prohibido
-
-| Criterio Técnico / Legal | Retiro Lógico (*Soft-Delete* - Vigente) | Borrado Físico (*Purga* - Prohibido) |
-| :--- | :--- | :--- |
-| **Acción en Sheets** | Actualiza columna `Estado` a `Eliminado` u `Obsoleto`. | Elimina físicamente la fila (`deleteRow`). |
-| **Historial SGC** | **100% Preservado.** Trazabilidad completa garantizada. | Destruye el registro y rompe la auditoría. |
-| **Normativa Salud** | Conforme con el Sistema de Calidad en Salud. | **No conforme.** Incumple entes de control. |
-| **Justificación** | Exigida obligatoriamente en modal antes de procesar. | No aplicable (eliminación sin rastro). |
-| **Recuperabilidad** | Reversible reactivando el estado por administrador. | Irreversible sin restauración compleja de backups. |
-| **Control en Código** | Parámetro `borradoFisico = false` forzado en `modal.js`. | Checkbox de purga física **eliminado de la UI**. |
-
----
-
-### 10.4. Tasa Límite (Rate Limiting) y Bloqueo Escalonado
-
-#### Directriz Oficial:
-Para salvaguardar la integridad de las cuentas y prevenir ataques de fuerza bruta o suplantación de identidad:
-- **Nivel 1 (Bloqueo Temporal de Interfaz):** Tras **3 intentos fallidos consecutivos** de ingreso o cambio de contraseña, la interfaz se bloquea temporalmente por **15 minutos**.
-- **Nivel 2 (Bloqueo Permanente de Cuenta):** Si un mismo usuario acumula **3 bloqueos temporales consecutivos**, su cuenta pasa a estado de **Bloqueo Permanente**.
-- **Nivel 3 (Desbloqueo Exclusivo de Superadministrador):** La única persona facultada para desbloquear una cuenta bloqueada de forma permanente es el usuario con perfil **Acceso Total (Cédula 8160602)** desde el módulo de personal.
-
-#### Diagrama 10.4.1: Flujo de Bloqueo Escalonado por Intentos Fallidos
-
-```mermaid
-flowchart TD
-    START(["Intento de Inicio de Sesión o Cambio de Clave"]) --> CHECK_LOCKED{"¿Usuario presenta bloqueo activo?"}
-
-    CHECK_LOCKED -- SÍ: Bloqueo Permanente --> ERR_PERM["⛔ CUENTA BLOQUEADA PERMANENTEMENTE
-    Requiere desbloqueo manual por Superadministrador (Cédula 8160602)"]
-
-    CHECK_LOCKED -- SÍ: Bloqueo Temporal --> ERR_TEMP["⏳ INTERFAZ BLOQUEADA TEMPORALMENTE
-    Esperar transcurso de los 15 minutos programados"]
-
-    CHECK_LOCKED -- NO --> VALIDAR{"¿Credenciales Correctas?"}
-
-    VALIDAR -- SÍ --> RESET["✅ ACCESO EXITOSO
-    Resetear contador de fallos y bloqueos acumulados"]
-    
-    VALIDAR -- NO --> INCR_FAIL["Incrementar intentosFallidos++"]
-    
-    INCR_FAIL --> COUNT_FAIL{"¿intentosFallidos >= 3?"}
-    
-    COUNT_FAIL -- NO --> WARN_FAIL["⚠️ Credenciales Incorrectas
-    Mostrar intentos restantes (3 - n) al usuario"]
-    
-    COUNT_FAIL -- SÍ --> INCR_CYCLE["bloqueosConsecutivos++
-    intentosFallidos = 0"]
-
-    INCR_CYCLE --> COUNT_CYCLE{"¿bloqueosConsecutivos >= 3?"}
-
-    COUNT_CYCLE -- NO --> SET_TEMP["⏳ ACTIVAR BLOQUEO TEMPORAL
-    bloqueadoHasta = Ahora + 15 minutos
-    Deshabilitar inputs y botones en interfaz"]
-
-    COUNT_CYCLE -- SÍ --> SET_PERM["⛔ ACTIVAR BLOQUEO PERMANENTE
-    cuentaBloqueada = true
-    Solo Superadministrador puede desbloquear"]
-
-    SET_PERM --> UNLOCK_ADMIN{"Superadministrador pulsa '🔓 Desbloquear' en Perfiles"}
-    UNLOCK_ADMIN --> RESET
-```
-
-#### Tabla 10.4.1: Matriz de Estados de Seguridad y Reglas de Desbloqueo
-
-| Estado de Seguridad | Condición de Disparo | Impacto en Interfaz | Duración | Procedimiento de Desbloqueo |
-| :---: | :--- | :--- | :---: | :--- |
-| **Normal (Activo)** | 0 a 2 fallos. | Interfaz totalmente funcional. | Indefinida. | No requerido. Acceso normal. |
-| **Bloqueo Nivel 1** | 3 fallos consecutivos. | Banner advertencia; inputs deshabilitados. | **15 min** | Automático al expirar el tiempo. |
-| **Bloqueo Nivel 2** | 3 fallos tras cumplir nivel 1. | Banner advertencia; inputs deshabilitados. | **15 min** | Automático al expirar el tiempo. |
-| **Bloqueo Permanente** | Acumulación de **3 bloqueos**. | Acceso denegado; badge `🔒 Bloqueado`. | **Perpetuo** | **Solo Superadministrador (8160602)**. |
-
----
+Queda estrictamente prohibido eliminar filas físicas en `Biblioteca_Documental`. Todo retiro se efectúa cambiando la columna *Disponibilidad* a `NO DISPONIBLE` o *Estado Actual* a `Retirado`, conservando la fila y auditando el evento en `Historico_Documentos`.
 
 ## 11. Decálogo de Gobernanza para Desarrolladores
 
@@ -944,7 +642,7 @@ flowchart TD
    Desbloqueo condicionado exclusivamente a Superadministradores (Acceso Total).
 
 9. ARQUITECTURA DE AUTENTICACIÓN OFICIAL:
-   Modelo Local Oficial (staff-service.js contra EMPLEADOS_ACTIVOS.csv y usuarios.conf)
+   Modelo Oficial (staff-service.js contra usuarios.conf y staff-data.js)
    con SSO federado por navegador hacia SharePoint. El componente legado auth.js
    queda formalmente dado de baja y eliminado.
 
@@ -1087,7 +785,7 @@ Para garantizar que los auditores encuentren documentos sin discrepancias ortogr
 
 #### 12.3.1. Principio de No-Repudio y Registro Inmutable
 
-Toda interacción de usuario que modifique datos, descargue archivos, acceda a directorios estructurados o altere la seguridad queda registrada con sello de tiempo inmutable en el archivo de Google Drive `auditoria.dat` y en la caché del navegador cliente.
+Toda interacción de usuario que modifique datos, descargue archivos, acceda a directorios estructurados o altere la seguridad queda registrada con sello de tiempo inmutable en el archivo de Google Drive `Historico_Documentos` y en la caché del navegador cliente.
 
 ```mermaid
 sequenceDiagram
@@ -1096,7 +794,7 @@ sequenceDiagram
     participant ENGINE as staffService.registrarAuditoria()
     participant MEM as Throttle Buffer (5-10s)
     participant STORAGE as IndexedDB / Cache Local
-    participant CLOUD as auditoria.dat (Google Apps Script)
+    participant CLOUD as Historico_Documentos (Google Sheets)
 
     CLIENTE->>ENGINE: Disparo de Acción (Login, Descarga, Carpeta, Edición, etc.)
     
@@ -1138,9 +836,9 @@ sequenceDiagram
 
 ### 12.4. Políticas de Control de Cambios Documentales (Histórico Oficial)
 
-#### 12.4.1. Repositorio Oficial `Historico_Documentos_USV.csv`
+#### 12.4.1. Repositorio Oficial `Historico_Documentos` (Google Sheets)
 
-El archivo de Google Drive `Historico_Documentos_USV.csv` constituye la **Fuente Única de Verdad Histórica** del ciclo de vida de los documentos de Unión para la salud y la vida S.A.S. No puede ser purgado ni reescrito de forma destructiva; opera exclusivamente bajo el modelo de incorporación secuencial (*append-only*).
+La hoja de cálculo de Google Sheets `Historico_Documentos` constituye la **Fuente Única de Verdad Histórica** del ciclo de vida de los documentos de Unión para la salud y la vida S.A.S. No puede ser purgada ni reescrita de forma destructiva; opera exclusivamente bajo el modelo de incorporación secuencial (*append-only*).
 
 #### 12.4.2. Algoritmo de Detección de Cambios por Snapshot Diferencial
 
@@ -1175,7 +873,7 @@ flowchart TD
     CHECK_DELETED -- SÍ --> EVT_ELIM["❌ EVENTO: ELIMINACION
     Registra retiro lógico, motivo y fecha de baja."]
     
-    EVT_CREA --> APPEND_HIST["Incorporar a Historico_Documentos_USV.csv
+    EVT_CREA --> APPEND_HIST["Incorporar a Historico_Documentos (Google Sheets)
     Notificar a interfaz: window.dispatchEvent('agy_doc_history_logged')"]
     EVT_VER --> APPEND_HIST
     EVT_META --> APPEND_HIST

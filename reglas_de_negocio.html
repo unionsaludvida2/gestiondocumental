@@ -693,9 +693,9 @@
                 <td><span class="pill-badge pill-green">Biblioteca Central SSOT</span></td>
               </tr>
               <tr>
-                <td><strong>7. Supremacía de OneDrive, IndexedDB y Habeas Data</strong></td>
-                <td>OneDrive es la fuente primaria de personal (<code>EMPLEADOS_ACTIVOS.csv</code>) y rutas padre. Se excluye de GitHub por Habeas Data (Ley 1581) y se almacena en el cliente en <code>IndexedDB</code> como objetos JSON indexados ($O(1) &lt; 1\text{ ms}$). Usuario retirado o inexistente tiene acceso denegado. Mutaciones offline protegidas con cola Outbox.</td>
-                <td><span class="pill-badge pill-blue">Gobernanza Cloud &amp; Outbox</span></td>
+                <td><strong>7. Gobernanza de Persistencia Cloud y Sesión Persistente</strong></td>
+                <td>La persistencia oficial reside en Google Sheets (<code>Biblioteca_Documental</code> con 25 columnas e <code>Historico_Documentos</code>) y Google Drive (<code>usuarios.conf</code> y <code>maestro.dat</code>). El inicio es automático en perfil OPERATIVO sin barreras. La sesión de administrador (🔒) queda guardada de manera persistente en la caché del navegador para acceso continuo sin reautenticación repetitiva.</td>
+                <td><span class="pill-badge pill-blue">Gobernanza Cloud &amp; SSOT</span></td>
               </tr>
             </tbody>
           </table>
@@ -734,7 +734,7 @@ flowchart TD
     subgraph GOOGLE_CLOUD["Google Workspace Cloud Platform"]
         GAS["Google Apps Script Web App"]
         GSHEET[("Google Sheets (Biblioteca Maestra)")]
-        GDRIVE[("Google Drive (usuarios.conf / auditoria.dat)")]
+        GDRIVE[("Google Drive (usuarios.conf / maestro.dat)")]
     end
 
     subgraph MICROSOFT_CLOUD["Microsoft 365 Enterprise"]
@@ -743,7 +743,7 @@ flowchart TD
     end
 
     subgraph CI_CD["Automatización & CI/CD"]
-        GHA["GitHub Actions (daily-backup.yml)"]
+        GHA["GitHub Actions (sincronizar_vinculos.yml)"]
         GHPAGES["GitHub Pages (Alojamiento Web SPA)"]
     end
 
@@ -809,19 +809,11 @@ flowchart TD
               </tr>
               <tr>
                 <td><strong>Nivel 4</strong></td>
-                <td>CSV / DAT Estáticos Directos</td>
+                <td>Google Sheets / OneDrive Cloud Directo</td>
                 <td>Fetch HTTP GET</td>
                 <td><span class="pill-badge pill-amber">800 - 2,500 ms</span></td>
                 <td>Requiere Red</td>
-                <td>Contingencia por fallo en microservicio Cloud.</td>
-              </tr>
-              <tr>
-                <td><strong>Nivel 5</strong></td>
-                <td><code class="code-inline">data.js</code> en memoria</td>
-                <td>ES6 Module Bundled</td>
-                <td><span class="pill-badge pill-purple">0 ms (RAM)</span></td>
-                <td><span class="pill-badge pill-green">100% Offline</span></td>
-                <td>Pérdida total de red y caché persistente.</td>
+                <td>Respaldo Cloud en vivo (Política Cero Archivos Estáticos en Repositorio).</td>
               </tr>
             </tbody>
           </table>
@@ -851,21 +843,14 @@ flowchart TD
             </thead>
             <tbody>
               <tr>
-                <td><code class="code-inline">REPOSITORIO_DOCUMENTAL.csv</code></td>
+                <td><code class="code-inline">Biblioteca_Documental</code></td>
                 <td><span class="pill-badge pill-blue">CSV (;)</span></td>
-                <td>Raíz / OneDrive</td>
-                <td>Catálogo de enlaces físicos en SharePoint.</td>
-                <td><strong>Filtrado Estricto:</strong> Excluir carpetas sin extensión.</td>
+                <td>Google Sheets / Nube</td>
+                <td>Catálogo maestro oficial (25 columnas: metadatos, enlaces y descargas).</td>
+                <td><strong>SSOT Institucional:</strong> Conteo de descargas en tiempo real.</td>
               </tr>
               <tr>
-                <td><code class="code-inline">EMPLEADOS_ACTIVOS.csv</code></td>
-                <td><span class="pill-badge pill-blue">CSV (,)</span></td>
-                <td>Raíz / Servidor</td>
-                <td>Matriz oficial de 1,305 colaboradores activos.</td>
-                <td><strong>Validación Primaria:</strong> Nadie entra sin estado <code>Activo</code>.</td>
-              </tr>
-              <tr>
-                <td><code class="code-inline">Historico_Documentos_USV.csv</code></td>
+                <td><code class="code-inline">Historico_Documentos (Google Sheets)</code></td>
                 <td><span class="pill-badge pill-blue">CSV (;)</span></td>
                 <td>Raíz / Drive</td>
                 <td>Bitácora inmutable de versiones del SGC.</td>
@@ -879,7 +864,7 @@ flowchart TD
                 <td><strong>Merge Atómico:</strong> Deep merge con LockService.</td>
               </tr>
               <tr>
-                <td><code class="code-inline">auditoria.dat</code></td>
+                <td><code class="code-inline">Historico_Documentos</code></td>
                 <td><span class="pill-badge pill-amber">JSON</span></td>
                 <td>Raíz / Drive</td>
                 <td>Registro inmutable de eventos y accesos.</td>
@@ -900,7 +885,7 @@ flowchart TD
                 <td><strong>Script Lock:</strong> Espera exclusiva de hasta 30s.</td>
               </tr>
               <tr>
-                <td><code class="code-inline">daily-backup.yml</code></td>
+                <td><code class="code-inline">sincronizar_vinculos.yml</code></td>
                 <td><span class="pill-badge pill-gray">GHA YAML</span></td>
                 <td>.github/workflows/</td>
                 <td>Respaldo automatizado diario a las 04:00 UTC.</td>
@@ -1463,7 +1448,7 @@ stateDiagram-v2
     state RetiroLogico {
         EstadoActualizado: Estado cambia a 'Eliminado' u 'Obsoleto'
         ExclusionCatalogo: Se oculta de las vistas operativas
-        AuditoriaInmutable: Registro en Historico_Documentos y auditoria.dat
+        AuditoriaInmutable: Registro inmutable en Historico_Documentos (Google Sheets)
     }
 
     RetiroLogico --> [*]: Registro preservado permanentemente en base de datos
@@ -1808,11 +1793,11 @@ flowchart TD
           12.3. Políticas de Auditoría Institucional y Trazabilidad Transaccional
         </h3>
         <p style="font-size: 0.9rem; margin-bottom: 12px;">
-          Garantía del principio de no-repudio y trazabilidad en tiempo real sobre toda acción que consuma o altere el repositorio. Los eventos se registran de forma atómica en <code>auditoria.dat</code> y se sincronizan en vivo.
+          Garantía del principio de no-repudio y trazabilidad en tiempo real sobre toda acción que consuma o altere el repositorio. Los eventos se registran de forma atómica en <code>Historico_Documentos</code> y se sincronizan en vivo.
         </p>
 
         <div class="mermaid-card">
-          <div class="mermaid-title"><span>📊</span> Diagrama 12.3: Pipeline de Auditoría e Ingesta Inmutable hacia auditoria.dat</div>
+          <div class="mermaid-title"><span>📊</span> Diagrama 12.3: Pipeline de Auditoría e Ingesta Inmutable hacia Historico_Documentos</div>
           <pre class="mermaid">
 sequenceDiagram
     autonumber
@@ -1820,7 +1805,7 @@ sequenceDiagram
     participant ENGINE as staffService.registrarAuditoria()
     participant MEM as Throttle Buffer (5-10s)
     participant STORAGE as IndexedDB / Cache Local
-    participant CLOUD as auditoria.dat (Google Apps Script)
+    participant CLOUD as Historico_Documentos (Google Sheets)
 
     CLIENTE->>ENGINE: Disparo de Acción (Login, Descarga, Carpeta, Edición, etc.)
     
@@ -1925,7 +1910,7 @@ sequenceDiagram
           12.4. Políticas de Control de Cambios Documentales (Histórico Oficial)
         </h3>
         <p style="font-size: 0.9rem; margin-bottom: 12px;">
-          El archivo <code>Historico_Documentos_USV.csv</code> constituye la <strong>Fuente Única de Verdad Histórica</strong> del ciclo de vida de los documentos. El motor compara en cada sincronización el catálogo actual contra el último snapshot diferencial.
+          El archivo <code>Historico_Documentos (Google Sheets)</code> constituye la <strong>Fuente Única de Verdad Histórica</strong> del ciclo de vida de los documentos. El motor compara en cada sincronización el catálogo actual contra el último snapshot diferencial.
         </p>
 
         <div class="mermaid-card">
@@ -1959,7 +1944,7 @@ flowchart TD
     CHECK_DELETED -- SÍ --> EVT_ELIM["❌ EVENTO: ELIMINACION
     Registra retiro lógico, motivo y fecha de baja."]
     
-    EVT_CREA --> APPEND_HIST["Incorporar a Historico_Documentos_USV.csv
+    EVT_CREA --> APPEND_HIST["Incorporar a Historico_Documentos (Google Sheets)
     Notificar a interfaz: window.dispatchEvent('agy_doc_history_logged')"]
     EVT_VER --> APPEND_HIST
     EVT_META --> APPEND_HIST
