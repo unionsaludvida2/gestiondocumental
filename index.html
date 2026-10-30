@@ -19,11 +19,75 @@
     rel="stylesheet" />
 
   <!-- Estilos de la aplicación -->
-  <link rel="stylesheet" href="styles.css?v=11.9.7" />
+  <link rel="stylesheet" href="styles.css?v=11.9.8" />
 
   <script>
-    window.__AGY_BUILD_VERSION = '11.9.7';
+    window.__AGY_BUILD_VERSION = '11.9.8';
+
+    // Política de Seguridad Institucional: Permitir apertura únicamente desde iframe de SharePoint o en localhost
+    function validarOrigen(urlDestino) {
+      var hostActual = (window.location.hostname || '').toLowerCase();
+      var esLocalhost = hostActual === 'localhost' || hostActual === '127.0.0.1' || hostActual === '[::1]';
+      var ancestros = window.location.ancestorOrigins ? Array.from(window.location.ancestorOrigins) : [];
+      var origen = document.referrer || (ancestros.length > 0 ? ancestros[0] : '');
+      var tieneAncestroSP = ancestros.some(function(o) { return (o || '').toLowerCase().indexOf('unionsaludvida.sharepoint.com') !== -1; });
+      var esOrigenSP = tieneAncestroSP || (origen && origen.toLowerCase().indexOf('unionsaludvida.sharepoint.com') !== -1);
+
+      if (esLocalhost || (window.self !== window.top && esOrigenSP)) {
+        if (urlDestino) {
+          window.open(urlDestino, '_blank');
+        }
+        return true;
+      } else {
+        alert('Acceso denegado: Este enlace solo puede abrirse desde la plataforma institucional.');
+        return false;
+      }
+    }
+
+    (function verificarAccesoInstitucional() {
+      try {
+        var hostActual = (window.location.hostname || '').toLowerCase();
+        var esLocalhost = hostActual === 'localhost' || hostActual === '127.0.0.1' || hostActual === '[::1]';
+        var estaEnIframe = window.self !== window.top;
+        var ancestros = window.location.ancestorOrigins ? Array.from(window.location.ancestorOrigins) : [];
+        var origenRef = (document.referrer || '').toLowerCase();
+        var esSharePointAutorizado = estaEnIframe && (
+          ancestros.some(function(o) { return (o || '').toLowerCase().indexOf('unionsaludvida.sharepoint.com') !== -1; }) ||
+          origenRef.indexOf('unionsaludvida.sharepoint.com') !== -1
+        );
+
+        if (!esLocalhost && !esSharePointAutorizado) {
+          window.__AGY_ACCESO_BLOQUEADO = true;
+          var styleLock = document.createElement('style');
+          styleLock.textContent = 'body > *:not(#agy-blocked-screen) { display: none !important; } body { margin: 0; background: #f1f5f9; }';
+          document.head.appendChild(styleLock);
+
+          var mostrarBloqueo = function() {
+            if (!document.body) return;
+            document.body.innerHTML =
+              '<div id="agy-blocked-screen" style="display:flex;align-items:center;justify-content:center;min-height:100vh;background:#f1f5f9;font-family:\'Quicksand\',\'Montserrat\',sans-serif;padding:20px;box-sizing:border-box;">' +
+                '<div style="max-width:460px;width:100%;background:#ffffff;padding:34px 28px;border-radius:14px;box-shadow:0 8px 28px rgba(15,23,42,0.10);text-align:center;border-top:5px solid #dc2626;">' +
+                  '<div style="font-size:3rem;line-height:1;margin-bottom:14px;">🔒</div>' +
+                  '<h2 style="color:#0f172a;font-size:1.35rem;font-weight:700;margin:0 0 10px;">Acceso denegado</h2>' +
+                  '<p style="color:#475569;font-size:0.95rem;line-height:1.55;margin:0;">' +
+                    'Este aplicativo solo puede abrirse desde la plataforma institucional de <strong>SharePoint</strong> de Unión para la salud y la vida S.A.S.' +
+                  '</p>' +
+                '</div>' +
+              '</div>';
+          };
+
+          if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', mostrarBloqueo);
+          } else {
+            mostrarBloqueo();
+          }
+          return;
+        }
+      } catch (e) {}
+    })();
+
     (function verificarVersionFresca() {
+      if (window.__AGY_ACCESO_BLOQUEADO) return;
       try {
         fetch(window.location.pathname + '?_cb=' + Date.now(), { cache: 'no-store' })
           .then(function(r) { return r.ok ? r.text() : ''; })
@@ -326,7 +390,7 @@
   <div id="modals-root"></div>
 
   <!-- Script principal como ES Module -->
-  <script type="module" src="js/app.js?v=11.9.7"></script>
+  <script type="module" src="js/app.js?v=11.9.8"></script>
 </body>
 
 </html>

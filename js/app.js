@@ -12,12 +12,12 @@
  * - Modo Edición: Desbloqueo Automático para Acceso Total y Contraseña Personal para Directivos y Administrativos
  */
 
-import { sharepointService, determinarEstrategiaDescarga, esDocumentoFMT } from './sharepoint-service.js?v=11.9.7';
-import { filterEngine } from './filters.js?v=11.9.7';
-import { modalManager } from './modal.js?v=11.9.7';
-import { analyticsManager } from './analytics.js?v=11.9.7';
-import { staffService } from './staff-service.js?v=11.9.7';
-import { cacheService } from './cache-service.js?v=11.9.7';
+import { sharepointService, determinarEstrategiaDescarga, esDocumentoFMT } from './sharepoint-service.js?v=11.9.8';
+import { filterEngine } from './filters.js?v=11.9.8';
+import { modalManager } from './modal.js?v=11.9.8';
+import { analyticsManager } from './analytics.js?v=11.9.8';
+import { staffService } from './staff-service.js?v=11.9.8';
+import { cacheService } from './cache-service.js?v=11.9.8';
 const STORAGE_KEY_EDIT_MODE = 'agy_sgc_edit_mode';
 const STORAGE_KEY_FAVORITES = 'agy_sgc_favorites';
 const STORAGE_KEY_USER_PROFILE = 'agy_user_profile';
@@ -3567,8 +3567,33 @@ ${filasHtml}
   }
 }
 
+const esOrigenAutorizadoApp = () => {
+  if (typeof window === 'undefined') return false;
+  if (window.__AGY_ACCESO_BLOQUEADO) return false;
+
+  const hostActual = (window.location.hostname || '').toLowerCase();
+  const esLocalhost = hostActual === 'localhost' || hostActual === '127.0.0.1' || hostActual === '[::1]';
+  if (esLocalhost) return true;
+
+  const estaEnIframe = window.self !== window.top;
+  const ancestros = window.location.ancestorOrigins ? Array.from(window.location.ancestorOrigins) : [];
+  const origenRef = (document.referrer || '').toLowerCase();
+  const esSharePoint = estaEnIframe && (
+    ancestros.some((o) => (o || '').toLowerCase().includes('unionsaludvida.sharepoint.com')) ||
+    origenRef.includes('unionsaludvida.sharepoint.com')
+  );
+
+  return esSharePoint;
+};
+
 const iniciarAplicacion = () => {
   try {
+    if (!esOrigenAutorizadoApp()) {
+      window.__AGY_ACCESO_BLOQUEADO = true;
+      console.warn('[Seguridad] Acceso denegado: El aplicativo solo puede ejecutarse dentro de SharePoint institucional o localhost.');
+      return;
+    }
+
     const app = new AppController();
     window.__agyApp = app;
 

@@ -5,7 +5,7 @@
  * Conexión sincrónica en tiempo real al archivo REPOSITORIO_DOCUMENTAL.csv de OneDrive.
  */
 
-import { cacheService } from './cache-service.js?v=11.9.7';
+import { cacheService } from './cache-service.js?v=11.9.8';
 
 const URL_ORIGEN_CSV = 'https://docs.google.com/spreadsheets/d/1ecwTurb2IyuO9qs4_PkAsQrULENh3J-RXEWbl5Ihhug/export?format=csv';
 const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx4-82Ls3Zu5gdzXlAhezZ6ew9tnAece8xSDMQ8QmXcu7UCnMxwqB48ISG_LwNDUgMiQQ/exec';

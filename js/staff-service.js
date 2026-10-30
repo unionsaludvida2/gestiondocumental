@@ -7,7 +7,7 @@
  * registro seguro de contraseñas en usuarios.conf y persistencia de sesión.
  */
 
-import { cacheService } from './cache-service.js?v=11.9.7';
+import { cacheService } from './cache-service.js?v=11.9.8';
 const STORAGE_KEY_AUTH_SESSION = 'agy_sgc_authenticated_session';
 const STORAGE_KEY_REMEMBERED_USER = 'agy_sgc_remembered_user';
 const STORAGE_KEY_STAFF_CACHE = 'agy_sgc_staff_cache';
