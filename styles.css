@@ -743,16 +743,16 @@ input, button, select, textarea, table, th, td, span, div, p, h1, h2, h3, h4, h5
 
 /* Barra de Herramientas Superior */
 .top-toolbar {
-  flex: 1 1 auto;
+  flex: 1 1 0;
   min-width: 0;
   background: var(--bg-surface);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
-  padding: 8px 12px;
+  padding: 8px 10px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: 8px;
   box-shadow: var(--shadow-sm);
   min-height: 58px;
   box-sizing: border-box;
@@ -763,8 +763,8 @@ input, button, select, textarea, table, th, td, span, div, p, h1, h2, h3, h4, h5
   background: var(--bg-surface);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
-  padding: 6px 20px;
-  min-width: 145px;
+  padding: 6px 14px;
+  min-width: 128px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -773,6 +773,7 @@ input, button, select, textarea, table, th, td, span, div, p, h1, h2, h3, h4, h5
   box-shadow: var(--shadow-sm);
   flex-shrink: 0;
   min-height: 58px;
+  box-sizing: border-box;
 }
 
 .counter-badge-card.standalone-counter-card .counter-label {
@@ -791,8 +792,8 @@ input, button, select, textarea, table, th, td, span, div, p, h1, h2, h3, h4, h5
 }
 
 .search-input-wrapper {
-  flex: 1;
-  min-width: 240px;
+  flex: 1 1 140px;
+  min-width: 110px;
   position: relative;
   display: flex;
   align-items: center;
@@ -906,20 +907,30 @@ input, button, select, textarea, table, th, td, span, div, p, h1, h2, h3, h4, h5
 .toolbar-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+  flex: 0 1 155px;
+  min-width: 115px;
+  max-width: 170px;
 }
 
 .sort-select {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
   height: 42px;
-  padding: 0 14px;
+  padding: 0 24px 0 10px;
   border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
-  font-size: 0.82rem;
+  font-size: 0.80rem;
   font-weight: 600;
   color: #334155;
   background: #ffffff;
   cursor: pointer;
   outline: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+  box-sizing: border-box;
   transition: border-color 0.2s ease;
 }
 
