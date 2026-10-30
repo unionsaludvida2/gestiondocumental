@@ -5,9 +5,69 @@
  * Conexión sincrónica en tiempo real al archivo REPOSITORIO_DOCUMENTAL.csv de OneDrive.
  */
 
-import { cacheService } from './cache-service.js?v=11.9.2';
+import { cacheService } from './cache-service.js?v=11.9.3';
 
 const URL_ORIGEN_CSV = 'https://docs.google.com/spreadsheets/d/1ecwTurb2IyuO9qs4_PkAsQrULENh3J-RXEWbl5Ihhug/export?format=csv';
+
+export function repararMojibake(str) {
+  if (!str || typeof str !== 'string') return str || '';
+  let s = str;
+  if (/%C3%8[23]%C2%/i.test(s) || /%C3%83%/i.test(s)) {
+    try {
+      s = decodeURIComponent(s);
+    } catch {}
+  }
+  if (s.includes('Ã') || s.includes('Â')) {
+    try {
+      const CP1252_EXTRA = {
+        0x20AC: 0x80, 0x201A: 0x82, 0x0192: 0x83, 0x201E: 0x84, 0x2026: 0x85,
+        0x2020: 0x86, 0x2021: 0x87, 0x02C6: 0x88, 0x2030: 0x89, 0x0160: 0x8A,
+        0x2039: 0x8B, 0x0152: 0x8C, 0x017D: 0x8E, 0x2018: 0x91, 0x2019: 0x92,
+        0x201C: 0x93, 0x201D: 0x94, 0x2022: 0x95, 0x2013: 0x96, 0x2014: 0x97,
+        0x02DC: 0x98, 0x2122: 0x99, 0x0161: 0x9A, 0x203A: 0x9B, 0x0153: 0x9C,
+        0x017E: 0x9E, 0x0178: 0x9F
+      };
+      const bytes = new Uint8Array(s.length);
+      let validBytes = true;
+      for (let i = 0; i < s.length; i++) {
+        const code = s.charCodeAt(i);
+        if (code <= 0xFF) {
+          bytes[i] = code;
+        } else if (CP1252_EXTRA[code] !== undefined) {
+          bytes[i] = CP1252_EXTRA[code];
+        } else {
+          validBytes = false;
+          break;
+        }
+      }
+      if (validBytes) {
+        const decoded = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+        if (decoded && !decoded.includes('\uFFFD')) {
+          s = decoded;
+        }
+      }
+    } catch {}
+    s = s
+      .replace(/Ã¡/g, 'á')
+      .replace(/Ã©/g, 'é')
+      .replace(/Ã­/g, 'í')
+      .replace(/Ã³/g, 'ó')
+      .replace(/Ãº/g, 'ú')
+      .replace(/Ã±/g, 'ñ')
+      .replace(/Ã¼/g, 'ü')
+      .replace(/Ã\x81|Ã/g, 'Á')
+      .replace(/Ã\x89|Ã‰/g, 'É')
+      .replace(/Ã\x8D|Ã/g, 'Í')
+      .replace(/Ã\x93|Ã“/g, 'Ó')
+      .replace(/Ã\x9A|Ãš/g, 'Ú')
+      .replace(/Ã\x91|Ã‘/g, 'Ñ')
+      .replace(/Ã\x9C|Ãœ/g, 'Ü')
+      .replace(/Â°/g, '°')
+      .replace(/Â¿/g, '¿')
+      .replace(/Â¡/g, '¡');
+  }
+  return s;
+}
 
 export const MAPA_NORMALIZACION_AREAS = {
   'GIC': 'Gestión Integral Calidad',
@@ -700,7 +760,7 @@ export class DataService {
   async obtenerDocumentos(forzarRefresco = false) {
     // 0. Verificación estricta de versión de esquema documental SSOT (Google Sheets como fuente de la verdad)
 
-    const SCHEMA_VERSION_SSOT = '20261030_top50_v12';
+    const SCHEMA_VERSION_SSOT = '20261030_top50_v13';
 
     try {
       const verLocal = typeof localStorage !== 'undefined' ? localStorage.getItem('agy_sgc_ssot_version') : null;
@@ -712,6 +772,9 @@ export class DataService {
 
         if (cacheService && cacheService.guardarDocumentos) {
           await cacheService.guardarDocumentos([]);
+        }
+        if (cacheService && cacheService.guardarRepositorio) {
+          await cacheService.guardarRepositorio(null);
         }
 
         // Purgar borradores residuales o registros fantasma que distorsionen los consecutivos oficiales
@@ -1143,6 +1206,7 @@ export class DataService {
     const mapa = new Map();
 
     if (!textoOD) return mapa;
+    textoOD = repararMojibake(textoOD);
 
     const MAPA_RENOMBRES = {
       'DA-GMD-032': 'DA-GMD-001',
@@ -1416,17 +1480,17 @@ export class DataService {
       const codUpper = item.codigo.trim().toUpperCase();
       const itemOD = {
         codigo: item.codigo,
-        titulo: item.titulo || item.documento || '',
+        titulo: repararMojibake(item.titulo || item.documento || ''),
         extension: item.extension || '',
         formato: item.formato || 'Word',
-        tipoProceso: item.tipoProceso || '',
-        area: item.area || item.carpeta || '',
-        proceso: item.proceso || item.carpeta || '',
-        carpeta: item.carpeta || '',
-        tipoDocumento: item.tipoDocumento || '',
+        tipoProceso: repararMojibake(item.tipoProceso || ''),
+        area: repararMojibake(item.area || item.carpeta || ''),
+        proceso: repararMojibake(item.proceso || item.carpeta || ''),
+        carpeta: repararMojibake(item.carpeta || ''),
+        tipoDocumento: repararMojibake(item.tipoDocumento || ''),
         modificacion: item.modificacion || '',
-        sharepointUrl: item.sharepointUrl || item.vinculoEdicion || item.vinculoDescarga || '',
-        downloadUrl: item.downloadUrl || item.vinculoDescarga || item.vinculoEdicion || ''
+        sharepointUrl: repararMojibake(item.sharepointUrl || item.vinculoEdicion || item.vinculoDescarga || ''),
+        downloadUrl: repararMojibake(item.downloadUrl || item.vinculoDescarga || item.vinculoEdicion || '')
       };
 
       if (!mapa.has(codUpper)) {
@@ -1506,6 +1570,7 @@ export class DataService {
    */
 
   parsearGoogleSheetsHibrido(textoGS, onedriveMap) {
+    textoGS = repararMojibake(textoGS);
     const lineas = textoGS.split(/\r?\n/).filter((l) => l.trim().length > 0);
 
     if (lineas.length < 2) return [];
@@ -2114,7 +2179,7 @@ export class DataService {
    */
 
   obtenerUrlDescargaPdf(doc) {
-    const urlOriginal = (doc.downloadUrl || doc.sharepointUrl || '').trim();
+    const urlOriginal = repararMojibake((doc.downloadUrl || doc.sharepointUrl || '').trim());
 
     if (!urlOriginal || urlOriginal === '#' || urlOriginal === '') return '';
 
@@ -2144,15 +2209,28 @@ export class DataService {
     // Transformación nativa para SharePoint Online en entorno web / GitHub Pages:
     // Utilizar la API REST v2.0 oficial de SharePoint Online que convierte el Word a PDF al vuelo
 
-    const libMarker = limpia.includes('/Documentos compartidos/') ? '/Documentos compartidos/' : (limpia.includes('/Shared Documents/') ? '/Shared Documents/' : null);
+    const libMarker = limpia.includes('/Documentos compartidos/')
+      ? '/Documentos compartidos/'
+      : (limpia.includes('/Documentos%20compartidos/')
+          ? '/Documentos%20compartidos/'
+          : (limpia.includes('/Shared Documents/')
+              ? '/Shared Documents/'
+              : (limpia.includes('/Shared%20Documents/') ? '/Shared%20Documents/' : null)));
 
     if (libMarker) {
       try {
         const idx = limpia.indexOf(libMarker);
         const siteBase = limpia.substring(0, idx); // Ej: https://unionsaludvida.sharepoint.com/sites/INTRANET
 
-        const subpath = limpia.substring(idx + libMarker.length);
-        const subpathEncoded = encodeURI(decodeURI(subpath));
+        let subpath = limpia.substring(idx + libMarker.length);
+        try {
+          subpath = decodeURIComponent(subpath);
+        } catch {}
+        subpath = repararMojibake(subpath);
+        const subpathEncoded = subpath
+          .split('/')
+          .map((seg) => encodeURIComponent(seg))
+          .join('/');
 
         // Endpoint REST v2.0 oficial de SharePoint Online que entrega el PDF convertido al vuelo
 
@@ -2387,7 +2465,7 @@ export class DataService {
 
     // Documentos con prefijo FMT (Word o Excel) y hojas de cálculo: Descarga nativa editable original
 
-    let url = doc.downloadUrl || doc.sharepointUrl;
+    let url = repararMojibake(doc.downloadUrl || doc.sharepointUrl || '');
 
     if (url && url !== '#' && url !== '') {
       if (url.includes('sharepoint.com') && !url.includes('download=1')) {
@@ -2408,7 +2486,7 @@ export class DataService {
   }
 
   abrirEnSoloLectura(doc) {
-    const url = doc.sharepointUrl || doc.downloadUrl;
+    const url = repararMojibake(doc.sharepointUrl || doc.downloadUrl || '');
 
     if (url && url !== '#' && url !== '') {
       const urlSoloLectura = this.obtenerUrlSoloLectura(url);
@@ -2420,7 +2498,7 @@ export class DataService {
   }
 
   abrirEnEdicion(doc) {
-    const url = doc.sharepointUrl || doc.downloadUrl;
+    const url = repararMojibake(doc.sharepointUrl || doc.downloadUrl || '');
 
     if (url && url !== '#' && url !== '') {
       const urlEdicion = this.obtenerUrlEdicion(url);
@@ -2643,8 +2721,8 @@ export class DataService {
         );
 
         if (tieneEnlaceOD) {
-          const spUrl = od.sharepointUrl || doc.sharepointUrl || '';
-          const dlUrl = od.downloadUrl || doc.downloadUrl || spUrl;
+          const spUrl = repararMojibake(doc.sharepointUrl || od.sharepointUrl || '');
+          const dlUrl = repararMojibake(doc.downloadUrl || od.downloadUrl || spUrl);
 
           return {
             ...doc,
