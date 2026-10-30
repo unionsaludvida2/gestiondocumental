@@ -2698,9 +2698,17 @@ ${puedeGestionarCatalogo
 
         const tieneRegistros = Array.isArray(doc.registrosDerivados) && doc.registrosDerivados.length > 0;
         const totalRegistros = tieneRegistros ? doc.registrosDerivados.length : 0;
-        const topRankCellHtml = esVistaTop10 ? `<td class="col-top-rank">${badgePuestoHtml}</td>` : '';
         const lblDesc = numDescargas === 1 ? 'descarga' : 'descargas';
-        const descargasCellHtml = esVistaTop10 ? `<td class="col-descargas"><span style="display:inline-flex; align-items:center; gap:3px; background:#f8fafc; border:1px solid #cbd5e1; color:#0f172a; padding:2px 7px; border-radius:10px; font-size:0.73rem; font-weight:700;" title="${numDescargas} descargas registradas">🔥 ${numDescargas} ${lblDesc}</span></td>` : '';
+        const topRankCellHtml = esVistaTop10
+          ? `<td class="col-top-rank">
+              <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px;">
+                ${badgePuestoHtml}
+                <span style="display:inline-flex; align-items:center; gap:2px; background:#f8fafc; border:1px solid #cbd5e1; color:#0f172a; padding:1px 6px; border-radius:8px; font-size:0.68rem; font-weight:700; white-space:nowrap;" title="${numDescargas} ${lblDesc} registradas">
+                  🔥 ${numDescargas} ${lblDesc}
+                </span>
+              </div>
+            </td>`
+          : '';
         const filaPrincipalHtml = `
 
 <tr class="docs-table-row ${rowClass} ${doc.esRegistro ? 'docs-table-row-derivado' : ''}" data-id="${doc.id}">
@@ -2729,15 +2737,11 @@ ${esVistaTop10
 
 ? topRankCellHtml
 
-: ''
+: `<td class="col-tipo">
+<span class="badge ${extClass}" style="font-size: 0.70rem; padding: 1px 5px; font-weight: 700;">${doc.extension}</span>
+</td>`
 
 }
-
-<td class="col-tipo">
-
-<span class="badge ${extClass}" style="font-size: 0.70rem; padding: 1px 5px; font-weight: 700;">${doc.extension}</span>
-
-</td>
 
 <td class="col-codigo">
 
@@ -2801,26 +2805,6 @@ ${doc.esRegistro
 
 <td class="col-version">${staffService.formatearVersion(doc.version)}</td>
 
-${esVistaTop10
-
-? `
-
-              <td class="col-descargas">
-
-                <span style="display:inline-flex; align-items:center; gap:3px; background:#f8fafc; border:1px solid #cbd5e1; color:#0f172a; padding:2px 7px; border-radius:10px; font-size:0.73rem; font-weight:700;">
-
-                  🔥 ${numDescargas} descargas
-
-                </span>
-
-              </td>
-
-              `
-
-: ''
-
-}
-
 <td class="${cellActionsClass}">
 
 ${this.renderAccionesDocumento(doc)}
@@ -2873,13 +2857,10 @@ ${this.renderAccionesDocumento(doc)}
 
 <td class="col-fav"></td>
 
-${esVistaTop10 ? `<td class="col-top-rank"></td>` : ''}
-
-<td class="col-tipo">
-
-<span class="badge ${rExtClass}" style="font-size: 0.70rem; padding: 1px 5px; font-weight: 700;">${regDoc.extension}</span>
-
-</td>
+${esVistaTop10
+  ? `<td class="col-top-rank"></td>`
+  : `<td class="col-tipo"><span class="badge ${rExtClass}" style="font-size: 0.70rem; padding: 1px 5px; font-weight: 700;">${regDoc.extension}</span></td>`
+}
 
 <td class="col-codigo">
 
@@ -2904,8 +2885,6 @@ ${esVistaTop10 ? `<td class="col-top-rank"></td>` : ''}
 <td class="col-area">${regDoc.area || 'N/A'}</td>
 
 <td class="col-version">${staffService.formatearVersion(regDoc.version)}</td>
-
-${esVistaTop10 ? `<td class="col-descargas"></td>` : ''}
 
 <td class="${cellActionsClass}">
 
@@ -2935,9 +2914,7 @@ ${this.renderAccionesDocumento(regDoc)}
 
               <th class="col-fav">★</th>
 
-              ${esVistaTop10 ? `<th class="col-top-rank">TOP</th>` : ''}
-
-              <th class="col-tipo">Tipo</th>
+              ${esVistaTop10 ? `<th class="col-top-rank">TOP / DESCARGAS</th>` : `<th class="col-tipo">Tipo</th>`}
 
               <th class="col-codigo">Código</th>
 
@@ -2948,8 +2925,6 @@ ${this.renderAccionesDocumento(regDoc)}
               <th class="col-area">Área Institucional</th>
 
               <th class="col-version">Versión</th>
-
-              ${esVistaTop10 ? `<th class="col-descargas">Descargas</th>` : ''}
 
 <th class="${cellActionsClass}">Acciones</th>
 

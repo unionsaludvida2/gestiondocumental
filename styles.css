@@ -4575,9 +4575,9 @@ body:not(.auth-required) .main-layout {
 }
 
 .docs-table .col-top-rank {
-  width: 58px;
-  min-width: 54px;
-  max-width: 62px;
+  width: 98px;
+  min-width: 92px;
+  max-width: 106px;
   text-align: center;
   padding: 6px 4px !important;
 }
@@ -4591,9 +4591,9 @@ body:not(.auth-required) .main-layout {
 }
 
 .docs-table .col-codigo {
-  width: 104px;
-  min-width: 94px;
-  max-width: 118px;
+  width: 102px;
+  min-width: 92px;
+  max-width: 114px;
   padding: 6px 8px !important;
   white-space: nowrap;
   overflow: hidden;
@@ -4601,32 +4601,24 @@ body:not(.auth-required) .main-layout {
 }
 
 .docs-table .col-version {
-  width: 66px;
-  min-width: 60px;
-  max-width: 74px;
+  width: 62px;
+  min-width: 56px;
+  max-width: 68px;
   text-align: center;
-  padding: 6px 6px !important;
-}
-
-.docs-table .col-descargas {
-  width: 102px;
-  min-width: 94px;
-  max-width: 112px;
-  text-align: center;
-  padding: 6px 6px !important;
+  padding: 6px 4px !important;
 }
 
 .docs-table .docs-table-actions-cell {
-  width: 124px;
-  min-width: 118px;
-  max-width: 138px;
+  width: 120px;
+  min-width: 114px;
+  max-width: 132px;
   text-align: center;
-  padding: 6px 10px !important;
+  padding: 6px 8px !important;
 }
 
 .docs-table .col-proceso {
-  width: 17%;
-  min-width: 95px;
+  width: 16%;
+  min-width: 90px;
   padding: 6px 8px !important;
   white-space: normal;
   word-break: break-word;
@@ -4635,8 +4627,8 @@ body:not(.auth-required) .main-layout {
 }
 
 .docs-table .col-area {
-  width: 17%;
-  min-width: 95px;
+  width: 16%;
+  min-width: 90px;
   padding: 6px 8px !important;
   white-space: normal;
   word-break: break-word;
