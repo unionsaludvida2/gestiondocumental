@@ -5,9 +5,10 @@
  * Conexión sincrónica en tiempo real al archivo REPOSITORIO_DOCUMENTAL.csv de OneDrive.
  */
 
-import { cacheService } from './cache-service.js?v=11.9.6';
+import { cacheService } from './cache-service.js?v=11.9.7';
 
 const URL_ORIGEN_CSV = 'https://docs.google.com/spreadsheets/d/1ecwTurb2IyuO9qs4_PkAsQrULENh3J-RXEWbl5Ihhug/export?format=csv';
+const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx4-82Ls3Zu5gdzXlAhezZ6ew9tnAece8xSDMQ8QmXcu7UCnMxwqB48ISG_LwNDUgMiQQ/exec';
 
 export function repararMojibake(str) {
   if (!str || typeof str !== 'string') return str || '';
@@ -1687,6 +1688,12 @@ export class DataService {
       if (descargas === 0 && baseDoc && baseDoc.descargas) {
         descargas = parseInt(baseDoc.descargas, 10) || 0;
       }
+      try {
+        const localDlMap = JSON.parse(localStorage.getItem('agy_sgc_doc_downloads') || '{}');
+        if (localDlMap[codUpper]) {
+          descargas = Math.max(descargas, parseInt(localDlMap[codUpper], 10) || 0);
+        }
+      } catch {}
 
       // REGLA: El archivo REPOSITORIO_DOCUMENTAL de SharePoint sirve como fuente para actualización de vínculos.
 
@@ -2402,7 +2409,7 @@ export class DataService {
     const codUpper = (doc.codigo || '').trim().toUpperCase();
     doc.descargas = (parseInt(doc.descargas, 10) || 0) + 1;
 
-    // 1. Actualizar en el catálogo en memoria
+    // 1. Actualizar en el catálogo en memoria y en IndexedDB
 
     if (Array.isArray(this.documentosEnMemoria)) {
       const match = this.documentosEnMemoria.find((d) => (d.codigo || '').trim().toUpperCase() === codUpper);
@@ -2410,18 +2417,22 @@ export class DataService {
       if (match) {
         match.descargas = doc.descargas;
       }
+
+      if (cacheService && typeof cacheService.guardarDocumentos === 'function') {
+        cacheService.guardarDocumentos(this.documentosEnMemoria).catch(() => {});
+      }
     }
 
-    // 2. Persistir localmente en agy_sgc_doc_downloads
+    // 2. Persistir localmente el conteo total actualizado en agy_sgc_doc_downloads
 
     try {
       const localDownloads = JSON.parse(localStorage.getItem('agy_sgc_doc_downloads') || '{}');
-      localDownloads[codUpper] = (localDownloads[codUpper] || 0) + 1;
+      localDownloads[codUpper] = Math.max((parseInt(localDownloads[codUpper], 10) || 0) + 1, doc.descargas);
 
       localStorage.setItem('agy_sgc_doc_downloads', JSON.stringify(localDownloads));
     } catch {}
 
-    // 3. Disparar evento para actualizar contadores en la interfaz (Top 10, badges, tablas)
+    // 3. Disparar evento para actualizar contadores en la interfaz (Top 50, badges, tablas)
 
     try {
       window.dispatchEvent(new CustomEvent('agy_doc_downloaded', { detail: { codigo: doc.codigo, descargas: doc.descargas } }));
@@ -2430,11 +2441,13 @@ export class DataService {
     // 4. Enviar mutación al servidor local y a Google Apps Script (para GitHub Pages / SharePoint iframe)
 
     try {
-      const payload = JSON.stringify({ accion: 'incrementar_descarga', codigo: doc.codigo, descargas: doc.descargas });
+      const payloadObj = { accion: 'incrementar_descarga', codigo: doc.codigo, descargas: doc.descargas };
+      const payload = JSON.stringify(payloadObj);
 
       if (typeof window !== 'undefined' && window.location && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
         fetch('/api/incrementar-descarga', {
           method: 'POST',
+          keepalive: true,
           headers: { 'Content-Type': 'application/json' },
           body: payload
         }).catch(() => {});
@@ -2442,9 +2455,15 @@ export class DataService {
 
       fetch(GOOGLE_SCRIPT_URL, {
         method: 'POST',
+        mode: 'no-cors',
+        keepalive: true,
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: payload
-      }).catch(() => {});
+      }).catch(() => {
+        if (cacheService && typeof cacheService.encolarMutacion === 'function') {
+          cacheService.encolarMutacion(payloadObj).catch(() => {});
+        }
+      });
     } catch {}
   }
 

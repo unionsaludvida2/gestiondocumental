@@ -7,7 +7,7 @@
  * registro seguro de contraseñas en usuarios.conf y persistencia de sesión.
  */
 
-import { cacheService } from './cache-service.js?v=11.9.6';
+import { cacheService } from './cache-service.js?v=11.9.7';
 const STORAGE_KEY_AUTH_SESSION = 'agy_sgc_authenticated_session';
 const STORAGE_KEY_REMEMBERED_USER = 'agy_sgc_remembered_user';
 const STORAGE_KEY_STAFF_CACHE = 'agy_sgc_staff_cache';
@@ -4505,7 +4505,8 @@ export class StaffService {
 
     try {
       const localDownloads = JSON.parse(localStorage.getItem('agy_sgc_doc_downloads') || '{}');
-      localDownloads[codUpper] = (localDownloads[codUpper] || 0) + 1;
+      const baseDescargas = parseInt(doc.descargas, 10) || 0;
+      localDownloads[codUpper] = Math.max(parseInt(localDownloads[codUpper], 10) || 0, baseDescargas);
 
       localStorage.setItem('agy_sgc_doc_downloads', JSON.stringify(localDownloads));
     } catch { }
