@@ -221,6 +221,18 @@ function doGet(e) {
         .setMimeType(ContentService.MimeType.JSON);
     }
 
+    if (action === 'inicializar_historico') {
+      const resHist = inicializarHistoricoSheet();
+      return ContentService.createTextOutput(JSON.stringify(resHist))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    if (action === 'normalizar_fechas') {
+      const resNorm = actualizarFechasYHorasBibliotecaSheet();
+      return ContentService.createTextOutput(JSON.stringify(resNorm))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
     // 3. Tablas Maestras del SGC (maestro.dat)
     if (action === 'maestras' || action === 'maestro') {
       const fileMae = DriveApp.getFileById(MAESTRO_FILE_ID);
@@ -876,5 +888,104 @@ function actualizarConfiguracionConMerge(dataObj) {
     };
   } finally {
     try { lock.releaseLock(); } catch (e) {}
+  }
+}
+
+// ============================================================================
+// FUNCIONES DE INICIALIZACIÓN, MIGRACIÓN Y MENÚ EN GOOGLE SHEETS
+// ============================================================================
+
+function onOpen() {
+  SpreadsheetApp.getUi()
+    .createMenu('SGC Documental')
+    .addItem('1. Inicializar / Poblar Histórico de Documentos', 'inicializarHistoricoSheet')
+    .addItem('2. Estandarizar Fechas y Horas en Biblioteca Documental', 'actualizarFechasYHorasBibliotecaSheet')
+    .addToUi();
+}
+
+function inicializarHistoricoSheet() {
+  try {
+    const ssHist = SpreadsheetApp.openById(SPREADSHEET_HISTORICO_ID);
+    const sheet = ssHist.getSheets()[0];
+    
+    if (sheet.getLastRow() === 0) {
+      sheet.appendRow(HEADERS_HISTORICO_SHEET);
+      const headerRange = sheet.getRange(1, 1, 1, HEADERS_HISTORICO_SHEET.length);
+      headerRange.setBackground('#1f4260')
+                 .setFontColor('#ffffff')
+                 .setFontWeight('bold')
+                 .setHorizontalAlignment('center');
+      sheet.setFrozenRows(1);
+    }
+    
+    if (sheet.getLastRow() === 1) {
+      const docs = obtenerDocumentosDeSheet();
+      const filasHist = [];
+      const ahoraStr = Utilities.formatDate(new Date(), 'America/Bogota', 'dd/MM/yyyy HH:mm:ss');
+      
+      docs.forEach(doc => {
+        if (!doc.codigo) return;
+        const fechaHora = doc.fechaCreacion || doc.fechaAprobacion || ahoraStr;
+        filasHist.push([
+          fechaHora,
+          'Administrador Institucional',
+          doc.codigo,
+          'Creación del documento',
+          'Registro inicial incorporado al catálogo institucional (' + (doc.nombre || doc.titulo || '') + ')'
+        ]);
+      });
+      
+      if (filasHist.length > 0) {
+        sheet.getRange(2, 1, filasHist.length, HEADERS_HISTORICO_SHEET.length).setValues(filasHist);
+      }
+    }
+    
+    for (let col = 1; col <= HEADERS_HISTORICO_SHEET.length; col++) {
+      sheet.autoResizeColumn(col);
+    }
+    
+    return { status: 'ok', mensaje: 'Historico_Documentos inicializado correctamente con ' + (sheet.getLastRow() - 1) + ' registros.' };
+  } catch (err) {
+    Logger.log('Error en inicializarHistoricoSheet: ' + err.message);
+    return { status: 'error', error: err.message };
+  }
+}
+
+function actualizarFechasYHorasBibliotecaSheet() {
+  try {
+    const sheet = obtenerSheetActiva();
+    const data = sheet.getDataRange().getValues();
+    if (data.length <= 1) return { status: 'error', error: 'Biblioteca vacía' };
+    
+    const ahoraStr = Utilities.formatDate(new Date(), 'America/Bogota', 'dd/MM/yyyy HH:mm:ss');
+    let modificadas = 0;
+    
+    for (let r = 1; r < data.length; r++) {
+      const row = data[r];
+      if (!row || !row[4]) continue;
+      
+      let fCreacion = row[20];
+      if (!fCreacion || String(fCreacion).trim() === '') {
+        sheet.getRange(r + 1, 21).setValue(ahoraStr);
+        modificadas++;
+      } else if (fCreacion instanceof Date) {
+        sheet.getRange(r + 1, 21).setValue(Utilities.formatDate(fCreacion, 'America/Bogota', 'dd/MM/yyyy HH:mm:ss'));
+        modificadas++;
+      }
+      
+      let fMod = row[21];
+      if (!fMod || String(fMod).trim() === '') {
+        sheet.getRange(r + 1, 22).setValue(ahoraStr);
+        modificadas++;
+      } else if (fMod instanceof Date) {
+        sheet.getRange(r + 1, 22).setValue(Utilities.formatDate(fMod, 'America/Bogota', 'dd/MM/yyyy HH:mm:ss'));
+        modificadas++;
+      }
+    }
+    
+    return { status: 'ok', mensaje: 'Se normalizaron fechas y horas en ' + modificadas + ' campos de Biblioteca_Documental.' };
+  } catch (err) {
+    Logger.log('Error en actualizarFechasYHorasBibliotecaSheet: ' + err.message);
+    return { status: 'error', error: err.message };
   }
 }

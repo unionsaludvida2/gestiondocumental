@@ -4,6 +4,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
   <title>SISTEMA DE GESTIÓN DOCUMENTAL INSTITUCIONAL - UNIÓN PARA LA SALUD Y LA VIDA S.A.S.</title>
   <meta name="description"
     content="Portal web oficial para el Sistema de Gestión Documental Institucional - Unión para la salud y la vida S.A.S." />
@@ -16,7 +19,26 @@
     rel="stylesheet" />
 
   <!-- Estilos de la aplicación -->
-  <link rel="stylesheet" href="styles.css?v=11.9.5" />
+  <link rel="stylesheet" href="styles.css?v=11.9.6" />
+
+  <script>
+    window.__AGY_BUILD_VERSION = '11.9.6';
+    (function verificarVersionFresca() {
+      try {
+        fetch(window.location.pathname + '?_cb=' + Date.now(), { cache: 'no-store' })
+          .then(function(r) { return r.ok ? r.text() : ''; })
+          .then(function(html) {
+            var m = html && html.match(/__AGY_BUILD_VERSION\s*=\s*['"]([^'"]+)['"]/);
+            if (m && m[1] && m[1] !== window.__AGY_BUILD_VERSION) {
+              var url = new URL(window.location.href);
+              url.searchParams.set('_v', m[1]);
+              window.location.replace(url.toString());
+            }
+          })
+          .catch(function() {});
+      } catch (e) {}
+    })();
+  </script>
 
   <script>
     window.addEventListener('error', function(e) {
@@ -304,7 +326,7 @@
   <div id="modals-root"></div>
 
   <!-- Script principal como ES Module -->
-  <script type="module" src="js/app.js?v=11.9.5"></script>
+  <script type="module" src="js/app.js?v=11.9.6"></script>
 </body>
 
 </html>
