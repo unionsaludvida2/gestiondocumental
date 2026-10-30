@@ -46,3 +46,5 @@ maestro.dat
 columnas_*.tsv
 prepare_updates.py
 sync_cache.py
+js/data.js
+js/staff-data.js
