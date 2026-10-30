@@ -217,9 +217,16 @@ import tempfile
 TEMP_CACHE_DIR = os.path.join(tempfile.gettempdir(), 'gestion_documental_cache')
 os.makedirs(TEMP_CACHE_DIR, exist_ok=True)
 
+try:
+    if os.path.exists('google_sheets_live.csv'):
+        os.remove('google_sheets_live.csv')
+except Exception:
+    pass
+
 USUARIOS_CONF_PATH = os.path.join(TEMP_CACHE_DIR, 'usuarios.conf')
 MAESTRO_DAT_PATH = os.path.join(TEMP_CACHE_DIR, 'maestro.dat')
 REPOSITORIO_DAT_PATH = os.path.join(TEMP_CACHE_DIR, 'repositorio.dat')
+HISTORICO_CSV_PATH = os.path.join(TEMP_CACHE_DIR, 'historico.csv')
 
 KNOWN_HISTORICO_EVENTS = {
     'CREACION', 'ELIMINACION', 'CAMBIO_VERSION', 'CAMBIO_METADATOS', 'METADATOS',
