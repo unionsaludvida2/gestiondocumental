@@ -391,10 +391,12 @@ export class StaffService {
         this.configuracion = {
           ...this.configuracion,
           ...conf,
-          usuariosRegistrados: {
-            ...(this.configuracion.usuariosRegistrados || {}),
-            ...(conf.usuariosRegistrados || {})
-          }
+          usuariosRegistrados: conf.usuariosRegistrados !== undefined
+            ? conf.usuariosRegistrados
+            : (this.configuracion.usuariosRegistrados || {}),
+          mapeoPerfilesPersonalizados: conf.mapeoPerfilesPersonalizados !== undefined
+            ? conf.mapeoPerfilesPersonalizados
+            : (this.configuracion.mapeoPerfilesPersonalizados || {})
         };
 
         if ((!Array.isArray(this.empleados) || this.empleados.length === 0) && this.configuracion.usuariosRegistrados) {
@@ -992,10 +994,9 @@ export class StaffService {
     this.configuracion = {
       ...this.configuracion,
       ...json,
-      usuariosRegistrados: {
-        ...(this.configuracion.usuariosRegistrados || {}),
-        ...(json.usuariosRegistrados || {})
-      },
+      usuariosRegistrados: json.usuariosRegistrados !== undefined
+        ? json.usuariosRegistrados
+        : (this.configuracion.usuariosRegistrados || {}),
       mapeoPerfilesPersonalizados: json.mapeoPerfilesPersonalizados !== undefined
         ? json.mapeoPerfilesPersonalizados
         : (this.configuracion.mapeoPerfilesPersonalizados || {}),
@@ -2352,8 +2353,7 @@ export class StaffService {
   async guardarConfiguracionEnNube() {
     const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx4-82Ls3Zu5gdzXlAhezZ6ew9tnAece8xSDMQ8QmXcu7UCnMxwqB48ISG_LwNDUgMiQQ/exec';
 
-    if (this.configuracion && this.configuracion.favoritosPorUsuario) {
-      }
+    this.configuracion.ultimaActualizacion = new Date().toISOString();
 
     const payloadObj = { ...this.configuracion, fileId: '1oBmanViv5bqhfE-isx7WnlbuP6Ylpegl' };
     const jsonStr = JSON.stringify(payloadObj);
@@ -2383,19 +2383,11 @@ export class StaffService {
     // 2. Enviar a endpoint local / servidor si está disponible
 
     try {
-      const res = await fetch('/api/configuracion', {
+      await fetch('/api/configuracion', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: jsonStr
       });
-
-      if (res && res.ok) {
-        const jsonMerged = await res.json();
-
-        if (jsonMerged && typeof jsonMerged === 'object') {
-          this.aplicarConfiguracion(jsonMerged);
-        }
-      }
     } catch (e) { }
   }
 
@@ -4794,6 +4786,30 @@ export class StaffService {
     if (this.configuracion.usuariosRegistrados?.[docClean]) {
       delete this.configuracion.usuariosRegistrados[docClean];
     }
+
+    const emp = this.empleados.find((e) => this.limpiarNumeros(e.identificacion) === docClean);
+    if (emp) {
+      emp.perfil = 'operativo';
+    }
+
+    if (this.sesionActiva && this.limpiarNumeros(this.sesionActiva.identificacion) === docClean) {
+      this.sesionActiva.perfil = 'operativo';
+      try {
+        localStorage.setItem(STORAGE_KEY_AUTH_SESSION, JSON.stringify(this.sesionActiva));
+      } catch { }
+      if (cacheService && cacheService.guardarColeccion) {
+        cacheService.guardarColeccion('sesion_activa', this.sesionActiva).catch(() => {});
+      }
+    }
+
+    if (this.usuarioRecordado && this.limpiarNumeros(this.usuarioRecordado.identificacion) === docClean) {
+      this.usuarioRecordado.perfil = 'operativo';
+      try {
+        localStorage.setItem(STORAGE_KEY_REMEMBERED_USER, JSON.stringify(this.usuarioRecordado));
+      } catch { }
+    }
+
+    this.configuracion.ultimaActualizacion = new Date().toISOString();
 
     try {
       localStorage.setItem(STORAGE_KEY_CONF_CACHE, JSON.stringify(this.configuracion));

@@ -850,33 +850,40 @@ function actualizarConfiguracionConMerge(dataObj) {
     }
 
     const usuariosActuales = confExistente.usuariosRegistrados || {};
-    const usuariosEntrantes = dataObj.usuariosRegistrados || {};
-    const perfilesActuales = confExistente.perfilesPersonalizados || {};
-    const perfilesEntrantes = dataObj.perfilesPersonalizados || {};
+    const usuariosEntrantes = dataObj.usuariosRegistrados;
+    const perfilesActuales = confExistente.mapeoPerfilesPersonalizados || confExistente.perfilesPersonalizados || {};
+    const perfilesEntrantes = dataObj.mapeoPerfilesPersonalizados || dataObj.perfilesPersonalizados;
 
-    const fusionUsuarios = { ...usuariosActuales };
-    for (const docKey in usuariosEntrantes) {
-      if (Object.prototype.hasOwnProperty.call(usuariosEntrantes, docKey)) {
-        fusionUsuarios[docKey] = {
-          ...(fusionUsuarios[docKey] || {}),
-          ...usuariosEntrantes[docKey]
-        };
+    // Si dataObj proporciona usuariosRegistrados de forma explícita, usarla directamente para permitir eliminaciones
+    const usuariosFinales = usuariosEntrantes !== undefined ? usuariosEntrantes : usuariosActuales;
+    const perfilesFinales = perfilesEntrantes !== undefined ? perfilesEntrantes : perfilesActuales;
+
+    // Sanitizar para eliminar usuarios o perfiles operativos según la regla RBAC institucional
+    const perfilesSanitizados = {};
+    for (const docKey in perfilesFinales) {
+      const p = perfilesFinales[docKey];
+      if (p === 'administrativo' || p === 'total' || p === 'administrador') {
+        perfilesSanitizados[docKey] = 'administrativo';
       }
     }
 
-    const fusionPerfiles = {
-      ...perfilesActuales,
-      ...perfilesEntrantes
-    };
+    const usuariosSanitizados = {};
+    for (const docKey in usuariosFinales) {
+      const u = usuariosFinales[docKey];
+      if (u && (u.perfil === 'administrativo' || u.perfil === 'total' || u.perfil === 'administrador')) {
+        usuariosSanitizados[docKey] = { ...u, perfil: 'administrativo' };
+      }
+    }
 
     const confFinal = {
       ...confExistente,
       ...dataObj,
-      usuariosRegistrados: fusionUsuarios,
-      perfilesPersonalizados: fusionPerfiles,
+      usuariosRegistrados: usuariosSanitizados,
+      mapeoPerfilesPersonalizados: perfilesSanitizados,
       ultimaActualizacion: new Date().toISOString()
     };
 
+    delete confFinal.perfilesPersonalizados;
     delete confFinal.fileId;
     delete confFinal.accion;
 
@@ -884,7 +891,7 @@ function actualizarConfiguracionConMerge(dataObj) {
     return {
       status: 'ok',
       mensaje: 'usuarios.conf sincronizado atómicamente',
-      totalUsuarios: Object.keys(fusionUsuarios).length
+      totalUsuarios: Object.keys(usuariosSanitizados).length
     };
   } finally {
     try { lock.releaseLock(); } catch (e) {}

@@ -15,6 +15,7 @@ import json
 import base64
 import re
 import ssl
+from datetime import datetime, timezone
 
 try:
     SSL_CONTEXT = ssl._create_unverified_context()
@@ -651,6 +652,21 @@ def sanitizar_conf(conf_dict):
 
         conf_dict['historicoDocumental'] = lista_hist
 
+    # Regla Institucional RBAC: Eliminar perfiles operativos redundantes
+    if 'mapeoPerfilesPersonalizados' in conf_dict and isinstance(conf_dict['mapeoPerfilesPersonalizados'], dict):
+        conf_dict['mapeoPerfilesPersonalizados'] = {
+            str(doc): 'administrativo'
+            for doc, perf in conf_dict['mapeoPerfilesPersonalizados'].items()
+            if perf in ('total', 'administrador', 'administrativo')
+        }
+
+    if 'usuariosRegistrados' in conf_dict and isinstance(conf_dict['usuariosRegistrados'], dict):
+        conf_dict['usuariosRegistrados'] = {
+            str(doc): u
+            for doc, u in conf_dict['usuariosRegistrados'].items()
+            if isinstance(u, dict) and u.get('perfil') in ('total', 'administrador', 'administrativo')
+        }
+
     return conf_dict
 
 def generar_repositorio_dat(raw_csv_bytes=None):
@@ -941,21 +957,36 @@ def _trigger_background_config_sync():
                     except Exception:
                         local_conf = {}
 
-                merged_conf = {**local_conf, **cloud_conf}
+                local_ts = local_conf.get('ultimaActualizacion', '')
+                cloud_ts = cloud_conf.get('ultimaActualizacion', '')
 
-                merged_conf['usuariosRegistrados'] = {
-                    **(local_conf.get('usuariosRegistrados') or {}),
-                    **(cloud_conf.get('usuariosRegistrados') or {})
-                }
+                if local_ts and cloud_ts and local_ts > cloud_ts:
+                    merged_conf = {**cloud_conf, **local_conf}
+                    if 'usuariosRegistrados' in local_conf:
+                        merged_conf['usuariosRegistrados'] = local_conf['usuariosRegistrados']
+                    if 'mapeoPerfilesPersonalizados' in local_conf:
+                        merged_conf['mapeoPerfilesPersonalizados'] = local_conf['mapeoPerfilesPersonalizados']
+                elif cloud_ts and local_ts and cloud_ts > local_ts:
+                    merged_conf = {**local_conf, **cloud_conf}
+                    if 'usuariosRegistrados' in cloud_conf:
+                        merged_conf['usuariosRegistrados'] = cloud_conf['usuariosRegistrados']
+                    if 'mapeoPerfilesPersonalizados' in cloud_conf:
+                        merged_conf['mapeoPerfilesPersonalizados'] = cloud_conf['mapeoPerfilesPersonalizados']
+                else:
+                    merged_conf = {**cloud_conf, **local_conf}
+                    if 'usuariosRegistrados' in local_conf and local_conf['usuariosRegistrados']:
+                        merged_conf['usuariosRegistrados'] = local_conf['usuariosRegistrados']
+                    elif 'usuariosRegistrados' in cloud_conf:
+                        merged_conf['usuariosRegistrados'] = cloud_conf['usuariosRegistrados']
 
-                merged_conf['mapeoPerfilesPersonalizados'] = {
-                    **(local_conf.get('mapeoPerfilesPersonalizados') or {}),
-                    **(cloud_conf.get('mapeoPerfilesPersonalizados') or {})
-                }
+                    if 'mapeoPerfilesPersonalizados' in local_conf and local_conf['mapeoPerfilesPersonalizados']:
+                        merged_conf['mapeoPerfilesPersonalizados'] = local_conf['mapeoPerfilesPersonalizados']
+                    elif 'mapeoPerfilesPersonalizados' in cloud_conf:
+                        merged_conf['mapeoPerfilesPersonalizados'] = cloud_conf['mapeoPerfilesPersonalizados']
 
                 merged_conf['preferenciasPorUsuario'] = {
-                    **(local_conf.get('preferenciasPorUsuario') or {}),
-                    **(cloud_conf.get('preferenciasPorUsuario') or {})
+                    **(cloud_conf.get('preferenciasPorUsuario') or {}),
+                    **(local_conf.get('preferenciasPorUsuario') or {})
                 }
 
                 if cloud_conf.get('ordenamientoGlobal') or local_conf.get('ordenamientoGlobal'):
@@ -1569,6 +1600,114 @@ class LiveOneDriveHandler(http.server.SimpleHTTPRequestHandler):
 
         # Servir archivos estáticos del aplicativo web (index.html, js, css, etc.)
         return super().do_GET()
+
+    def do_POST(self):
+        content_length = int(self.headers.get('Content-Length', 0))
+        post_body = self.rfile.read(content_length) if content_length > 0 else b'{}'
+
+        # 1. Endpoint /api/configuracion
+        if self.path.startswith('/api/configuracion'):
+            try:
+                conf_dict = json.loads(post_body.decode('utf-8'))
+                conf_dict['ultimaActualizacion'] = datetime.now(timezone.utc).isoformat()
+                conf_dict = sanitizar_conf(conf_dict)
+
+                clean_bytes = json.dumps(conf_dict, indent=2, ensure_ascii=False).encode('utf-8')
+                with open(USUARIOS_CONF_PATH, 'wb') as f:
+                    f.write(clean_bytes)
+
+                CACHE['config']['data'] = clean_bytes
+                CACHE['config']['ts'] = time.time()
+
+                if SINCRONIZACION_EXTERNA_ACTIVA:
+                    sincronizar_con_google_async(GOOGLE_SCRIPT_CONF_URL, clean_bytes)
+
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json; charset=utf-8')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(b'{"status":"ok","mensaje":"Configuracion guardada exitosamente"}')
+                return
+            except Exception as e:
+                print("[Server.py] Error en POST /api/configuracion:", e)
+                self.send_response(500)
+                self.send_header('Content-Type', 'application/json; charset=utf-8')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(json.dumps({"status": "error", "error": str(e)}).encode('utf-8'))
+                return
+
+        # 2. Endpoint /api/maestras
+        if self.path.startswith('/api/maestras'):
+            try:
+                with open(MAESTRO_DAT_PATH, 'wb') as f:
+                    f.write(post_body)
+                CACHE['maestras']['data'] = post_body
+                CACHE['maestras']['ts'] = time.time()
+
+                if SINCRONIZACION_EXTERNA_ACTIVA:
+                    sincronizar_con_google_async(GOOGLE_SCRIPT_CONF_URL, post_body)
+
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json; charset=utf-8')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(b'{"status":"ok","mensaje":"Maestras guardadas exitosamente"}')
+                return
+            except Exception as e:
+                print("[Server.py] Error en POST /api/maestras:", e)
+                self.send_response(500)
+                self.send_header('Content-Type', 'application/json; charset=utf-8')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(json.dumps({"status": "error", "error": str(e)}).encode('utf-8'))
+                return
+
+        # 3. Endpoint /api/historico
+        if self.path.startswith('/api/historico') or self.path.startswith('/api/control-cambios'):
+            try:
+                if SINCRONIZACION_EXTERNA_ACTIVA:
+                    sincronizar_con_google_async(GOOGLE_SCRIPT_CONF_URL, post_body)
+
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json; charset=utf-8')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(b'{"status":"ok"}')
+                return
+            except Exception as e:
+                self.send_response(500)
+                self.send_header('Content-Type', 'application/json; charset=utf-8')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(json.dumps({"status": "error", "error": str(e)}).encode('utf-8'))
+                return
+
+        # 4. Endpoints de mutación documental o descargas
+        if self.path.startswith('/api/documento') or self.path.startswith('/api/incrementar-descarga'):
+            try:
+                if SINCRONIZACION_EXTERNA_ACTIVA:
+                    sincronizar_con_google_async(GOOGLE_SCRIPT_CONF_URL, post_body)
+
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json; charset=utf-8')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(b'{"status":"ok"}')
+                return
+            except Exception as e:
+                self.send_response(500)
+                self.send_header('Content-Type', 'application/json; charset=utf-8')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(json.dumps({"status": "error", "error": str(e)}).encode('utf-8'))
+                return
+
+        self.send_response(404)
+        self.send_header('Content-Type', 'application/json')
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.end_headers()
+        self.wfile.write(b'{"status":"error","error":"Endpoint no encontrado"}')
 
 import socketserver
 
