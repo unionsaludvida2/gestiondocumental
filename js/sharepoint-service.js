@@ -5,7 +5,7 @@
  * Conexión sincrónica en tiempo real al archivo REPOSITORIO_DOCUMENTAL.csv de OneDrive.
  */
 
-import { cacheService } from './cache-service.js?v=11.9.10';
+import { cacheService } from './cache-service.js?v=11.9.11';
 
 const URL_ORIGEN_CSV = 'https://docs.google.com/spreadsheets/d/1ecwTurb2IyuO9qs4_PkAsQrULENh3J-RXEWbl5Ihhug/export?format=csv';
 const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx4-82Ls3Zu5gdzXlAhezZ6ew9tnAece8xSDMQ8QmXcu7UCnMxwqB48ISG_LwNDUgMiQQ/exec';
@@ -2249,6 +2249,32 @@ export class DataService {
     return `${limpia}${sep}action=edit&web=1`;
   }
 
+  derivarVinculoUbicacion(url) {
+    if (!url || typeof url !== 'string' || !url.startsWith('http')) return '';
+    try {
+      const urlLimpia = url.split('?')[0];
+      const ultimaBarra = urlLimpia.lastIndexOf('/');
+      if (ultimaBarra > 0) {
+        return urlLimpia.substring(0, ultimaBarra);
+      }
+    } catch (e) {
+      console.warn('[sharepointService] Error derivando vínculo de ubicación:', e);
+    }
+    return url;
+  }
+
+  derivarVinculoEdicion(url) {
+    if (!url || typeof url !== 'string' || !url.startsWith('http')) return '';
+    if (url.includes('download=1')) {
+      return url.replace('download=1', 'web=1');
+    } else if (url.includes('web=1')) {
+      return url;
+    } else {
+      const sep = url.includes('?') ? '&' : '?';
+      return `${url}${sep}web=1`;
+    }
+  }
+
   esDocumentoFMT(codigo) {
     return esDocumentoFMT(codigo);
   }
@@ -3437,26 +3463,28 @@ export class DataService {
 
     let syncOk = false;
 
-    // 1. Enviar vía endpoint proxy local
+    // 1. Enviar vía endpoint proxy local (solo en entorno local/servidor Node)
+    const esLocal = typeof window !== 'undefined' && window.location && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
 
-    try {
-      const res = await fetch('/api/documento', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
+    if (esLocal) {
+      try {
+        const res = await fetch('/api/documento', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+          signal: AbortSignal.timeout ? AbortSignal.timeout(3000) : undefined
+        });
 
-      if (res.ok) {
-        const jsonRes = await res.json();
-
-        if (jsonRes.status === 'ok') syncOk = true;
+        if (res.ok) {
+          const jsonRes = await res.json();
+          if (jsonRes.status === 'ok') syncOk = true;
+        }
+      } catch (e) {
+        console.warn('[sharepointService] Proxy local no disponible, intentando sincronización directa:', e);
       }
-    } catch (e) {
-      console.warn('[sharepointService] Proxy local no disponible, intentando sincronización directa:', e);
     }
 
-    // 2. Fallback directo a Google Apps Script (Omitido en Modo Local)
-
+    // 2. Fallback directo a Google Apps Script (para GitHub Pages / entorno productivo)
     if (!syncOk) {
       try {
         const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx4-82Ls3Zu5gdzXlAhezZ6ew9tnAece8xSDMQ8QmXcu7UCnMxwqB48ISG_LwNDUgMiQQ/exec';
@@ -3465,7 +3493,8 @@ export class DataService {
           method: 'POST',
           mode: 'no-cors',
           headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify(payload)
+          body: JSON.stringify(payload),
+          signal: AbortSignal.timeout ? AbortSignal.timeout(8000) : undefined
         });
 
         syncOk = true;

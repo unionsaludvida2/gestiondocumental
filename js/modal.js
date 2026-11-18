@@ -4,9 +4,9 @@
  * Unión para la salud y la vida S.A.S.
  */
 
-import { sharepointService, determinarEstrategiaDescarga, esDocumentoFMT, normalizarAreaDoc } from './sharepoint-service.js?v=11.9.10';
-import { staffService } from './staff-service.js?v=11.9.10';
-import { filterEngine } from './filters.js?v=11.9.10';
+import { sharepointService, determinarEstrategiaDescarga, esDocumentoFMT, normalizarAreaDoc } from './sharepoint-service.js?v=11.9.11';
+import { staffService } from './staff-service.js?v=11.9.11';
+import { filterEngine } from './filters.js?v=11.9.11';
 const STORAGE_KEY_USER_PROFILE = 'agy_user_profile';
 
 export class ModalManager {
@@ -7647,68 +7647,103 @@ ${!esObligatorio ? `
       e.preventDefault();
 
       errBox.style.display = 'none';
-      const titulo = document.getElementById('ed-titulo').value.trim();
-      const version = document.getElementById('ed-version').value.trim() || '01';
-      const estado = document.getElementById('ed-estado').value;
-      const rawVigencia = document.getElementById('ed-vigencia').value.trim();
-      const vigencia = rawVigencia ? this.convertirInputDateAFecha(rawVigencia) : '01/08/2026';
-      const tiempoRetencion = document.getElementById('ed-tiempo-retencion').value.trim() || '5 Años';
-      const lugar = document.getElementById('ed-lugar').value.trim() || 'Oficina central y sede';
-      const tipoCambio = document.getElementById('ed-tipo-cambio').value.trim() || 'Actualización de metadatos';
-      const permOp = document.getElementById('ed-perm-op').checked;
-      const permAdm = document.getElementById('ed-perm-adm').checked;
-      const permDir = document.getElementById('ed-perm-dir').checked;
-      const descargable = document.getElementById('ed-descargable').checked;
       const btnSave = document.getElementById('btn-edit-doc-save');
-      btnSave.disabled = true;
-      btnSave.innerHTML = '<span>⏳</span> Actualizando metadatos...';
-
-      const nuevosDatos = {
-        titulo: titulo,
-        documento: titulo,
-        nombre: titulo,
-        version: version,
-        tipoProceso: (docPadre && docPadre.tipoProceso) || doc.tipoProceso || 'Misional',
-        area: (docPadre && docPadre.area) || doc.area || 'GIC',
-        areaNombre: (docPadre && (docPadre.areaNombre || docPadre.area)) || doc.areaNombre || doc.area || 'Gestión Integral Calidad',
-        proceso: (docPadre && (docPadre.proceso || docPadre.carpeta)) || doc.proceso || doc.carpeta || 'Gestión Integral de Calidad',
-        carpeta: (docPadre && (docPadre.carpeta || docPadre.proceso)) || doc.carpeta || doc.proceso || 'Gestión Integral de Calidad',
-        tipoDocumento: esRegistro ? 'Registro' : (doc.tipoDocumento || 'Formato'),
-        subclase: esRegistro ? 'Registro' : (doc.subclase || 'Base'),
-        esRegistro: esRegistro,
-        tituloAnterior: doc.titulo,
-        codigoPadre: docPadre?.codigo || doc.documentoPadreCodigo || (esRegistro ? (doc.codigo || '').replace(/-(\d+)$/, '') : doc.codigo),
-        documentoPadreCodigo: esRegistro ? (docPadre?.codigo || doc.documentoPadreCodigo || (doc.codigo || '').replace(/-(\d+)$/, '')) : undefined,
-        estado: estado,
-        vigencia: vigencia,
-        tiempoRetencion: tiempoRetencion,
-        tiempo: tiempoRetencion,
-        tiempoVigencia: tiempoRetencion,
-        lugar: lugar,
-        lugarArchivo: lugar,
-        tipoCambio: tipoCambio,
-        permisoOperativo: permOp,
-        permisoAdministrativo: permAdm,
-        permisoDirectivo: permDir,
-        directivo: permDir ? 'X' : '',
-        administrativo: permAdm ? 'X' : '',
-        operativo: permOp ? 'X' : '',
-        descargable: descargable,
-        vinculoDirecto: vinculoDirectoInput || doc.vinculoDirecto || '',
-        vinculoUbicacion: vinculoUbicacionDerivado,
-        vinculoEdicion: vinculoEdicionDerivado,
-        downloadUrl: vinculoDirectoInput || doc.downloadUrl || '',
-        sharepointUrl: vinculoEdicionDerivado || vinculoUbicacionDerivado || doc.sharepointUrl || '',
-        disponible: Boolean(vinculoDirectoInput || doc.downloadUrl || doc.sharepointUrl),
-        descargas: doc.descargas !== undefined ? doc.descargas : 0
-      };
+      if (btnSave) {
+        btnSave.disabled = true;
+        btnSave.innerHTML = '<span>⏳</span> Actualizando metadatos...';
+      }
 
       try {
+        const titulo = (document.getElementById('ed-titulo')?.value || '').trim();
+        const version = (document.getElementById('ed-version')?.value || '').trim() || '01';
+        const estado = document.getElementById('ed-estado')?.value || 'Activo';
+        const rawVigencia = (document.getElementById('ed-vigencia')?.value || '').trim();
+        const vigencia = rawVigencia ? this.convertirInputDateAFecha(rawVigencia) : '01/08/2026';
+        const tiempoRetencion = (document.getElementById('ed-tiempo-retencion')?.value || '').trim() || '5 Años';
+        const lugar = (document.getElementById('ed-lugar')?.value || '').trim() || 'Oficina central y sede';
+        const tipoCambio = (document.getElementById('ed-tipo-cambio')?.value || '').trim() || 'Actualización de metadatos';
+        const permOp = Boolean(document.getElementById('ed-perm-op')?.checked);
+        const permAdm = Boolean(document.getElementById('ed-perm-adm')?.checked);
+        const permDir = Boolean(document.getElementById('ed-perm-dir')?.checked);
+        const descargable = Boolean(document.getElementById('ed-descargable')?.checked);
+
+        // Vínculo directo manual de SharePoint
+        const vinculoDirectoInput = (document.getElementById('ed-vinculo-directo')?.value || '').trim();
+        const vinculoOriginal = (doc.vinculoDirecto || doc.downloadUrl || '').trim();
+        const huboCambioVinculo = Boolean(vinculoDirectoInput && vinculoDirectoInput !== vinculoOriginal);
+
+        let vinculoUbicacionDerivado = doc.vinculoUbicacion || '';
+        let vinculoEdicionDerivado = doc.sharepointUrl || doc.vinculoEdicion || '';
+
+        if (vinculoDirectoInput) {
+          if (typeof sharepointService.derivarVinculoUbicacion === 'function') {
+            vinculoUbicacionDerivado = sharepointService.derivarVinculoUbicacion(vinculoDirectoInput);
+          } else {
+            try {
+              const urlLimpia = vinculoDirectoInput.split('?')[0];
+              const ultimaBarra = urlLimpia.lastIndexOf('/');
+              if (ultimaBarra > 0) vinculoUbicacionDerivado = urlLimpia.substring(0, ultimaBarra);
+            } catch {}
+          }
+
+          if (typeof sharepointService.derivarVinculoEdicion === 'function') {
+            vinculoEdicionDerivado = sharepointService.derivarVinculoEdicion(vinculoDirectoInput);
+          } else {
+            if (vinculoDirectoInput.includes('download=1')) {
+              vinculoEdicionDerivado = vinculoDirectoInput.replace('download=1', 'web=1');
+            } else if (vinculoDirectoInput.includes('web=1')) {
+              vinculoEdicionDerivado = vinculoDirectoInput;
+            } else {
+              const sep = vinculoDirectoInput.includes('?') ? '&' : '?';
+              vinculoEdicionDerivado = `${vinculoDirectoInput}${sep}web=1`;
+            }
+          }
+        }
+
+        const nuevosDatos = {
+          titulo: titulo,
+          documento: titulo,
+          nombre: titulo,
+          version: version,
+          tipoProceso: (docPadre && docPadre.tipoProceso) || doc.tipoProceso || 'Misional',
+          area: (docPadre && docPadre.area) || doc.area || 'GIC',
+          areaNombre: (docPadre && (docPadre.areaNombre || docPadre.area)) || doc.areaNombre || doc.area || 'Gestión Integral Calidad',
+          proceso: (docPadre && (docPadre.proceso || docPadre.carpeta)) || doc.proceso || doc.carpeta || 'Gestión Integral de Calidad',
+          carpeta: (docPadre && (docPadre.carpeta || docPadre.proceso)) || doc.carpeta || doc.proceso || 'Gestión Integral de Calidad',
+          tipoDocumento: esRegistro ? 'Registro' : (doc.tipoDocumento || 'Formato'),
+          subclase: esRegistro ? 'Registro' : (doc.subclase || 'Base'),
+          esRegistro: esRegistro,
+          tituloAnterior: doc.titulo,
+          codigoPadre: docPadre?.codigo || doc.documentoPadreCodigo || (esRegistro ? (doc.codigo || '').replace(/-(\d+)$/, '') : doc.codigo),
+          documentoPadreCodigo: esRegistro ? (docPadre?.codigo || doc.documentoPadreCodigo || (doc.codigo || '').replace(/-(\d+)$/, '')) : undefined,
+          estado: estado,
+          vigencia: vigencia,
+          tiempoRetencion: tiempoRetencion,
+          tiempo: tiempoRetencion,
+          tiempoVigencia: tiempoRetencion,
+          lugar: lugar,
+          lugarArchivo: lugar,
+          tipoCambio: tipoCambio,
+          permisoOperativo: permOp,
+          permisoAdministrativo: permAdm,
+          permisoDirectivo: permDir,
+          directivo: permDir ? 'X' : '',
+          administrativo: permAdm ? 'X' : '',
+          operativo: permOp ? 'X' : '',
+          descargable: descargable,
+          vinculoDirecto: vinculoDirectoInput || doc.vinculoDirecto || '',
+          vinculoUbicacion: vinculoUbicacionDerivado,
+          vinculoEdicion: vinculoEdicionDerivado,
+          downloadUrl: vinculoDirectoInput || doc.downloadUrl || '',
+          sharepointUrl: vinculoEdicionDerivado || vinculoUbicacionDerivado || doc.sharepointUrl || '',
+          disponible: Boolean(vinculoDirectoInput || doc.downloadUrl || doc.sharepointUrl),
+          descargas: doc.descargas !== undefined ? doc.descargas : 0
+        };
+
         const res = await sharepointService.modificarDocumento(doc.codigo, nuevosDatos, doc.id, esRegistro, doc.titulo);
 
         if (res && res.exito) {
           // Registrar en control de cambios
-
           const esCambioVersion = version && doc.version && !staffService.sonVersionesIguales(version, doc.version);
           let tipoEventoHist = esCambioVersion ? 'CAMBIO_VERSION' : (huboCambioVinculo ? 'CAMBIO_VINCULO' : 'CAMBIO_METADATOS');
           let motivoHist = huboCambioVinculo ? `Vínculo directo actualizado manualmente a: ${vinculoDirectoInput}` : (tipoCambio || 'Actualización de metadatos');
@@ -7726,7 +7761,7 @@ ${!esObligatorio ? `
               rutaNueva: `${doc.tipoProceso || ''} / ${doc.area || ''} / ${doc.proceso || ''}`,
               tipoAnterior: esRegistro ? 'Registro' : (doc.tipoDocumento || ''),
               tipoNuevo: esRegistro ? 'Registro' : (doc.tipoDocumento || ''),
-              motivo: tipoCambio || 'Actualización de metadatos',
+              motivo: motivoHist,
               detalle: esRegistro
                 ? `Modificación de metadatos de registro derivado (${doc.codigo} - ${titulo}): ${tipoCambio || 'Datos actualizados en catálogo'}`
                 : `Modificación de metadatos: ${tipoCambio || 'Datos actualizados en catálogo'}`
@@ -7734,7 +7769,6 @@ ${!esObligatorio ? `
           );
 
           // Registrar en auditoría institucional
-
           staffService.registrarAuditoria('METADATOS', {
             documentoCodigo: doc.codigo,
             documentoTitulo: titulo,
@@ -7752,16 +7786,20 @@ ${!esObligatorio ? `
         } else {
           errBox.textContent = res?.error || 'Error al actualizar metadatos.';
           errBox.style.display = 'block';
-          btnSave.disabled = false;
-          btnSave.innerHTML = esRegistro ? 'Actualizar Registro Derivado' : 'Actualizar Metadatos';
+          if (btnSave) {
+            btnSave.disabled = false;
+            btnSave.innerHTML = esRegistro ? 'Actualizar Registro Derivado' : 'Actualizar Metadatos';
+          }
         }
       } catch (err) {
         console.error('Error al actualizar documento:', err);
 
         errBox.textContent = 'Error al actualizar metadatos: ' + (err.message || '');
         errBox.style.display = 'block';
-        btnSave.disabled = false;
-        btnSave.innerHTML = esRegistro ? 'Actualizar Registro Derivado' : 'Actualizar Metadatos';
+        if (btnSave) {
+          btnSave.disabled = false;
+          btnSave.innerHTML = esRegistro ? 'Actualizar Registro Derivado' : 'Actualizar Metadatos';
+        }
       }
     });
 
