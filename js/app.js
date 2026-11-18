@@ -12,12 +12,12 @@
  * - Modo Edición: Desbloqueo Automático para Acceso Total y Contraseña Personal para Directivos y Administrativos
  */
 
-import { sharepointService, determinarEstrategiaDescarga, esDocumentoFMT } from './sharepoint-service.js?v=11.9.9';
-import { filterEngine } from './filters.js?v=11.9.9';
-import { modalManager } from './modal.js?v=11.9.9';
-import { analyticsManager } from './analytics.js?v=11.9.9';
-import { staffService } from './staff-service.js?v=11.9.9';
-import { cacheService } from './cache-service.js?v=11.9.9';
+import { sharepointService, determinarEstrategiaDescarga, esDocumentoFMT } from './sharepoint-service.js?v=11.9.10';
+import { filterEngine } from './filters.js?v=11.9.10';
+import { modalManager } from './modal.js?v=11.9.10';
+import { analyticsManager } from './analytics.js?v=11.9.10';
+import { staffService } from './staff-service.js?v=11.9.10';
+import { cacheService } from './cache-service.js?v=11.9.10';
 const STORAGE_KEY_EDIT_MODE = 'agy_sgc_edit_mode';
 const STORAGE_KEY_FAVORITES = 'agy_sgc_favorites';
 const STORAGE_KEY_USER_PROFILE = 'agy_user_profile';
@@ -1452,7 +1452,7 @@ class AppController {
       } else {
         this.el.listaAreas.innerHTML = areas
           .map((a) => {
-            const checked = filterEngine.estado.areas.has(a) ? 'checked' : '';
+            const checked = Array.from(filterEngine.estado.areas).some((sel) => filterEngine.removerTildes(sel) === filterEngine.removerTildes(a)) ? 'checked' : '';
             const cnt = conteos?.areas?.[a] ?? 0;
 
             return `
@@ -1483,7 +1483,7 @@ class AppController {
       } else {
         this.el.listaProcesos.innerHTML = procesos
           .map((p) => {
-            const checked = filterEngine.estado.procesos.has(p) ? 'checked' : '';
+            const checked = Array.from(filterEngine.estado.procesos).some((sel) => filterEngine.removerTildes(sel) === filterEngine.removerTildes(p)) ? 'checked' : '';
             const cnt = conteos?.procesos?.[p] ?? 0;
 
             return `
@@ -1514,7 +1514,7 @@ class AppController {
       } else {
         this.el.listaTipos.innerHTML = tiposDocumento
           .map((t) => {
-            const checked = filterEngine.estado.tiposDocumento.has(t) ? 'checked' : '';
+            const checked = Array.from(filterEngine.estado.tiposDocumento).some((sel) => filterEngine.removerTildes(sel) === filterEngine.removerTildes(t)) ? 'checked' : '';
             const cnt = conteos?.tiposDocumento?.[t] ?? 0;
 
             return `

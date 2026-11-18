@@ -77,10 +77,124 @@ export class FilterEngine {
     if (!tp) return '';
     const s = String(tp).trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
     if (s === 'CALIDAD') return 'Calidad';
-    if (s.startsWith('ESTRATEGIC')) return 'Estrategico';
+    if (s.startsWith('ESTRATEGIC')) return 'Estratégico';
     if (s.startsWith('MISIONAL')) return 'Misional';
     if (s === 'APOYO') return 'Apoyo';
+    if (s.startsWith('EVALUACI')) return 'Evaluación y Control';
     return tp.trim();
+  }
+
+  normalizarTextoOrtografico(str) {
+    if (!str || typeof str !== 'string') return '';
+    let limpio = str.trim();
+    if (!limpio || limpio === 'N/A') return '';
+
+    const MAPA_CANONICO = {
+      'BIENESTAR': 'Bienestar',
+      'COMUNICACIONES': 'Comunicaciones',
+      'CONTRATACION': 'Contratación',
+      'DESEMPENO': 'Desempeño',
+      'DESEMPEÑO': 'Desempeño',
+      'FORMACION': 'Formación',
+      'CAPACITACION': 'Capacitación',
+      'GESTION DOCUMENTAL': 'Gestión Documental',
+      'GESTION HUMANA': 'Gestión Humana',
+      'GESTION TALENTO HUMANO': 'Gestión Talento Humano',
+      'GESTION DEL TALENTO HUMANO': 'Gestión Talento Humano',
+      'TALENTO HUMANO': 'Gestión Talento Humano',
+      'INDUCCION': 'Inducción',
+      'NOMINA': 'Nómina',
+      'SEGURIDAD Y SALUD EN EL TRABAJO': 'Seguridad y Salud en el Trabajo',
+      'SST': 'Seguridad y Salud en el Trabajo',
+      'GESTION INTEGRAL CALIDAD': 'Gestión Integral Calidad',
+      'GESTION INTEGRAL DE CALIDAD': 'Gestión Integral Calidad',
+      'CALIDAD': 'Gestión Integral Calidad',
+      'GESTION MEDICA': 'Gestión Médica',
+      'GESTION MEDICA Y ASISTENCIAL': 'Gestión Médica',
+      'GESTION FARMACEUTICA': 'Gestión Farmacéutica',
+      'GESTION ADMINISTRATIVA Y FINANCIERA': 'Gestión Administrativa y Financiera',
+      'GESTION ADMINISTRATIVA': 'Gestión Administrativa y Financiera',
+      'GESTION FINANCIERA': 'Gestión Administrativa y Financiera',
+      'GESTION TECNOLOGIA INFORMACION': 'Gestión Tecnología Información',
+      'GESTION TECNOLOGIAS DE LA INFORMACION': 'Gestión Tecnología Información',
+      'TECNOLOGIA': 'Gestión Tecnología Información',
+      'TECNOLOGIAS DE LA INFORMACION': 'Gestión Tecnología Información',
+      'SISTEMAS': 'Gestión Tecnología Información',
+      'GESTION AUDITORIA': 'Gestión Auditoría',
+      'AUDITORIA': 'Gestión Auditoría',
+      'PLANEACION': 'Planeación',
+      'ATENCION': 'Atención',
+      'ATENCION AL USUARIO': 'Atención al Usuario',
+      'ADMISION': 'Admisión',
+      'FACTURACION': 'Facturación',
+      'MEDICINA GENERAL': 'Medicina General',
+      'ESPECIALISTAS': 'Especialistas',
+      'ODONTOLOGIA': 'Odontología',
+      'ENFERMERIA': 'Enfermería',
+      'FARMACIA': 'Farmacia',
+      'ALMACEN': 'Almacén',
+      'COMPRAS': 'Compras',
+      'JURIDICA': 'Jurídica',
+      'POLITICA': 'Política',
+      'GUIA': 'Guía',
+      'DOCUMENTO ANEXO': 'Documento Anexo',
+      'PROCEDIMIENTO': 'Procedimiento',
+      'INSTRUCTIVO': 'Instructivo',
+      'FORMATO': 'Formato',
+      'MANUAL': 'Manual',
+      'PROGRAMA': 'Programa',
+      'PROTOCOLO': 'Protocolo',
+      'REGLAMENTO': 'Reglamento',
+      'PLAN': 'Plan',
+      'CARACTERIZACION': 'Caracterización'
+    };
+
+    const clave = this.removerTildes(limpio).toUpperCase();
+    if (MAPA_CANONICO[clave]) {
+      return MAPA_CANONICO[clave];
+    }
+
+    return limpio
+      .replace(/\b([a-zA-ZáéíóúñÁÉÍÓÚÑ]+)cion\b/gi, (m, p) => p + (m.endsWith('CION') ? 'CIÓN' : (m.endsWith('Cion') ? 'Ción' : 'ción')))
+      .replace(/\b([a-zA-ZáéíóúñÁÉÍÓÚÑ]+)sion\b/gi, (m, p) => p + (m.endsWith('SION') ? 'SIÓN' : (m.endsWith('Sion') ? 'Sión' : 'sión')))
+      .replace(/\bnomina\b/gi, (m) => m === 'NOMINA' ? 'NÓMINA' : (m === 'Nomina' ? 'Nómina' : 'nómina'))
+      .replace(/\bmedica\b/gi, (m) => m === 'MEDICA' ? 'MÉDICA' : (m === 'Medica' ? 'Médica' : 'médica'))
+      .replace(/\bmedico\b/gi, (m) => m === 'MEDICO' ? 'MÉDICO' : (m === 'Medico' ? 'Médico' : 'médico'))
+      .replace(/\btecnologia\b/gi, (m) => m === 'TECNOLOGIA' ? 'TECNOLOGÍA' : (m === 'Tecnologia' ? 'Tecnología' : 'tecnología'))
+      .replace(/\btecnologias\b/gi, (m) => m === 'TECNOLOGIAS' ? 'TECNOLOGÍAS' : (m === 'Tecnologias' ? 'Tecnologías' : 'tecnologías'))
+      .replace(/\bauditoria\b/gi, (m) => m === 'AUDITORIA' ? 'AUDITORÍA' : (m === 'Auditoria' ? 'Auditoría' : 'auditoría'))
+      .replace(/\bodontologia\b/gi, (m) => m === 'ODONTOLOGIA' ? 'ODONTOLOGÍA' : (m === 'Odontologia' ? 'Odontología' : 'odontología'))
+      .replace(/\benfermeria\b/gi, (m) => m === 'ENFERMERIA' ? 'ENFERMERÍA' : (m === 'Enfermeria' ? 'Enfermería' : 'enfermería'))
+      .replace(/\bguia\b/gi, (m) => m === 'GUIA' ? 'GUÍA' : (m === 'Guia' ? 'Guía' : 'guía'))
+      .replace(/\balmacen\b/gi, (m) => m === 'ALMACEN' ? 'ALMACÉN' : (m === 'Almacen' ? 'Almacén' : 'almacén'))
+      .replace(/\bjuridica\b/gi, (m) => m === 'JURIDICA' ? 'JURÍDICA' : (m === 'Juridica' ? 'Jurídica' : 'jurídica'))
+      .replace(/\bjuridico\b/gi, (m) => m === 'JURIDICO' ? 'JURÍDICO' : (m === 'Juridico' ? 'Jurídico' : 'jurídico'));
+  }
+
+  agruparValoresCanonicos(valores) {
+    if (!Array.isArray(valores) || valores.length === 0) return [];
+
+    const mapa = new Map();
+
+    for (const val of valores) {
+      if (!val || typeof val !== 'string') continue;
+      const canonico = this.normalizarTextoOrtografico(val);
+      const clave = this.removerTildes(canonico);
+      if (!clave) continue;
+
+      if (!mapa.has(clave)) {
+        mapa.set(clave, canonico);
+      } else {
+        const actual = mapa.get(clave);
+        const tildesActual = (actual.match(/[áéíóúÁÉÍÓÚñÑ]/g) || []).length;
+        const tildesNuevo = (canonico.match(/[áéíóúÁÉÍÓÚñÑ]/g) || []).length;
+        if (tildesNuevo > tildesActual) {
+          mapa.set(clave, canonico);
+        }
+      }
+    }
+
+    return Array.from(mapa.values()).sort((a, b) => a.localeCompare(b, 'es'));
   }
 
   toggleTipoProceso(tipoProceso) {
@@ -385,15 +499,12 @@ export class FilterEngine {
     const docsBase = this.obtenerDocumentosPorPerfil(documentos);
 
     // Tipos de Proceso oficiales
-    const todosTiposProceso = ['Apoyo', 'Calidad', 'Estrategico', 'Misional'];
+    const todosTiposProceso = ['Apoyo', 'Calidad', 'Estratégico', 'Misional'];
 
-    // Listas maestras ordenadas
-    const todasAreas = Array.from(new Set(docsBase.map((d) => d.area).filter(Boolean)))
-      .sort((a, b) => a.localeCompare(b, 'es'));
-    const todosProcesos = Array.from(new Set(docsBase.map((d) => d.proceso).filter(Boolean)))
-      .sort((a, b) => a.localeCompare(b, 'es'));
-    const todosTiposDoc = Array.from(new Set(docsBase.map((d) => d.tipoDocumento).filter(Boolean)))
-      .sort((a, b) => a.localeCompare(b, 'es'));
+    // Listas maestras ordenadas y deduplicadas canónicamente (resuelve variaciones con/sin tildes)
+    const todasAreas = this.agruparValoresCanonicos(docsBase.map((d) => d.area));
+    const todosProcesos = this.agruparValoresCanonicos(docsBase.map((d) => d.proceso));
+    const todosTiposDoc = this.agruparValoresCanonicos(docsBase.map((d) => d.tipoDocumento));
 
     // Subconjuntos responsivos para conteos precisos por faceta
     const docsParaTiposProceso = this.obtenerDocumentosFiltradosExcepto(documentos, 'tiposProceso', authService, favoritosSet, top10Set);

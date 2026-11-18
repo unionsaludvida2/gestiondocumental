@@ -5,7 +5,7 @@
  * Conexión sincrónica en tiempo real al archivo REPOSITORIO_DOCUMENTAL.csv de OneDrive.
  */
 
-import { cacheService } from './cache-service.js?v=11.9.8';
+import { cacheService } from './cache-service.js?v=11.9.10';
 
 const URL_ORIGEN_CSV = 'https://docs.google.com/spreadsheets/d/1ecwTurb2IyuO9qs4_PkAsQrULENh3J-RXEWbl5Ihhug/export?format=csv';
 const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx4-82Ls3Zu5gdzXlAhezZ6ew9tnAece8xSDMQ8QmXcu7UCnMxwqB48ISG_LwNDUgMiQQ/exec';
@@ -132,6 +132,82 @@ export function normalizarAreaDoc(rawArea, codigo = '') {
   return rawArea || 'Gestión Integral Calidad';
 }
 
+export const MAPA_NORMALIZACION_PROCESOS = {
+  'BIENESTAR': 'Bienestar',
+  'COMUNICACIONES': 'Comunicaciones',
+  'CONTRATACION': 'Contratación',
+  'DESEMPENO': 'Desempeño',
+  'DESEMPEÑO': 'Desempeño',
+  'FORMACION': 'Formación',
+  'CAPACITACION': 'Capacitación',
+  'GESTION DOCUMENTAL': 'Gestión Documental',
+  'GESTION HUMANA': 'Gestión Humana',
+  'GESTION TALENTO HUMANO': 'Gestión Talento Humano',
+  'GESTION DEL TALENTO HUMANO': 'Gestión Talento Humano',
+  'TALENTO HUMANO': 'Gestión Talento Humano',
+  'INDUCCION': 'Inducción',
+  'NOMINA': 'Nómina',
+  'SEGURIDAD Y SALUD EN EL TRABAJO': 'Seguridad y Salud en el Trabajo',
+  'SST': 'Seguridad y Salud en el Trabajo',
+  'GESTION INTEGRAL CALIDAD': 'Gestión Integral Calidad',
+  'GESTION INTEGRAL DE CALIDAD': 'Gestión Integral Calidad',
+  'CALIDAD': 'Gestión Integral Calidad',
+  'GESTION MEDICA': 'Gestión Médica',
+  'GESTION MEDICA Y ASISTENCIAL': 'Gestión Médica',
+  'GESTION FARMACEUTICA': 'Gestión Farmacéutica',
+  'GESTION ADMINISTRATIVA Y FINANCIERA': 'Gestión Administrativa y Financiera',
+  'GESTION ADMINISTRATIVA': 'Gestión Administrativa y Financiera',
+  'GESTION FINANCIERA': 'Gestión Administrativa y Financiera',
+  'GESTION TECNOLOGIA INFORMACION': 'Gestión Tecnología Información',
+  'GESTION TECNOLOGIAS DE LA INFORMACION': 'Gestión Tecnología Información',
+  'TECNOLOGIA': 'Gestión Tecnología Información',
+  'TECNOLOGIAS DE LA INFORMACION': 'Gestión Tecnología Información',
+  'SISTEMAS': 'Gestión Tecnología Información',
+  'GESTION AUDITORIA': 'Gestión Auditoría',
+  'AUDITORIA': 'Gestión Auditoría',
+  'PLANEACION': 'Planeación',
+  'ATENCION': 'Atención',
+  'ATENCION AL USUARIO': 'Atención al Usuario',
+  'ADMISION': 'Admisión',
+  'FACTURACION': 'Facturación',
+  'MEDICINA GENERAL': 'Medicina General',
+  'ESPECIALISTAS': 'Especialistas',
+  'ODONTOLOGIA': 'Odontología',
+  'ENFERMERIA': 'Enfermería',
+  'FARMACIA': 'Farmacia',
+  'ALMACEN': 'Almacén',
+  'COMPRAS': 'Compras',
+  'JURIDICA': 'Jurídica'
+};
+
+export function normalizarProcesoDoc(rawProceso) {
+  if (!rawProceso || typeof rawProceso !== 'string') return '';
+  let str = repararMojibake(rawProceso).trim();
+  if (!str || str === 'N/A') return '';
+
+  const clave = str.toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+  if (MAPA_NORMALIZACION_PROCESOS[clave]) {
+    return MAPA_NORMALIZACION_PROCESOS[clave];
+  }
+
+  // Capitalización y normalización ortográfica común de tildes
+  return str
+    .replace(/\b([a-zA-ZáéíóúñÁÉÍÓÚÑ]+)cion\b/gi, (m, p) => p + (m.endsWith('CION') ? 'CIÓN' : (m.endsWith('Cion') ? 'Ción' : 'ción')))
+    .replace(/\b([a-zA-ZáéíóúñÁÉÍÓÚÑ]+)sion\b/gi, (m, p) => p + (m.endsWith('SION') ? 'SIÓN' : (m.endsWith('Sion') ? 'Sión' : 'sión')))
+    .replace(/\bnomina\b/gi, (m) => m === 'NOMINA' ? 'NÓMINA' : (m === 'Nomina' ? 'Nómina' : 'nómina'))
+    .replace(/\bmedica\b/gi, (m) => m === 'MEDICA' ? 'MÉDICA' : (m === 'Medica' ? 'Médica' : 'médica'))
+    .replace(/\bmedico\b/gi, (m) => m === 'MEDICO' ? 'MÉDICO' : (m === 'Medico' ? 'Médico' : 'médico'))
+    .replace(/\btecnologia\b/gi, (m) => m === 'TECNOLOGIA' ? 'TECNOLOGÍA' : (m === 'Tecnologia' ? 'Tecnología' : 'tecnología'))
+    .replace(/\btecnologias\b/gi, (m) => m === 'TECNOLOGIAS' ? 'TECNOLOGÍAS' : (m === 'Tecnologias' ? 'Tecnologías' : 'tecnologías'))
+    .replace(/\bauditoria\b/gi, (m) => m === 'AUDITORIA' ? 'AUDITORÍA' : (m === 'Auditoria' ? 'Auditoría' : 'auditoría'))
+    .replace(/\bodontologia\b/gi, (m) => m === 'ODONTOLOGIA' ? 'ODONTOLOGÍA' : (m === 'Odontologia' ? 'Odontología' : 'odontología'))
+    .replace(/\benfermeria\b/gi, (m) => m === 'ENFERMERIA' ? 'ENFERMERÍA' : (m === 'Enfermeria' ? 'Enfermería' : 'enfermería'))
+    .replace(/\bguia\b/gi, (m) => m === 'GUIA' ? 'GUÍA' : (m === 'Guia' ? 'Guía' : 'guía'))
+    .replace(/\balmacen\b/gi, (m) => m === 'ALMACEN' ? 'ALMACÉN' : (m === 'Almacen' ? 'Almacén' : 'almacén'))
+    .replace(/\bjuridica\b/gi, (m) => m === 'JURIDICA' ? 'JURÍDICA' : (m === 'Juridica' ? 'Jurídica' : 'jurídica'))
+    .replace(/\bjuridico\b/gi, (m) => m === 'JURIDICO' ? 'JURÍDICO' : (m === 'Juridico' ? 'Jurídico' : 'jurídico'));
+}
+
 export function normalizarTipoProcesoDoc(rawTipoProceso, areaNormalizada, codigo = '') {
   if (rawTipoProceso && typeof rawTipoProceso === 'string' && rawTipoProceso.trim() !== '' && rawTipoProceso !== 'N/A') {
     const rawTrim = rawTipoProceso.trim();
@@ -139,7 +215,7 @@ export function normalizarTipoProcesoDoc(rawTipoProceso, areaNormalizada, codigo
 
     if (rawNorm === 'CALIDAD') return 'Calidad';
 
-    if (rawNorm.startsWith('ESTRATEGIC')) return 'Estrategico';
+    if (rawNorm.startsWith('ESTRATEGIC')) return 'Estratégico';
 
     if (rawNorm.startsWith('MISIONAL')) return 'Misional';
 
@@ -1095,8 +1171,8 @@ export class DataService {
               titulo: v.nombre || v.titulo || '',
               extension: v.extension || '',
               formato: v.formato || '',
-              carpeta: v.carpeta || '',
-              proceso: v.carpeta || '',
+              carpeta: normalizarProcesoDoc(v.carpeta || v.proceso || ''),
+              proceso: normalizarProcesoDoc(v.proceso || v.carpeta || ''),
               tipoDocumento: v.tipoDoc || '',
               vinculoEdicion: v.urlEdicion || '',
               vinculoDescarga: v.urlDescarga || '',
@@ -1146,8 +1222,8 @@ export class DataService {
                 titulo: cDoc.titulo || '',
                 extension: cDoc.extension || '',
                 formato: cDoc.formato || '',
-                carpeta: cDoc.carpeta || cDoc.proceso || '',
-                proceso: cDoc.proceso || cDoc.carpeta || '',
+                carpeta: normalizarProcesoDoc(cDoc.carpeta || cDoc.proceso || ''),
+                proceso: normalizarProcesoDoc(cDoc.proceso || cDoc.carpeta || ''),
                 tipoDoc: cDoc.tipoDocumento || '',
                 urlEdicion: cDoc.sharepointUrl || '',
                 urlDescarga: cDoc.downloadUrl || cDoc.sharepointUrl || '',
@@ -1392,6 +1468,7 @@ export class DataService {
       if (!carpeta) {
         carpeta = area;
       }
+      carpeta = normalizarProcesoDoc(carpeta);
 
       // 8. Tipo de Documento
 
@@ -1424,8 +1501,8 @@ export class DataService {
         formato: formato,
         tipoProceso: tipoProceso,
         area: area,
-        proceso: carpeta || area,
-        carpeta: carpeta || area,
+        proceso: normalizarProcesoDoc(carpeta || area),
+        carpeta: normalizarProcesoDoc(carpeta || area),
         tipoDocumento: normalizarTipoDocumentoDoc(tipoDoc, codigo),
         modificacion: modificacion,
         sharepointUrl: vinculoEdicion || vinculoDescarga,
@@ -1837,14 +1914,15 @@ export class DataService {
 
       // 7. Campos Categóricos
 
-      const rawAreaGS = idxArea !== -1 && valores[idxArea] ? valores[idxArea].trim() : '';
-      const rawProcesoGS = idxProceso !== -1 && valores[idxProceso] ? valores[idxProceso].trim() : '';
-      const rawTipoDocGS = idxTipoDoc !== -1 && valores[idxTipoDoc] ? valores[idxTipoDoc].trim() : '';
-      const rawTipoProcesoGS = idxTipoProcesoGS !== -1 && valores[idxTipoProcesoGS] ? valores[idxTipoProcesoGS].trim() : '';
+      const rawAreaGS = idxArea !== -1 && valores[idxArea] ? repararMojibake(valores[idxArea].trim()) : '';
+      const rawProcesoGS = idxProceso !== -1 && valores[idxProceso] ? repararMojibake(valores[idxProceso].trim()) : '';
+      const rawTipoDocGS = idxTipoDoc !== -1 && valores[idxTipoDoc] ? repararMojibake(valores[idxTipoDoc].trim()) : '';
+      const rawTipoProcesoGS = idxTipoProcesoGS !== -1 && valores[idxTipoProcesoGS] ? repararMojibake(valores[idxTipoProcesoGS].trim()) : '';
       const tipoDoc = normalizarTipoDocumentoDoc(rawTipoDocGS || odData?.tipoDocumento || baseDoc?.tipoDocumento || '', codigo);
       const areaRaw = (rawAreaGS && rawAreaGS !== 'N/A' && rawAreaGS !== '') ? rawAreaGS : (odData?.area || baseDoc?.area || '');
       const area = normalizarAreaDoc(areaRaw, codigo);
-      const proceso = (rawProcesoGS && rawProcesoGS !== 'N/A' && rawProcesoGS !== '') ? rawProcesoGS : (odData?.proceso || baseDoc?.proceso || area);
+      const rawProceso = (rawProcesoGS && rawProcesoGS !== 'N/A' && rawProcesoGS !== '') ? rawProcesoGS : (odData?.proceso || baseDoc?.proceso || area);
+      const proceso = normalizarProcesoDoc(rawProceso);
       const rawTipoProceso = (rawTipoProcesoGS && rawTipoProcesoGS !== 'N/A' && rawTipoProcesoGS !== '') ? rawTipoProcesoGS : (odData?.tipoProceso || baseDoc?.tipoProceso || '');
       const tipoProceso = normalizarTipoProcesoDoc(rawTipoProceso, area, codigo);
 
