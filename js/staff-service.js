@@ -7,7 +7,7 @@
  * registro seguro de contraseñas en usuarios.conf y persistencia de sesión.
  */
 
-import { cacheService } from './cache-service.js?v=11.9.8';
+import { cacheService } from './cache-service.js?v=11.9.9';
 const STORAGE_KEY_AUTH_SESSION = 'agy_sgc_authenticated_session';
 const STORAGE_KEY_REMEMBERED_USER = 'agy_sgc_remembered_user';
 const STORAGE_KEY_STAFF_CACHE = 'agy_sgc_staff_cache';
@@ -323,20 +323,29 @@ export class StaffService {
 
         delete this.configuracion.historicoDocumental;
 
+        if (this.configuracion.matrizEmpleadosCsv && (!Array.isArray(this.empleados) || this.empleados.length <= 20)) {
+          const parsedCsv = this.parsearCsvEmpleados(this.configuracion.matrizEmpleadosCsv);
+          if (Array.isArray(parsedCsv) && parsedCsv.length > 0) {
+            this.empleados = parsedCsv;
+          }
+        }
+
         if ((!Array.isArray(this.empleados) || this.empleados.length === 0) && this.configuracion.usuariosRegistrados) {
-      this.empleados = Object.entries(this.configuracion.usuariosRegistrados)
-        .filter(([, u]) => u && (u.nombre || u.email || u.identificacion))
-        .map(([docKey, u]) => ({
-          id: u.id || docKey,
-          identificacion: u.identificacion || docKey,
-          nombre: u.nombre || '',
-          email: u.email || '',
-          cargo: u.cargo || '',
-          sede: u.sede || 'General',
-          estado: u.estado || 'Activo',
-          perfil: u.perfil || 'operativo'
-        }));
-    }
+          this.empleados = Object.entries(this.configuracion.usuariosRegistrados)
+            .filter(([, u]) => u && (u.nombre || u.email || u.identificacion))
+            .map(([docKey, u]) => ({
+              id: u.id || docKey,
+              identificacion: u.identificacion || docKey,
+              nombre: u.nombre || '',
+              email: u.email || '',
+              cargo: u.cargo || '',
+              sede: u.sede || 'General',
+              estado: u.estado || 'Activo',
+              perfil: u.perfil || 'operativo'
+            }));
+        }
+
+        this.fusionarUsuariosRegistradosEnEmpleados();
 
     this.sanitizarConfiguracionPerfiles();
       }
@@ -399,20 +408,29 @@ export class StaffService {
             : (this.configuracion.mapeoPerfilesPersonalizados || {})
         };
 
+        if (this.configuracion.matrizEmpleadosCsv && (!Array.isArray(this.empleados) || this.empleados.length <= 20)) {
+          const parsedCsv = this.parsearCsvEmpleados(this.configuracion.matrizEmpleadosCsv);
+          if (Array.isArray(parsedCsv) && parsedCsv.length > 0) {
+            this.empleados = parsedCsv;
+          }
+        }
+
         if ((!Array.isArray(this.empleados) || this.empleados.length === 0) && this.configuracion.usuariosRegistrados) {
-      this.empleados = Object.entries(this.configuracion.usuariosRegistrados)
-        .filter(([, u]) => u && (u.nombre || u.email || u.identificacion))
-        .map(([docKey, u]) => ({
-          id: u.id || docKey,
-          identificacion: u.identificacion || docKey,
-          nombre: u.nombre || '',
-          email: u.email || '',
-          cargo: u.cargo || '',
-          sede: u.sede || 'General',
-          estado: u.estado || 'Activo',
-          perfil: u.perfil || 'operativo'
-        }));
-    }
+          this.empleados = Object.entries(this.configuracion.usuariosRegistrados)
+            .filter(([, u]) => u && (u.nombre || u.email || u.identificacion))
+            .map(([docKey, u]) => ({
+              id: u.id || docKey,
+              identificacion: u.identificacion || docKey,
+              nombre: u.nombre || '',
+              email: u.email || '',
+              cargo: u.cargo || '',
+              sede: u.sede || 'General',
+              estado: u.estado || 'Activo',
+              perfil: u.perfil || 'operativo'
+            }));
+        }
+
+        this.fusionarUsuariosRegistradosEnEmpleados();
 
     this.sanitizarConfiguracionPerfiles();
       }
@@ -1039,6 +1057,31 @@ export class StaffService {
       this.aplicarHistorico(json.historicoDocumental);
     }
 
+    if (json.matrizEmpleadosCsv && typeof json.matrizEmpleadosCsv === 'string') {
+      const listaParsed = this.parsearCsvEmpleados(json.matrizEmpleadosCsv);
+      if (Array.isArray(listaParsed) && listaParsed.length > 0) {
+        this.empleados = listaParsed;
+        try {
+          localStorage.setItem(STORAGE_KEY_STAFF_CACHE, JSON.stringify(listaParsed));
+          cacheService.guardarColeccion('empleados', listaParsed);
+        } catch { }
+        console.log(`[StaffService] ⚡ ${listaParsed.length} colaboradores activos sincronizados desde matriz institucional en nube.`);
+        const badgeStaff = document.getElementById('badge-special-staff-count');
+        if (badgeStaff) badgeStaff.textContent = `${listaParsed.length.toLocaleString()} empleados`;
+      }
+    } else if (this.configuracion?.matrizEmpleadosCsv && (!Array.isArray(this.empleados) || this.empleados.length <= 20)) {
+      const listaParsed = this.parsearCsvEmpleados(this.configuracion.matrizEmpleadosCsv);
+      if (Array.isArray(listaParsed) && listaParsed.length > 0) {
+        this.empleados = listaParsed;
+        try {
+          localStorage.setItem(STORAGE_KEY_STAFF_CACHE, JSON.stringify(listaParsed));
+          cacheService.guardarColeccion('empleados', listaParsed);
+        } catch { }
+        const badgeStaff = document.getElementById('badge-special-staff-count');
+        if (badgeStaff) badgeStaff.textContent = `${listaParsed.length.toLocaleString()} empleados`;
+      }
+    }
+
     if ((!Array.isArray(this.empleados) || this.empleados.length === 0) && this.configuracion.usuariosRegistrados) {
       this.empleados = Object.entries(this.configuracion.usuariosRegistrados)
         .filter(([, u]) => u && (u.nombre || u.email || u.identificacion))
@@ -1053,6 +1096,8 @@ export class StaffService {
           perfil: u.perfil || 'operativo'
         }));
     }
+
+    this.fusionarUsuariosRegistradosEnEmpleados();
 
     this.sanitizarConfiguracionPerfiles();
 
@@ -1337,7 +1382,46 @@ export class StaffService {
       } catch (e) { }
     }
 
-    // 4. Si se obtuvo el texto fresco desde la nube o archivo, parsear y persistir en IndexedDB
+    // 3. Matriz institucional alojada en Google Drive (usuarios.conf / Web API GAS)
+    if (!textoCsv && this.configuracion?.matrizEmpleadosCsv) {
+      textoCsv = this.configuracion.matrizEmpleadosCsv;
+    }
+
+    // 4. Si aún no se tiene CSV y no estamos en local, consultar Google Apps Script en la nube
+    if (!textoCsv && !esLocal) {
+      try {
+        const urlGasStaff = `${GOOGLE_SCRIPT_URL}?action=configuracion${query}`;
+        const resGasStaff = await fetch(urlGasStaff, {
+          cache: forzar ? 'no-store' : 'default',
+          signal: AbortSignal.timeout ? AbortSignal.timeout(6000) : undefined
+        });
+        if (resGasStaff.ok) {
+          const jsonGas = await resGasStaff.json();
+          if (jsonGas?.matrizEmpleadosCsv) {
+            textoCsv = jsonGas.matrizEmpleadosCsv;
+            this.configuracion.matrizEmpleadosCsv = jsonGas.matrizEmpleadosCsv;
+          }
+        }
+      } catch (eGasStaff) { }
+    }
+
+    // 5. Fallback opcional a archivo estático local si existe en servidor web
+    if (!textoCsv) {
+      try {
+        const resFile = await fetch(`EMPLEADOS_ACTIVOS.csv${query}`, {
+          cache: forzar ? 'no-store' : 'default',
+          signal: AbortSignal.timeout ? AbortSignal.timeout(2000) : undefined
+        });
+        if (resFile.ok) {
+          const txtFile = await resFile.text();
+          if (txtFile && (txtFile.includes(',') || txtFile.includes(';')) && !txtFile.includes('<!DOCTYPE html')) {
+            textoCsv = txtFile;
+          }
+        }
+      } catch (eFile) { }
+    }
+
+    // 6. Si se obtuvo el texto fresco desde la nube o archivo, parsear y persistir en IndexedDB
 
     if (textoCsv) {
       const lista = this.parsearCsvEmpleados(textoCsv);
@@ -1358,6 +1442,9 @@ export class StaffService {
         } catch { }
 
         console.log(`[StaffService] ⚡ ${lista.length} colaboradores activos sincronizados y cacheados en IndexedDB.`);
+
+        const badgeStaff = document.getElementById('badge-special-staff-count');
+        if (badgeStaff) badgeStaff.textContent = `${lista.length.toLocaleString()} empleados`;
 
         return lista;
       }
@@ -1563,7 +1650,50 @@ export class StaffService {
   }
 
   /**
+   * Sincroniza y fusiona los usuarios registrados en usuarios.conf dentro de la matriz de empleados en memoria.
+   * Garantiza que cualquier usuario creado manualmente siempre figure como colaborador activo administrativo.
+   */
+  fusionarUsuariosRegistradosEnEmpleados() {
+    if (!this.configuracion?.usuariosRegistrados) return;
+    if (!Array.isArray(this.empleados)) this.empleados = [];
+    const docsExistentes = new Set(this.empleados.map((e) => this.limpiarNumeros(e.identificacion)));
 
+    for (const [docKey, u] of Object.entries(this.configuracion.usuariosRegistrados)) {
+      if (!u || (!u.nombre && !u.email && !u.identificacion)) continue;
+      const cleanDoc = this.limpiarNumeros(u.identificacion || docKey);
+      if (!cleanDoc) continue;
+
+      const perfilAsignado = u.perfil || this.configuracion?.mapeoPerfilesPersonalizados?.[cleanDoc] || (cleanDoc === '8160602' ? 'administrativo' : 'operativo');
+      const empItem = {
+        id: u.id || `emp-${cleanDoc}`,
+        identificacion: u.identificacion || cleanDoc,
+        nombre: u.nombre || `Administrativo ${cleanDoc}`,
+        email: u.email || '',
+        cargo: u.cargo || 'Personal Administrativo',
+        sede: u.sede || 'Principal',
+        estado: u.estado || 'Activo',
+        perfil: perfilAsignado
+      };
+
+      if (!docsExistentes.has(cleanDoc)) {
+        this.empleados.unshift(empItem);
+        docsExistentes.add(cleanDoc);
+      } else {
+        const idx = this.empleados.findIndex((e) => this.limpiarNumeros(e.identificacion) === cleanDoc);
+        if (idx !== -1) {
+          this.empleados[idx] = {
+            ...this.empleados[idx],
+            nombre: u.nombre || this.empleados[idx].nombre,
+            email: u.email || this.empleados[idx].email,
+            cargo: u.cargo || this.empleados[idx].cargo || 'Personal Administrativo',
+            perfil: perfilAsignado
+          };
+        }
+      }
+    }
+  }
+
+  /**
    * Sanea configuraciones persistidas para asegurar que ningún líder ni personal administrativo
    * figure erróneamente con perfil directivo. Los directivos corresponden únicamente a directores y gerentes.
    */
@@ -4655,66 +4785,99 @@ export class StaffService {
   }
 
   /**
-
-   * Registra o actualiza manualmente un usuario con perfil asignado (Acceso Total por defecto)
+   * Registra o actualiza manualmente un usuario con perfil administrativo
    */
-
   async registrarUsuarioManual(datos) {
     const docClean = this.limpiarNumeros(datos.identificacion);
 
     if (!docClean) {
-      return { ok: false, error: 'Número de documento inválido.' };
+      return { ok: false, error: 'Número de documento o cédula inválido.' };
     }
 
     if (!datos.nombre || !datos.email) {
-      return { ok: false, error: 'Nombre y correo electrónico son requeridos.' };
+      return { ok: false, error: 'Nombre completo y correo electrónico son requeridos.' };
     }
 
-    const perfilAsignado = datos.perfil || 'administrativo';
+    const perfilAsignado = 'administrativo';
+    const docStr = String(datos.identificacion).trim();
     const usuarioObj = {
-      identificacion: datos.identificacion.trim(),
-      nombre: datos.nombre.trim(),
-      email: datos.email.trim().toLowerCase(),
-      cargo: (datos.cargo || 'Acceso Administrativo').trim(),
-      sede: (datos.sede || 'Principal').trim(),
+      id: `emp-${docClean}`,
+      identificacion: docStr,
+      nombre: String(datos.nombre).trim(),
+      email: String(datos.email).trim().toLowerCase(),
+      cargo: String(datos.cargo || 'Personal Administrativo').trim(),
+      sede: String(datos.sede || 'Principal').trim(),
       perfil: perfilAsignado,
+      passwordHash: datos.passwordHash || '',
       fechaRegistro: new Date().toISOString(),
       ultimoIngreso: new Date().toISOString()
     };
 
     // 1. Guardar en usuariosRegistrados
-
     this.configuracion.usuariosRegistrados = this.configuracion.usuariosRegistrados || {};
     this.configuracion.usuariosRegistrados[docClean] = usuarioObj;
 
     // 2. Mapear perfil personalizado para que prevalezca
-
     this.configuracion.mapeoPerfilesPersonalizados = this.configuracion.mapeoPerfilesPersonalizados || {};
     this.configuracion.mapeoPerfilesPersonalizados[docClean] = perfilAsignado;
 
-    // 3. Añadir a empleados en memoria si no existe
+    // 3. Añadir o actualizar en la matriz de empleados en memoria (independiente de CSV en GitHub)
+    if (!Array.isArray(this.empleados)) this.empleados = [];
+    const empIdx = this.empleados.findIndex((e) => this.limpiarNumeros(e.identificacion) === docClean);
+    const empItem = {
+      id: `emp-${docClean}`,
+      identificacion: usuarioObj.identificacion,
+      nombre: usuarioObj.nombre,
+      email: usuarioObj.email,
+      cargo: usuarioObj.cargo,
+      sede: usuarioObj.sede,
+      perfil: perfilAsignado,
+      estado: 'Activo'
+    };
 
-    const existeEnMatriz = this.empleados.some((e) => this.limpiarNumeros(e.identificacion) === docClean);
-
-    if (!existeEnMatriz) {
-      this.empleados.unshift({
-        identificacion: usuarioObj.identificacion,
-        nombre: usuarioObj.nombre,
-        email: usuarioObj.email,
-        cargo: usuarioObj.cargo,
-        sede: usuarioObj.sede
-      });
+    if (empIdx === -1) {
+      this.empleados.unshift(empItem);
+    } else {
+      this.empleados[empIdx] = {
+        ...this.empleados[empIdx],
+        ...empItem
+      };
     }
+
+    this.configuracion.ultimaActualizacion = new Date().toISOString();
 
     try {
       localStorage.setItem(STORAGE_KEY_CONF_CACHE, JSON.stringify(this.configuracion));
+      localStorage.setItem(STORAGE_KEY_STAFF_CACHE, JSON.stringify(this.empleados));
+      cacheService.guardarColeccion('configuracion', this.configuracion);
+      cacheService.guardarColeccion('empleados', this.empleados);
     } catch { }
 
-    // Sincronizar en la nube con Google Drive
-
+    // Sincronizar en la nube con Google Drive (usuarios.conf)
     await this.guardarConfiguracionEnNube();
 
     return { ok: true, usuario: usuarioObj };
+  }
+
+  /**
+   * Crea o agrega un nuevo colaborador administrativo de forma manual (sin depender de GitHub ni SharePoint).
+   * @param {string} nombre - Nombre completo del colaborador.
+   * @param {string|number} cedula - Cédula o número de documento.
+   * @param {string} email - Correo institucional.
+   * @param {string} [cargo] - Cargo institucional (por defecto 'Personal Administrativo').
+   */
+  async agregarUsuarioManual(nombre, cedula, email, cargo = 'Personal Administrativo') {
+    if (!nombre || !cedula || !email) {
+      return { ok: false, error: 'Nombre, cédula y correo institucional son obligatorios.' };
+    }
+
+    return await this.registrarUsuarioManual({
+      nombre,
+      identificacion: cedula,
+      email,
+      cargo: cargo || 'Personal Administrativo',
+      perfil: 'administrativo'
+    });
   }
 
   /**
@@ -4735,8 +4898,18 @@ export class StaffService {
       delete this.configuracion.mapeoPerfilesPersonalizados[docClean];
     }
 
+    const emp = this.empleados.find((e) => this.limpiarNumeros(e.identificacion) === docClean);
+    if (emp) {
+      emp.perfil = 'operativo';
+    }
+
+    this.configuracion.ultimaActualizacion = new Date().toISOString();
+
     try {
       localStorage.setItem(STORAGE_KEY_CONF_CACHE, JSON.stringify(this.configuracion));
+      localStorage.setItem(STORAGE_KEY_STAFF_CACHE, JSON.stringify(this.empleados));
+      cacheService.guardarColeccion('configuracion', this.configuracion);
+      cacheService.guardarColeccion('empleados', this.empleados);
     } catch { }
 
     await this.guardarConfiguracionEnNube();
@@ -4841,6 +5014,9 @@ export class StaffService {
 
     try {
       localStorage.setItem(STORAGE_KEY_CONF_CACHE, JSON.stringify(this.configuracion));
+      localStorage.setItem(STORAGE_KEY_STAFF_CACHE, JSON.stringify(this.empleados));
+      cacheService.guardarColeccion('configuracion', this.configuracion);
+      cacheService.guardarColeccion('empleados', this.empleados);
     } catch { }
 
     await this.guardarConfiguracionEnNube();

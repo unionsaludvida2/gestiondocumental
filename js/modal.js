@@ -4,9 +4,9 @@
  * Unión para la salud y la vida S.A.S.
  */
 
-import { sharepointService, determinarEstrategiaDescarga, esDocumentoFMT, normalizarAreaDoc } from './sharepoint-service.js?v=11.9.8';
-import { staffService } from './staff-service.js?v=11.9.8';
-import { filterEngine } from './filters.js?v=11.9.8';
+import { sharepointService, determinarEstrategiaDescarga, esDocumentoFMT, normalizarAreaDoc } from './sharepoint-service.js?v=11.9.9';
+import { staffService } from './staff-service.js?v=11.9.9';
+import { filterEngine } from './filters.js?v=11.9.9';
 const STORAGE_KEY_USER_PROFILE = 'agy_user_profile';
 
 export class ModalManager {
@@ -2691,6 +2691,74 @@ return bannerHtml + cardsHtml;
 
                 <div class="settings-tab-content" id="tab-content-perfiles" style="display: ${activeTab === 'perfiles' ? 'flex' : 'none'}; flex-direction: column; gap: 8px; padding: 14px 18px;">
 
+                  <!-- CREACIÓN MANUAL DE USUARIOS ADMINISTRATIVOS (INDEPENDIENTE DE GITHUB/CSV) -->
+                  <div style="background: #f0fdf4; border: 1.5px solid #bbf7d0; border-radius: 8px; padding: 12px 14px; margin-bottom: 2px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                      <div style="font-size: 0.86rem; font-weight: 700; color: #166534; display: flex; align-items: center; gap: 6px;">
+                        <span>👤➕</span> Agregar Usuario Administrativo (Creación Manual)
+                      </div>
+                      <span style="font-size: 0.70rem; color: #15803d; font-weight: 700; background: #dcfce7; padding: 2px 8px; border-radius: 9999px; border: 1px solid #86efac;">
+                        Persiste en usuarios.conf
+                      </span>
+                    </div>
+
+                    <form id="form-crear-usuario-manual" autocomplete="off" style="margin: 0;">
+                      <div style="display: grid; grid-template-columns: 1.3fr 1fr 1.3fr auto; gap: 8px; align-items: flex-end;">
+                        <div>
+                          <label for="input-manual-nombre" style="font-size: 0.73rem; font-weight: 700; color: #334155; display: block; margin-bottom: 2px;">
+                            Nombre Completo <span style="color:#dc2626;">*</span>
+                          </label>
+                          <input 
+                            type="text" 
+                            id="input-manual-nombre" 
+                            placeholder="Ej: Ana Cardona Cano" 
+                            required 
+                            style="width: 100%; height: 32px; padding: 0 10px; border: 1.5px solid #cbd5e1; border-radius: 6px; font-size: 0.80rem; background: #ffffff; box-sizing: border-box;"
+                          />
+                        </div>
+
+                        <div>
+                          <label for="input-manual-cedula" style="font-size: 0.73rem; font-weight: 700; color: #334155; display: block; margin-bottom: 2px;">
+                            Cédula / Documento <span style="color:#dc2626;">*</span>
+                          </label>
+                          <input 
+                            type="text" 
+                            id="input-manual-cedula" 
+                            placeholder="Ej: 1042060611" 
+                            required 
+                            style="width: 100%; height: 32px; padding: 0 10px; border: 1.5px solid #cbd5e1; border-radius: 6px; font-size: 0.80rem; background: #ffffff; box-sizing: border-box; font-family: monospace;"
+                          />
+                        </div>
+
+                        <div>
+                          <label for="input-manual-email" style="font-size: 0.73rem; font-weight: 700; color: #334155; display: block; margin-bottom: 2px;">
+                            Correo Institucional <span style="color:#dc2626;">*</span>
+                          </label>
+                          <input 
+                            type="email" 
+                            id="input-manual-email" 
+                            placeholder="usuario@unionsaludvida.com" 
+                            required 
+                            style="width: 100%; height: 32px; padding: 0 10px; border: 1.5px solid #cbd5e1; border-radius: 6px; font-size: 0.80rem; background: #ffffff; box-sizing: border-box;"
+                          />
+                        </div>
+
+                        <div>
+                          <button 
+                            type="submit" 
+                            id="btn-submit-manual-user" 
+                            class="btn btn-primary" 
+                            style="height: 32px; padding: 0 14px; font-size: 0.78rem; font-weight: 700; background: #166534; border: 1px solid #14532d; white-space: nowrap; display: inline-flex; align-items: center; gap: 5px;"
+                          >
+                            <span>💾</span> Guardar Usuario
+                          </button>
+                        </div>
+                      </div>
+
+                      <div id="msg-manual-user-feedback" style="display: none; margin-top: 6px; font-size: 0.74rem; font-weight: 600; padding: 4px 8px; border-radius: 4px;"></div>
+                    </form>
+                  </div>
+
                   <!-- Buscador y Selector de Empleados Activos -->
 
                   <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 14px;">
@@ -3885,6 +3953,95 @@ return bannerHtml + cardsHtml;
 
     if (esAdmin) {
       renderListaColaboradoresEspeciales();
+
+      // Manejador del formulario de creación manual de usuarios administrativos
+      const formManualUser = document.getElementById('form-crear-usuario-manual');
+      if (formManualUser) {
+        formManualUser.addEventListener('submit', async (e) => {
+          e.preventDefault();
+
+          const inpNombre = document.getElementById('input-manual-nombre');
+          const inpCedula = document.getElementById('input-manual-cedula');
+          const inpEmail = document.getElementById('input-manual-email');
+          const btnSubmit = document.getElementById('btn-submit-manual-user');
+          const msgDiv = document.getElementById('msg-manual-user-feedback');
+
+          const nombre = (inpNombre?.value || '').trim();
+          const cedula = (inpCedula?.value || '').trim();
+          const email = (inpEmail?.value || '').trim();
+
+          const mostrarFeedback = (texto, esError = false) => {
+            if (!msgDiv) return;
+            msgDiv.textContent = texto;
+            msgDiv.style.display = 'block';
+            msgDiv.style.background = esError ? '#fef2f2' : '#f0fdf4';
+            msgDiv.style.color = esError ? '#dc2626' : '#15803d';
+            msgDiv.style.border = `1px solid ${esError ? '#fca5a5' : '#86efac'}`;
+          };
+
+          if (!nombre) {
+            mostrarFeedback('❌ Por favor escribe el nombre completo del colaborador.', true);
+            inpNombre?.focus();
+            return;
+          }
+
+          const cedulaLimpia = staffService.limpiarNumeros(cedula);
+          if (!cedulaLimpia || cedulaLimpia.length < 5) {
+            mostrarFeedback('❌ Por favor ingresa un número de cédula válido.', true);
+            inpCedula?.focus();
+            return;
+          }
+
+          if (!email || !email.includes('@')) {
+            mostrarFeedback('❌ Por favor ingresa un correo electrónico institucional válido.', true);
+            inpEmail?.focus();
+            return;
+          }
+
+          if (btnSubmit) {
+            btnSubmit.disabled = true;
+            btnSubmit.innerHTML = '<span>⏳</span> Guardando...';
+          }
+
+          try {
+            const res = await staffService.agregarUsuarioManual(nombre, cedulaLimpia, email);
+
+            if (res.ok) {
+              mostrarFeedback(`✅ Usuario administrativo "${nombre}" guardado y sincronizado con éxito en usuarios.conf.`, false);
+              if (inpNombre) inpNombre.value = '';
+              if (inpCedula) inpCedula.value = '';
+              if (inpEmail) inpEmail.value = '';
+
+              if (window.antigravityApp?.mostrarToast) {
+                window.antigravityApp.mostrarToast(`✅ Usuario administrativo "${nombre}" guardado con éxito.`, 'success');
+              }
+
+              // Actualizar badge de empleados
+              const badgeStaff = document.getElementById('badge-special-staff-count');
+              if (badgeStaff) {
+                badgeStaff.textContent = `${(staffService.empleados?.length || 0).toLocaleString()} empleados`;
+              }
+
+              // Actualizar lista de administrativos en la tabla
+              renderListaColaboradoresEspeciales(document.getElementById('search-special-profiles')?.value || '');
+
+              setTimeout(() => {
+                if (msgDiv) msgDiv.style.display = 'none';
+              }, 4000);
+            } else {
+              mostrarFeedback(`❌ Error: ${res.error || 'No se pudo guardar el usuario.'}`, true);
+            }
+          } catch (err) {
+            console.error('Error al guardar usuario manual:', err);
+            mostrarFeedback(`❌ Error al guardar en la nube: ${err.message}`, true);
+          } finally {
+            if (btnSubmit) {
+              btnSubmit.disabled = false;
+              btnSubmit.innerHTML = '<span>💾</span> Guardar Usuario';
+            }
+          }
+        });
+      }
     }
 
     // ─── TABLAS MAESTRAS (Lógica) ───
