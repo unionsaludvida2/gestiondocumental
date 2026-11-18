@@ -842,10 +842,10 @@ export class StaffService {
 
       if (true) {
         try {
-          const resG = await fetch(GOOGLE_SCRIPT_URL, {
+          const resG = await fetch(`${GOOGLE_SCRIPT_URL}?_t=${Date.now()}&fileId=1oBmanViv5bqhfE-isx7WnlbuP6Ylpegl`, {
             method: 'GET',
             cache: 'no-store',
-            signal: AbortSignal.timeout ? AbortSignal.timeout(4000) : undefined
+            signal: AbortSignal.timeout ? AbortSignal.timeout(8000) : undefined
           });
 
           if (resG.ok) {
@@ -991,15 +991,31 @@ export class StaffService {
   aplicarConfiguracion(json) {
     if (!json || typeof json !== 'object') return;
 
+    const localTs = this.configuracion?.ultimaActualizacion || '';
+    const remoteTs = json.ultimaActualizacion || '';
+
+    let usuariosFinales = this.configuracion?.usuariosRegistrados || {};
+    let mapeoFinal = this.configuracion?.mapeoPerfilesPersonalizados || {};
+
+    if (!localTs || !remoteTs || remoteTs >= localTs) {
+      if (json.usuariosRegistrados !== undefined) {
+        usuariosFinales = json.usuariosRegistrados;
+      }
+      if (json.mapeoPerfilesPersonalizados !== undefined) {
+        mapeoFinal = json.mapeoPerfilesPersonalizados;
+      }
+    } else {
+      console.warn(`[StaffService] 🛡️ Ignorando usuarios de respuesta remota desfasada (Local: ${localTs} > Remoto: ${remoteTs}). Se preserva configuración local.`);
+      setTimeout(() => {
+        this.guardarConfiguracionEnNube();
+      }, 1500);
+    }
+
     this.configuracion = {
       ...this.configuracion,
       ...json,
-      usuariosRegistrados: json.usuariosRegistrados !== undefined
-        ? json.usuariosRegistrados
-        : (this.configuracion.usuariosRegistrados || {}),
-      mapeoPerfilesPersonalizados: json.mapeoPerfilesPersonalizados !== undefined
-        ? json.mapeoPerfilesPersonalizados
-        : (this.configuracion.mapeoPerfilesPersonalizados || {}),
+      usuariosRegistrados: usuariosFinales,
+      mapeoPerfilesPersonalizados: mapeoFinal,
       preferenciasPorUsuario: {
         ...(this.configuracion.preferenciasPorUsuario || {}),
         ...(json.preferenciasPorUsuario || {})
@@ -2351,6 +2367,16 @@ export class StaffService {
    */
 
   async guardarConfiguracionEnNube() {
+    this._colaGuardadoNube = (this._colaGuardadoNube || Promise.resolve())
+      .then(() => this._ejecutarGuardadoEnNube())
+      .catch((err) => {
+        console.warn('[StaffService] Error en cola de guardado:', err);
+      });
+
+    return this._colaGuardadoNube;
+  }
+
+  async _ejecutarGuardadoEnNube() {
     const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx4-82Ls3Zu5gdzXlAhezZ6ew9tnAece8xSDMQ8QmXcu7UCnMxwqB48ISG_LwNDUgMiQQ/exec';
 
     this.configuracion.ultimaActualizacion = new Date().toISOString();
@@ -2358,26 +2384,28 @@ export class StaffService {
     const payloadObj = { ...this.configuracion, fileId: '1oBmanViv5bqhfE-isx7WnlbuP6Ylpegl' };
     const jsonStr = JSON.stringify(payloadObj);
 
-    // 0. Persistir en IndexedDB de inmediato (cero pérdida de datos local)
+    // 0. Persistir en IndexedDB y localStorage de inmediato (cero pérdida de datos local)
 
     try {
+      localStorage.setItem(STORAGE_KEY_CONF_CACHE, JSON.stringify(this.configuracion));
+
       cacheService.guardarColeccion('configuracion', this.configuracion);
     } catch { }
 
-    // 1. Enviar directamente a Google Apps Script (Omitido en Modo Local)
+    // 1. Enviar directamente a Google Apps Script (esperando confirmación de escritura)
 
-    if (true) {
-      try {
-        fetch(GOOGLE_SCRIPT_URL, {
-          method: 'POST',
-          mode: 'no-cors',
-          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: jsonStr,
-          keepalive: true
-        }).catch((e) => {
-          console.warn('[StaffService] Fallo envío directo a Google Apps Script:', e);
-        });
-      } catch (e) { }
+    try {
+      await fetch(GOOGLE_SCRIPT_URL, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: jsonStr,
+        keepalive: true
+      });
+
+      console.log('[StaffService] ✅ Configuración sincronizada y confirmada en Google Apps Script.');
+    } catch (e) {
+      console.warn('[StaffService] Fallo envío directo a Google Apps Script:', e);
     }
 
     // 2. Enviar a endpoint local / servidor si está disponible

@@ -3721,13 +3721,28 @@ return bannerHtml + cardsHtml;
           const docNum = btn.getAttribute('data-doc');
 
           if (confirm('¿Deseas remover el rol administrativo a este colaborador? Volverá al acceso operativo genérico.')) {
-            await staffService.removerPerfilPersonalizado(docNum);
+            btn.disabled = true;
+            btn.innerHTML = '⏳';
+            btn.style.opacity = '0.5';
 
             if (window.antigravityApp?.mostrarToast) {
-              window.antigravityApp.mostrarToast('✅ Rol administrativo removido correctamente.', 'success');
+              window.antigravityApp.mostrarToast('⏳ Guardando y sincronizando cambios en la nube...', 'info');
             }
 
-            renderListaColaboradoresEspeciales(document.getElementById('search-special-profiles')?.value || '');
+            try {
+              await staffService.removerPerfilPersonalizado(docNum);
+
+              if (window.antigravityApp?.mostrarToast) {
+                window.antigravityApp.mostrarToast('✅ Rol administrativo removido y sincronizado correctamente.', 'success');
+              }
+            } catch (err) {
+              console.error('Error al remover rol administrativo:', err);
+              if (window.antigravityApp?.mostrarToast) {
+                window.antigravityApp.mostrarToast('⚠️ Ocurrió un error al sincronizar con la nube.', 'error');
+              }
+            } finally {
+              renderListaColaboradoresEspeciales(document.getElementById('search-special-profiles')?.value || '');
+            }
           }
         });
       });
