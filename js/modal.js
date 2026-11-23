@@ -4,9 +4,9 @@
  * Unión para la salud y la vida S.A.S.
  */
 
-import { sharepointService, determinarEstrategiaDescarga, esDocumentoFMT, normalizarAreaDoc } from './sharepoint-service.js?v=11.9.11';
-import { staffService } from './staff-service.js?v=11.9.11';
-import { filterEngine } from './filters.js?v=11.9.11';
+import { sharepointService, determinarEstrategiaDescarga, esDocumentoFMT, normalizarAreaDoc } from './sharepoint-service.js?v=11.9.12';
+import { staffService } from './staff-service.js?v=11.9.12';
+import { filterEngine } from './filters.js?v=11.9.12';
 const STORAGE_KEY_USER_PROFILE = 'agy_user_profile';
 
 export class ModalManager {
@@ -251,7 +251,7 @@ export class ModalManager {
 
 <div class="form-group" style="margin-bottom: 0;">
 
-                  <label for="input-email-edit" style="font-size: 0.82rem; font-weight: 600; color: #334155; display: block; margin-bottom: 4px;">Correo Institucional:</label>
+                  <label for="input-email-edit" style="font-size: 0.82rem; font-weight: 600; color: #334155; display: block; margin-bottom: 4px;">Correo Institucional o Cédula:</label>
 
                   <div style="display: flex; align-items: stretch; width: 100%;">
 
@@ -265,7 +265,7 @@ export class ModalManager {
 
                       class="form-input" 
 
-                      placeholder="nombre.apellido" 
+                      placeholder="usuario o cédula" 
 
                       value="${usuarioEmailSugerido || ''}"
 
@@ -383,13 +383,15 @@ export class ModalManager {
       const validar = async (e) => {
         if (e) e.preventDefault();
 
-        const emailPrefix = inputEmail ? inputEmail.value.trim().toLowerCase().split('@')[0] : '';
-        const emailCompleto = emailPrefix ? `${emailPrefix}@unionsaludvida.com` : '';
+        const rawInput = inputEmail ? inputEmail.value.trim() : '';
+        const esCedula = /^\d{5,15}$/.test(rawInput);
+        const emailPrefix = esCedula ? rawInput : (rawInput.toLowerCase().split('@')[0]);
+        const emailOIdentificador = esCedula ? rawInput : (emailPrefix ? `${emailPrefix}@unionsaludvida.com` : '');
         const val = inputPwd ? inputPwd.value : '';
 
-        if (!emailPrefix) {
+        if (!rawInput) {
           if (errorMsg) {
-            errorMsg.textContent = '❌ Por favor escribe tu usuario de correo institucional.';
+            errorMsg.textContent = '❌ Por favor escribe tu usuario de correo institucional o número de cédula.';
             errorMsg.style.display = 'block';
           }
 
@@ -409,7 +411,7 @@ export class ModalManager {
           return;
         }
 
-        const res = await staffService.validarClaveEdicion(val, emailCompleto);
+        const res = await staffService.validarClaveEdicion(val, emailOIdentificador);
 
         if (res.ok) {
           try {
@@ -417,7 +419,7 @@ export class ModalManager {
               localStorage.setItem('agy_last_admin_doc', res.usuario.identificacion);
             }
 
-            localStorage.setItem('agy_last_admin_email', emailCompleto);
+            localStorage.setItem('agy_last_admin_email', res.usuario?.email || emailOIdentificador);
           } catch { }
 
           this.cerrarModal();
@@ -2703,7 +2705,7 @@ return bannerHtml + cardsHtml;
                     </div>
 
                     <form id="form-crear-usuario-manual" autocomplete="off" style="margin: 0;">
-                      <div style="display: grid; grid-template-columns: 1.3fr 1fr 1.3fr auto; gap: 8px; align-items: flex-end;">
+                      <div style="display: grid; grid-template-columns: 1.2fr 0.9fr 1.2fr 1fr auto; gap: 8px; align-items: flex-end;">
                         <div>
                           <label for="input-manual-nombre" style="font-size: 0.73rem; font-weight: 700; color: #334155; display: block; margin-bottom: 2px;">
                             Nombre Completo <span style="color:#dc2626;">*</span>
@@ -2739,6 +2741,18 @@ return bannerHtml + cardsHtml;
                             id="input-manual-email" 
                             placeholder="usuario@unionsaludvida.com" 
                             required 
+                            style="width: 100%; height: 32px; padding: 0 10px; border: 1.5px solid #cbd5e1; border-radius: 6px; font-size: 0.80rem; background: #ffffff; box-sizing: border-box;"
+                          />
+                        </div>
+
+                        <div>
+                          <label for="input-manual-pwd" style="font-size: 0.73rem; font-weight: 700; color: #334155; display: block; margin-bottom: 2px;">
+                            Contraseña <span style="color:#64748b; font-weight:400;">(Opcional)</span>
+                          </label>
+                          <input 
+                            type="password" 
+                            id="input-manual-pwd" 
+                            placeholder="Defecto: USV2026*" 
                             style="width: 100%; height: 32px; padding: 0 10px; border: 1.5px solid #cbd5e1; border-radius: 6px; font-size: 0.80rem; background: #ffffff; box-sizing: border-box;"
                           />
                         </div>
@@ -3963,12 +3977,14 @@ return bannerHtml + cardsHtml;
           const inpNombre = document.getElementById('input-manual-nombre');
           const inpCedula = document.getElementById('input-manual-cedula');
           const inpEmail = document.getElementById('input-manual-email');
+          const inpPwd = document.getElementById('input-manual-pwd');
           const btnSubmit = document.getElementById('btn-submit-manual-user');
           const msgDiv = document.getElementById('msg-manual-user-feedback');
 
           const nombre = (inpNombre?.value || '').trim();
           const cedula = (inpCedula?.value || '').trim();
           const email = (inpEmail?.value || '').trim();
+          const password = (inpPwd?.value || '').trim();
 
           const mostrarFeedback = (texto, esError = false) => {
             if (!msgDiv) return;
@@ -4004,13 +4020,14 @@ return bannerHtml + cardsHtml;
           }
 
           try {
-            const res = await staffService.agregarUsuarioManual(nombre, cedulaLimpia, email);
+            const res = await staffService.agregarUsuarioManual(nombre, cedulaLimpia, email, 'Personal Administrativo', password);
 
             if (res.ok) {
-              mostrarFeedback(`✅ Usuario administrativo "${nombre}" guardado y sincronizado con éxito en usuarios.conf.`, false);
+              mostrarFeedback(`✅ Usuario administrativo "${nombre}" guardado y disponible para ingresar (clave: ${res.claveAsignada || 'USV2026*'}).`, false);
               if (inpNombre) inpNombre.value = '';
               if (inpCedula) inpCedula.value = '';
               if (inpEmail) inpEmail.value = '';
+              if (inpPwd) inpPwd.value = '';
 
               if (window.antigravityApp?.mostrarToast) {
                 window.antigravityApp.mostrarToast(`✅ Usuario administrativo "${nombre}" guardado con éxito.`, 'success');

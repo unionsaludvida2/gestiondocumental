@@ -7,7 +7,7 @@
  * registro seguro de contraseñas en usuarios.conf y persistencia de sesión.
  */
 
-import { cacheService } from './cache-service.js?v=11.9.11';
+import { cacheService } from './cache-service.js?v=11.9.12';
 const STORAGE_KEY_AUTH_SESSION = 'agy_sgc_authenticated_session';
 const STORAGE_KEY_REMEMBERED_USER = 'agy_sgc_remembered_user';
 const STORAGE_KEY_STAFF_CACHE = 'agy_sgc_staff_cache';
@@ -1951,8 +1951,12 @@ export class StaffService {
 
     if (this.configuracion.usuariosRegistrados[docClean]) {
       this.configuracion.usuariosRegistrados[docClean].perfil = perfilFijo;
+      if (!this.configuracion.usuariosRegistrados[docClean].passwordHash) {
+        this.configuracion.usuariosRegistrados[docClean].passwordHash = await this.calcularHash(this.obtenerClaveInstitucional());
+      }
     } else {
       const emp = this.buscarPorDocumento(docClean);
+      const hashInicial = await this.calcularHash(this.obtenerClaveInstitucional());
 
       this.configuracion.usuariosRegistrados[docClean] = {
         identificacion: emp?.identificacion || docClean,
@@ -1961,7 +1965,7 @@ export class StaffService {
         cargo: emp?.cargo || 'Personal Administrativo',
         sede: emp?.sede || 'Principal',
         perfil: perfilFijo,
-        passwordHash: ''
+        passwordHash: hashInicial
       };
     }
 
@@ -2121,16 +2125,23 @@ export class StaffService {
       usuarioEncontrado = this.buscarPorDocumento(docTarget) || this.configuracion?.usuariosRegistrados?.[docTarget] || null;
       emailTarget = usuarioEncontrado?.email ? this.normalizarCorreoInstitucional(usuarioEncontrado.email) : '';
     } else if (rawId) {
-      emailTarget = this.normalizarCorreoInstitucional(rawId);
-      usuarioEncontrado = this.buscarPorCorreo(emailTarget);
+      // Verificar si el prefijo introducido es una cédula numérica
+      const posibleDoc = this.limpiarNumeros(rawId.split('@')[0]);
+      if (posibleDoc && posibleDoc.length >= 5 && (this.configuracion?.usuariosRegistrados?.[posibleDoc] || this.buscarPorDocumento(posibleDoc))) {
+        docTarget = posibleDoc;
+        usuarioEncontrado = this.buscarPorDocumento(docTarget) || this.configuracion?.usuariosRegistrados?.[docTarget] || null;
+        emailTarget = usuarioEncontrado?.email ? this.normalizarCorreoInstitucional(usuarioEncontrado.email) : '';
+      } else {
+        emailTarget = this.normalizarCorreoInstitucional(rawId);
+        usuarioEncontrado = this.buscarPorCorreo(emailTarget);
 
-      if (usuarioEncontrado && usuarioEncontrado.identificacion) {
-        docTarget = this.limpiarNumeros(usuarioEncontrado.identificacion);
+        if (usuarioEncontrado && usuarioEncontrado.identificacion) {
+          docTarget = this.limpiarNumeros(usuarioEncontrado.identificacion);
+        }
       }
     }
 
-    // 1. Validar contra la contraseña institucional maestra (Superadministrador SGC)
-
+    // 1. Validar contra la contraseña institucional maestra (Superadministrador SGC o acceso por defecto)
     if (this.validarClaveInstitucional(pwd)) {
       let usuarioResult = usuarioEncontrado;
 
@@ -2155,24 +2166,22 @@ export class StaffService {
       return { ok: true, usuario: usuarioResult };
     }
 
-    // 2. Si no es la clave maestra, se requiere correo institucional válido
-
+    // 2. Si no es la clave maestra, se requiere correo o documento institucional válido
     if (!rawId) {
       return {
         ok: false,
-        error: 'Por favor ingresa tu correo institucional para validar tus permisos administrativos.'
+        error: 'Por favor ingresa tu correo institucional o número de cédula para validar tus permisos administrativos.'
       };
     }
 
-    if (!esDocumentoNumerico && !docTarget) {
+    if (!docTarget) {
       return {
         ok: false,
-        error: `No se encontró ningún colaborador registrado con el correo ${emailTarget}.`
+        error: `No se encontró ningún colaborador administrativo registrado con "${emailTarget || rawId}".`
       };
     }
 
     // 3. REGLA ESTRICTA: SOLO USUARIOS AGREGADOS CON PERFIL ADMINISTRATIVO
-
     if (!this.esUsuarioAdministrativo(docTarget)) {
       return {
         ok: false,
@@ -2181,13 +2190,17 @@ export class StaffService {
     }
 
     // 4. Validar contraseña personal del usuario administrativo
-
     const reg = this.configuracion?.usuariosRegistrados?.[docTarget];
 
     if (!reg || !reg.passwordHash) {
+      // Si el usuario aún no tiene hash pero ingresa con la clave institucional maestra
+      if (this.validarClaveInstitucional(pwd)) {
+        const empData = this.buscarPorDocumento(docTarget) || {};
+        return { ok: true, usuario: { ...empData, ...reg, identificacion: docTarget, perfil: 'administrativo' } };
+      }
       return {
         ok: false,
-        error: `El usuario administrativo (${emailTarget || docTarget}) aún no tiene una contraseña registrada. Haz clic en "¿Primer ingreso? Registrarse".`,
+        error: `El usuario administrativo aún no tiene una contraseña personalizada. Puedes ingresar con la clave por defecto (${this.obtenerClaveInstitucional()}) o crear una en "¿Primer ingreso? Registrarse".`,
         necesitaRegistro: true
       };
     }
@@ -2511,26 +2524,37 @@ export class StaffService {
 
     this.configuracion.ultimaActualizacion = new Date().toISOString();
 
-    const payloadObj = { ...this.configuracion, fileId: '1oBmanViv5bqhfE-isx7WnlbuP6Ylpegl' };
+    // Eliminar claves pesadas y obsoletas para mantener payload ultra-ligero (< 25 KB)
+    delete this.configuracion.matrizEmpleadosCsv;
+    delete this.configuracion.totalColaboradores;
+    delete this.configuracion.fechaSincronizacionColaboradores;
+    delete this.configuracion.testPing;
+    delete this.configuracion.status;
+    delete this.configuracion.error;
+    delete this.configuracion.historicoDocumental;
+
+    const payloadObj = {
+      ...this.configuracion,
+      accion: 'guardar_configuracion',
+      fileId: '1oBmanViv5bqhfE-isx7WnlbuP6Ylpegl'
+    };
     const jsonStr = JSON.stringify(payloadObj);
 
     // 0. Persistir en IndexedDB y localStorage de inmediato (cero pérdida de datos local)
-
     try {
       localStorage.setItem(STORAGE_KEY_CONF_CACHE, JSON.stringify(this.configuracion));
-
       cacheService.guardarColeccion('configuracion', this.configuracion);
     } catch { }
 
     // 1. Enviar directamente a Google Apps Script (esperando confirmación de escritura)
-
+    // NOTA: Se retira keepalive: true porque el navegador bloquea peticiones keepalive > 64KB
     try {
       await fetch(GOOGLE_SCRIPT_URL, {
         method: 'POST',
         mode: 'no-cors',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: jsonStr,
-        keepalive: true
+        signal: AbortSignal.timeout ? AbortSignal.timeout(10000) : undefined
       });
 
       console.log('[StaffService] ✅ Configuración sincronizada y confirmada en Google Apps Script.');
@@ -2538,15 +2562,18 @@ export class StaffService {
       console.warn('[StaffService] Fallo envío directo a Google Apps Script:', e);
     }
 
-    // 2. Enviar a endpoint local / servidor si está disponible
-
-    try {
-      await fetch('/api/configuracion', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: jsonStr
-      });
-    } catch (e) { }
+    // 2. Enviar a endpoint local / servidor si está disponible en localhost
+    const esLocal = typeof window !== 'undefined' && window.location && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+    if (esLocal) {
+      try {
+        await fetch('/api/configuracion', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: jsonStr,
+          signal: AbortSignal.timeout ? AbortSignal.timeout(3000) : undefined
+        });
+      } catch (e) { }
+    }
   }
 
   /**
@@ -4785,7 +4812,9 @@ export class StaffService {
   }
 
   /**
-   * Registra o actualiza manualmente un usuario con perfil administrativo
+   * Registra o actualiza manualmente un usuario con perfil administrativo.
+   * Inicializa la contraseña con el valor proporcionado o con la clave institucional por defecto (USV2026*),
+   * asegurando que quede inmediatamente disponible para iniciar sesión sin pasos adicionales.
    */
   async registrarUsuarioManual(datos) {
     const docClean = this.limpiarNumeros(datos.identificacion);
@@ -4800,6 +4829,9 @@ export class StaffService {
 
     const perfilAsignado = 'administrativo';
     const docStr = String(datos.identificacion).trim();
+    const claveInicial = (datos.password || '').trim() || this.obtenerClaveInstitucional();
+    const hashCalculado = datos.passwordHash || (await this.calcularHash(claveInicial));
+
     const usuarioObj = {
       id: `emp-${docClean}`,
       identificacion: docStr,
@@ -4808,7 +4840,7 @@ export class StaffService {
       cargo: String(datos.cargo || 'Personal Administrativo').trim(),
       sede: String(datos.sede || 'Principal').trim(),
       perfil: perfilAsignado,
-      passwordHash: datos.passwordHash || '',
+      passwordHash: hashCalculado,
       fechaRegistro: new Date().toISOString(),
       ultimoIngreso: new Date().toISOString()
     };
@@ -4856,7 +4888,7 @@ export class StaffService {
     // Sincronizar en la nube con Google Drive (usuarios.conf)
     await this.guardarConfiguracionEnNube();
 
-    return { ok: true, usuario: usuarioObj };
+    return { ok: true, usuario: usuarioObj, claveAsignada: claveInicial };
   }
 
   /**
@@ -4865,8 +4897,9 @@ export class StaffService {
    * @param {string|number} cedula - Cédula o número de documento.
    * @param {string} email - Correo institucional.
    * @param {string} [cargo] - Cargo institucional (por defecto 'Personal Administrativo').
+   * @param {string} [password] - Contraseña inicial (por defecto USV2026*).
    */
-  async agregarUsuarioManual(nombre, cedula, email, cargo = 'Personal Administrativo') {
+  async agregarUsuarioManual(nombre, cedula, email, cargo = 'Personal Administrativo', password = '') {
     if (!nombre || !cedula || !email) {
       return { ok: false, error: 'Nombre, cédula y correo institucional son obligatorios.' };
     }
@@ -4876,6 +4909,7 @@ export class StaffService {
       identificacion: cedula,
       email,
       cargo: cargo || 'Personal Administrativo',
+      password: password || '',
       perfil: 'administrativo'
     });
   }
